@@ -50,7 +50,7 @@ The launcher asks how your devices should connect, then prints a sign-in link an
 
 While it runs: **q** quit · **r** restart server · **a** change access · **o** open in browser · **s** show QR code.
 
-**Updating:** Pi Pocket does not update itself. When a new version is out, a notice says so. Menu → **Update Pi Pocket** → **Start a migration session** fetches the `upstream` remote and starts a Pi session that reports what changed ([features](docs/features.md)). You do the merge by hand. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
+**Updating:** Pi Pocket does not update itself. When a new version is out, a notice says so. Menu → **Update Pi Pocket** → **Start a migration session** fetches the `upstream` remote and starts a Pi session that reports what changed ([features](docs/features.md)). You do the merge by hand. **Sync** in the same sheet fast-forwards your `main` to `upstream/main` when it has no commits of its own. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
 
 ### Other ways to run it
 

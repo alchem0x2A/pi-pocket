@@ -117,6 +117,17 @@ export interface UpdatesOptions {
     remote?: string;
 }
 
+/** What Sync to main did: the branch, its commits before and after, and whether the server must restart. */
+export type SyncResult = {
+    branch: string;
+    fetched: string;
+    from?: string;
+    to: string;
+    moved: boolean;
+    restart: boolean;
+    message: string;
+};
+
 /** What a migration session needs: the checkout, and what Pi reads first. */
 export type MigrationRequest = {
     cwd: string;
@@ -933,6 +944,146 @@ export class Updates {
             this.#options.log(
                 `The migration session for ${release.version} did not start: ${describe(error)}`,
             );
+        }
+    }
+
+    /**
+     * Sync to main, as the owner asks: fetch the `upstream` remote, then move the local branch of the same name (`main`)
+     * forward to it. Fast-forward only: a branch with commits of its own is refused, for the owner to merge by hand. It
+     * never pushes. When the checkout is on that branch, its files change: reloads pause, and the owner restarts.
+     */
+    async sync(): Promise<SyncResult> {
+        if (this.#step !== undefined) {
+            throw new HttpError(409, `Busy: ${this.#step.toLowerCase()}.`);
+        }
+
+        this.#setStep("Syncing");
+
+        try {
+            const local = await this.#local();
+
+            if (!local.git) {
+                throw new HttpError(409, "This copy of Pi Pocket is not a git checkout.");
+            }
+
+            if (!local.writable) {
+                throw new HttpError(409, `The server's user cannot write to ${this.#root}.`);
+            }
+
+            const remote = this.#options.remote ?? "upstream";
+            let fetched: string;
+
+            try {
+                fetched = await this.#fetchUpstream(remote);
+            } catch (error) {
+                throw new HttpError(409, describe(error));
+            }
+
+            if (!fetched.startsWith(`${remote}/`)) {
+                throw new HttpError(409, `\`${remote}\` has no main branch to sync to.`);
+            }
+
+            const branch = fetched.slice(remote.length + 1);
+            const to = (
+                await git(this.#root, ["rev-parse", "--verify", `refs/remotes/${fetched}^{commit}`])
+            ).trim();
+            const from = await git(this.#root, [
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                `refs/heads/${branch}^{commit}`,
+            ]).then(
+                (out) => out.trim(),
+                () => undefined,
+            );
+
+            if (from === to) {
+                return {
+                    branch,
+                    fetched,
+                    from,
+                    to,
+                    moved: false,
+                    restart: false,
+                    message: `${branch} is already at ${fetched}.`,
+                };
+            }
+
+            if (from !== undefined && !(await this.#isAncestor(from, to))) {
+                throw new HttpError(
+                    409,
+                    `${branch} has commits that ${fetched} does not have, so it cannot move forward. Merge by hand, or start a migration session.`,
+                );
+            }
+
+            const short = `${(from ?? "").slice(0, 7) || "nothing"} → ${to.slice(0, 7)}`;
+
+            if (local.branch === branch) {
+                if (local.dirty.length > 0) {
+                    throw new HttpError(
+                        409,
+                        `${local.dirty.length === 1 ? "1 file has" : `${local.dirty.length} files have`} changes that are not committed (${local.dirty.slice(0, 3).join(", ")}). Commit or stash them first.`,
+                    );
+                }
+
+                // The running server's own files change: nothing reloads them until the owner restarts.
+                this.#options.quiesce?.(true);
+
+                try {
+                    await git(this.#root, [
+                        "merge",
+                        "--quiet",
+                        "--ff-only",
+                        "--no-overwrite-ignore",
+                        "--no-edit",
+                        `refs/remotes/${fetched}`,
+                    ]);
+                } catch (error) {
+                    this.#options.quiesce?.(false);
+
+                    throw new HttpError(409, `Git did not move ${branch}: ${describe(error)}`);
+                }
+
+                this.#options.log(
+                    `Synced ${branch} to ${fetched} (${short}), in the running checkout.`,
+                );
+
+                return {
+                    branch,
+                    fetched,
+                    ...(from === undefined ? {} : { from }),
+                    to,
+                    moved: true,
+                    restart: true,
+                    message: `${branch} synced to ${fetched} (${short}). Restart the server to run it (menu → Restart server).`,
+                };
+            }
+
+            // Another branch is checked out here: only the ref moves. Git refuses one checked out in a worktree.
+            try {
+                await git(this.#root, [
+                    "fetch",
+                    "--quiet",
+                    ".",
+                    `refs/remotes/${fetched}:refs/heads/${branch}`,
+                ]);
+            } catch (error) {
+                throw new HttpError(409, `Git did not move ${branch}: ${describe(error)}`);
+            }
+
+            this.#options.log(`Synced ${branch} to ${fetched} (${short}).`);
+
+            return {
+                branch,
+                fetched,
+                ...(from === undefined ? {} : { from }),
+                to,
+                moved: true,
+                restart: false,
+                message: `${branch} synced to ${fetched} (${short}). This checkout is on ${local.branch ?? "a detached HEAD"}, so its files did not change.`,
+            };
+        } finally {
+            this.#setStep(undefined);
         }
     }
 

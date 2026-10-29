@@ -73,6 +73,11 @@ export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
         "migrate",
         handle(() => updates.migrate()),
     );
+    web.route(
+        "POST",
+        "sync",
+        handle(() => updates.sync()),
+    );
 
     web.onDispose(updates.subscribe((status) => web.send("status", status)));
 

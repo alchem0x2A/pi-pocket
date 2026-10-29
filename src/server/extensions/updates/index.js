@@ -202,6 +202,19 @@ export default function setup(pocket) {
 
         const migrate = () => run("Starting a migration session", () => pocket.api("migrate", {}));
 
+        const [synced, setSynced] = useState(null);
+
+        const sync = () =>
+            run("Syncing", async () => {
+                setSynced(null);
+                const answer = await pocket.api("sync", {});
+
+                setSynced(answer);
+                pocket.notify(answer.restart ? "warning" : "info", answer.message);
+
+                return pocket.api("status");
+            });
+
         if (current === null) {
             return failure
                 ? html`<div class="error-box">${failure}</div>`
@@ -350,6 +363,28 @@ export default function setup(pocket) {
                 </div>`
             }
             ${!current.available && error && html`<div class="error-box">${error.text}</div>`}
+            ${
+                current.commit &&
+                html`<div class="updates-card">
+                    <div class="updates-row">
+                        <div>
+                            <div class="updates-title">Sync to main</div>
+                            <div class="muted small">
+                                Fetch upstream, and move your main forward to upstream's main.
+                                Fast-forward only: it never merges, and never pushes.
+                            </div>
+                        </div>
+                        <button
+                            class="button"
+                            disabled=${step !== null && step !== undefined}
+                            onClick=${sync}
+                        >
+                            Sync
+                        </button>
+                    </div>
+                    ${synced && html`<div class="small">${synced.message}</div>`}
+                </div>`
+            }
             <p class="muted small">
                 To stop looking for new versions, open Menu → Extensions → Installed → Pi Pocket
                 updates.

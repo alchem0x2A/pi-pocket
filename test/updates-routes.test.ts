@@ -56,6 +56,7 @@ test("the owner reads the running version, and nobody else reaches the routes or
 
     assert.equal((await call("guest", "/api/x/updates/status")).status, 404);
     assert.equal((await call("guest", "/api/x/updates/migrate", {})).status, 404);
+    assert.equal((await call("guest", "/api/x/updates/sync", {})).status, 404);
     assert.equal(
         (await call("owner", "/api/x/updates/apply", {})).status,
         404,

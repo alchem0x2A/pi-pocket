@@ -989,3 +989,56 @@ test("the migration prompt asks Pi to read and report only: the owner merges by 
     assert.match(prompt, /do not restart the server/);
     assert.doesNotMatch(prompt, /^\d\. Merge/m);
 });
+
+test("Sync to main fetches upstream and moves main forward, only when the owner asks, and never past a commit of its own", async () => {
+    const { upstream, app, first } = setUp();
+
+    run(app, ["remote", "add", "upstream", upstream]);
+    const next = release(upstream, "1.1.0");
+    const paused: boolean[] = [];
+    const { updates, restarts } = updater(app, upstream, () => releaseOf("1.1.0"), {
+        quiesce: (on) => paused.push(on),
+    });
+
+    await updates.check();
+    assert.equal(run(app, ["rev-parse", "HEAD"]), first, "a look moves nothing");
+
+    const synced = await updates.sync();
+
+    assert.equal(synced.branch, "main");
+    assert.equal(synced.moved, true);
+    assert.equal(synced.restart, true, "the running checkout changed");
+    assert.equal(run(app, ["rev-parse", "HEAD"]), next);
+    assert.equal(readFileSync(join(app, "code.txt"), "utf8"), "code of 1.1.0\n");
+    assert.deepEqual(paused, [true]);
+    assert.deepEqual(restarts, [], "the owner restarts");
+
+    assert.equal((await updates.sync()).moved, false, "already there");
+
+    // A commit of its own: refused, nothing moves.
+    writeFileSync(join(app, "mine.txt"), "mine\n");
+    run(app, ["add", "mine.txt"]);
+    run(app, ["commit", "--quiet", "-m", "mine"]);
+    const mine = run(app, ["rev-parse", "HEAD"]);
+
+    release(upstream, "1.2.0");
+    await assert.rejects(updates.sync(), /commits that upstream\/main does not have/);
+    assert.equal(run(app, ["rev-parse", "HEAD"]), mine);
+});
+
+test("Sync to main moves only the ref when the checkout is on another branch, and needs the upstream remote", async () => {
+    const { upstream, app, first } = setUp();
+    const { updates } = updater(app, upstream, () => undefined);
+
+    await assert.rejects(updates.sync(), /no remote named `upstream`/);
+
+    run(app, ["remote", "add", "upstream", upstream]);
+    run(app, ["checkout", "--quiet", "-b", "work"]);
+    const next = release(upstream, "1.1.0");
+    const synced = await updates.sync();
+
+    assert.equal(synced.restart, false);
+    assert.equal(run(app, ["rev-parse", "refs/heads/main"]), next);
+    assert.equal(run(app, ["rev-parse", "HEAD"]), first, "the files stay");
+    assert.equal(readFileSync(join(app, "code.txt"), "utf8"), "code of 1.0.0\n");
+});

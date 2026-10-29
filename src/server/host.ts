@@ -504,9 +504,10 @@ export interface PocketHost {
     >;
     /**
      * Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. A new version is
-     * never installed from the app: a migration session merges it (`migrate`).
+     * never installed by itself: the owner starts a migration session (`migrate`), or a fast-forward of the local main to
+     * upstream's (`sync`).
      */
-    readonly updates: Pick<Updates, "status" | "check" | "migrate" | "subscribe">;
+    readonly updates: Pick<Updates, "status" | "check" | "migrate" | "sync" | "subscribe">;
 }
 
 /**
