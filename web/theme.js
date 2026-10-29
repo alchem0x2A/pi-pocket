@@ -1,4 +1,4 @@
-// Appearance: one palette (Pi Pocket's pink, in style.css), light or dark by the system's setting or by choice, tiled
+// Appearance: one palette (after Rosé Pine, in style.css), light or dark by the system's setting or by choice, tiled
 // windows, motion, text size, density, and the sidebar's shape. Saved per browser. index.html applies the last look
 // before the first paint from `pocket.themeCache`, so a reload never flashes the other mode.
 import { store } from "./store.js";

@@ -182,7 +182,7 @@ export function AppearanceSheet() {
             <//>
             ${
                 p.mode !== "auto" &&
-                html`<${SettingRow} title="Mode" detail="Pi Pocket's pink, on light or on dark">
+                html`<${SettingRow} title="Mode" detail="Rosé Pine, on light (Dawn) or on dark">
                     <div class="segmented">
                         ${[
                             ["light", "Light"],

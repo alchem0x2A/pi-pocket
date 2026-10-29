@@ -281,8 +281,8 @@ test(
             "the other mode",
         );
         await see(
-            `return JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--o-accent").trim() === (document.documentElement.dataset.mode === "light" ? "#db2777" : "#f472b6"))`,
-            "the pink accent of the mode",
+            `return JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--o-accent").trim() === (document.documentElement.dataset.mode === "light" ? "#a7576e" : "#f97c9e"))`,
+            "the Rosé Pine accent of the mode",
         );
         await page.evaluate(`
         const { setPrefs } = await import("/theme.js");

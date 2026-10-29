@@ -1,6 +1,6 @@
 # CSS names: tokens and parts
 
-The CSS names that an extension's stylesheet may rely on: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there. The file keeps its old name, from when Pi Pocket had themes. It has none now: the app has one palette (Pi Pocket's pink) in a light and a dark mode.
+The CSS names that an extension's stylesheet may rely on: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there. The file keeps its old name, from when Pi Pocket had themes. It has none now: the app has one palette (after Rosé Pine) in a light and a dark mode.
 
 This page is the one full list of the CSS names Pi Pocket keeps. Every name on it is there since 0.14.0; a later one says since when. Everything else in the app's CSS and markup (class names, the order of elements) may change in any release.
 
@@ -14,14 +14,14 @@ Extensions' CSS reads them. Most are made from others, so they move together whe
 
 ### The palette (`--o-*`)
 
-The app's one palette, in `web/style.css`: the dark values in `:root`, the light ones in `:root[data-mode="light"]`. The base is `--pink: #db2777`. Read them; do not set them.
+The app's one palette, in `web/style.css`: the dark values in `:root`, the light ones in `:root[data-mode="light"]`. The colors are after Rosé Pine (dark) and Rosé Pine Dawn (light). Read them; do not set them.
 
-| Token                                                                                     | What                                                                    |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `--o-bg`, `--o-bg-dark`, `--o-bg-darker`, `--o-bg-light`                                  | Grounds: pink-tinted, from the lightest to the deepest                  |
-| `--o-fg`, `--o-fg-dim`, `--o-fg-light`, `--o-fg-bright`                                   | Text, from the quietest to the strongest                                |
-| `--o-accent`, `--o-selection`                                                             | The accent (the pink; `#f472b6` in dark mode), and a selection's ground |
-| `--o-red`, `--o-yellow`, `--o-orange`, `--o-green`, `--o-cyan`, `--o-blue`, `--o-magenta` | Status and code colors                                                  |
+| Token                                                                                     | What                                                    |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `--o-bg`, `--o-bg-dark`, `--o-bg-darker`, `--o-bg-light`                                  | Grounds, from the lightest to the deepest               |
+| `--o-fg`, `--o-fg-dim`, `--o-fg-light`, `--o-fg-bright`                                   | Text, from the quietest to the strongest                |
+| `--o-accent`, `--o-selection`                                                             | The accent (Rosé Pine's Love), and a selection's ground |
+| `--o-red`, `--o-yellow`, `--o-orange`, `--o-green`, `--o-cyan`, `--o-blue`, `--o-magenta` | Status and code colors                                  |
 
 ### Surfaces, lines, and text
 

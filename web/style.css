@@ -1,5 +1,5 @@
 /*
- * Pi Pocket's look: soft tiles over one palette, from Pi Pocket's pink, in a light and a dark half (the --o-* variables
+ * Pi Pocket's look: soft tiles over one palette, after Rosé Pine, in a light and a dark half (the --o-* variables
  * below; theme.js picks the half). Everything else mixes from it the way omarchy-shell does: the foreground over the
  * background at a few percent for fills and hairlines. Windows still tile like Hyprland's, with rounded corners, 1px
  * hairlines, and a soft accent ring on the one in focus. Geist sets the words; JetBrains Mono only code, paths,
@@ -77,28 +77,28 @@
 
 :root {
     /*
-     * The palette: one, from Pi Pocket's pink (--pink). This is the dark half, the adaptive one: its grounds are the pink's
-     * hue (345°) at low lightness, its accent the pink lifted toward white, and its other colors softened to match.
-     * The light half is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
+     * The palette: one, after Rosé Pine (rosepinetheme.com), with contrast set the way Modus Vivendi and Operandi set
+     * theirs: body text at 7:1 or more on the ground (WCAG AAA), and every color used as text at 4.5:1 or more. This is
+     * the dark half, Rosé Pine's own (main), with Love as the accent, lifted to 7:1. The light half, after Rosé Pine
+     * Dawn, is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
      */
-    --pink: #db2777;
-    --o-bg: #1b1418;
-    --o-bg-dark: #150f13;
-    --o-bg-darker: #100b0e;
-    --o-bg-light: #261b21;
-    --o-fg: #d8c7cf;
-    --o-fg-dim: #8b7580;
-    --o-fg-light: #e3d4db;
-    --o-fg-bright: #f4e9ee;
-    --o-accent: #f472b6;
-    --o-selection: #3d2431;
-    --o-red: #f7768e;
-    --o-yellow: #e9c46a;
-    --o-orange: #f59e74;
-    --o-green: #93d3a2;
-    --o-cyan: #7fd1d9;
-    --o-blue: #8fb4f5;
-    --o-magenta: #d7a6f2;
+    --o-bg: #191724;
+    --o-bg-dark: #1f1d2e;
+    --o-bg-darker: #12101d;
+    --o-bg-light: #26233a;
+    --o-fg: #e0def4;
+    --o-fg-dim: #908caa;
+    --o-fg-light: #e7e5f8;
+    --o-fg-bright: #edecfb;
+    --o-accent: #f97c9e;
+    --o-selection: #403d52;
+    --o-red: #fd7e7d;
+    --o-yellow: #f6c177;
+    --o-orange: #e8c0aa;
+    --o-green: #adcfb2;
+    --o-cyan: #9ccfd8;
+    --o-blue: #abc8e7;
+    --o-magenta: #c4a7e7;
 
     /* Surfaces, after omarchy-shell's control states: the foreground laid over the background. */
     --desk: var(--o-bg-darker);
@@ -261,27 +261,28 @@
     --leading: 1.4;
 }
 
-/* Light mode: the pink itself as the accent on a white ground tinted toward it. Quieter text and the status colors darken
-   toward the foreground, so they stay readable on light grounds. */
+/* Light mode, after Rosé Pine Dawn: its warm paper ground, its Text darkened to 7:1 for the body, and its colors darkened
+   to 4.5:1 each, as Modus Operandi does. Quieter text and the status colors darken toward the foreground, so they stay
+   readable on light grounds. */
 :root[data-mode="light"] {
     color-scheme: light;
-    --o-bg: #fdf8fa;
-    --o-bg-dark: #f7eef2;
-    --o-bg-darker: #efe3e9;
-    --o-bg-light: #ffffff;
-    --o-fg: #3d2b35;
-    --o-fg-dim: #8c7682;
-    --o-fg-light: #4b3843;
-    --o-fg-bright: #25161e;
-    --o-accent: var(--pink);
-    --o-selection: #f9d6e6;
-    --o-red: #d1343f;
-    --o-yellow: #c08a1e;
-    --o-orange: #c8551b;
-    --o-green: #2f8a57;
-    --o-cyan: #0f7f8c;
-    --o-blue: #2f63d6;
-    --o-magenta: #a3329f;
+    --o-bg: #faf4ed;
+    --o-bg-dark: #f2e9e1;
+    --o-bg-darker: #e8dfd7;
+    --o-bg-light: #fffaf3;
+    --o-fg: #534e75;
+    --o-fg-dim: #706c8a;
+    --o-fg-light: #474267;
+    --o-fg-bright: #3c375c;
+    --o-accent: #a7576e;
+    --o-selection: #f0d8dd;
+    --o-red: #a0504b;
+    --o-yellow: #9d6305;
+    --o-orange: #a45f35;
+    --o-green: #52795a;
+    --o-cyan: #3b7984;
+    --o-blue: #3d648b;
+    --o-magenta: #7d6795;
     --sh: rgba(40, 40, 70, 0.14);
     --accent-ink: #fff;
     --scrim: color-mix(in srgb, var(--desk) 55%, transparent);
