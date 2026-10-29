@@ -21,6 +21,7 @@ import {
 } from "../auth.ts";
 import type { User } from "../config.ts";
 import { HttpError } from "../errors.ts";
+import { MAX_COMMAND } from "../restart.ts";
 import { runningNow } from "../running.ts";
 import { browserRoutes } from "./browser-routes.ts";
 import { conversationRoutes } from "./conversation-routes.ts";
@@ -38,6 +39,82 @@ function lanAddresses(): string[] {
 }
 
 /** The `/api` routes. Each HTTP handler makes its own, and its event streams live as long as it does. */
+/**
+ * The owner's restart routes (`restart.ts`): `GET /api/restart` the status; `POST /api/restart` restarts, after a check
+ * that the new code loads (`{ when: "now" | "idle", force }`); `POST /api/restart/cancel` stops a restart that waits
+ * for tool calls; `POST /api/restart/command` sets the restart command; `POST /api/restart/dismiss` drops Pi's request.
+ */
+async function restartRoute(
+    { app, request, response }: ApiRequest,
+    method: string,
+    action?: string,
+) {
+    const restarts = app.restarts;
+
+    if (action === undefined && method === "GET") {
+        restarts.refresh();
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (method !== "POST") {
+        throw new HttpError(404, "Unknown API route");
+    }
+
+    const body = await readJson<{
+        when?: unknown;
+        force?: unknown;
+        command?: unknown;
+        id?: unknown;
+    }>(request);
+
+    if (action === undefined) {
+        // A wait for tool calls answers once it starts: its progress comes as `restart` events.
+        await restarts.restart({
+            when: body.when === "idle" ? "idle" : "now",
+            force: body.force === true,
+        });
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (action === "cancel") {
+        restarts.cancel();
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (action === "command") {
+        if (typeof body.command !== "string" || body.command.length > MAX_COMMAND) {
+            throw new HttpError(
+                400,
+                `The command must be text of ${MAX_COMMAND} characters at most.`,
+            );
+        }
+
+        app.config.restartCommand = body.command;
+        restarts.refresh();
+        const status = restarts.status();
+
+        app.ownerNotice(
+            "info",
+            status.method === "command"
+                ? `Restarts now run: ${status.command}`
+                : "Restarts now go through the launcher.",
+        );
+
+        return json(response, 200, status);
+    }
+
+    if (action === "dismiss" && typeof body.id === "string") {
+        restarts.dismiss(body.id);
+
+        return json(response, 200, restarts.status());
+    }
+
+    throw new HttpError(404, "Unknown API route");
+}
+
 export function createApi(options: HttpOptions, auth: Auth) {
     const { app } = options;
     const { events, poll } = createEventStreams(app);
@@ -750,20 +827,10 @@ export function createApi(options: HttpOptions, auth: Auth) {
             });
         }
 
-        if (first === "restart" && method === "POST") {
+        if (first === "restart") {
             requireOwner(user);
 
-            if (!app.supervised) {
-                throw new HttpError(
-                    409,
-                    "Start Pi Pocket with bin/pi-pocket.js to restart from the app.",
-                );
-            }
-
-            json(response, 200, { ok: true });
-            setTimeout(() => options.restart(), 100);
-
-            return;
+            return restartRoute(route, method, second);
         }
 
         throw new HttpError(404, "Unknown API route");

@@ -241,3 +241,10 @@ export async function runningNow(app: PocketApp, user: User): Promise<RunningSes
         (a, b) => Number(b.busy) - Number(a.busy) || b.tasks.length - a.tasks.length,
     );
 }
+
+/** How many tool calls run now, in every session: a restart that waits for them counts these. */
+export async function runningToolCount(app: PocketApp): Promise<number> {
+    return (await liveTasks(app)).filter(
+        (node) => node.kind === "pi.tool" && node.state.status === "running",
+    ).length;
+}

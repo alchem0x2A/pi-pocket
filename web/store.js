@@ -918,6 +918,10 @@ const handlers = {
     peek: (data) =>
         store.set((state) => ({ peeks: { ...state.peeks, [data.conversationId]: data } })),
     users: (users) => setChanged({ users: keptEach(store.state.users, users) }),
+    // The owner's restart status (`sheets/restart.js`): the code changed, Pi asks, or a restart waits for tool calls.
+    restart: (status) =>
+        store.state.server &&
+        store.set((state) => ({ server: { ...state.server, restart: status } })),
     // Pi's lessons changed somewhere: a Memory sheet or menu that shows them fetches them again (`sheets/memory.js`).
     memory: () => store.set((state) => ({ memoryRev: (state.memoryRev ?? 0) + 1 })),
     missing: (data) => store.set({ missing: data.message }),

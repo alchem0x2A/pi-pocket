@@ -21,6 +21,7 @@ import type { PipCompaction } from "./pip-compact.ts";
 import type { Schedules } from "./schedules.ts";
 import type { BackgroundTasks } from "./background.ts";
 import type { Updates } from "./updates.ts";
+import type { Restarts } from "./restart.ts";
 import type { RepoWatches } from "./repo-watches.ts";
 import type { Watches } from "./watches.ts";
 import type { FetchPublic } from "./public-fetch.ts";
@@ -503,6 +504,8 @@ export interface PocketHost {
     >;
     /** Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. */
     readonly updates: Pick<Updates, "status" | "check" | "apply" | "subscribe">;
+    /** Restarting the server (`restart.ts`): Pi's restart tool asks the owner for one. */
+    readonly restarts: Pick<Restarts, "status" | "request">;
 }
 
 /**

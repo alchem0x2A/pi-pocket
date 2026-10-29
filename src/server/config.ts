@@ -103,6 +103,11 @@ interface PocketConfig {
      * setting with no value here has its default. Since 0.22.0; an older Pi Pocket ignores it.
      */
     extensionSettings?: Record<string, Record<string, string | number | boolean>>;
+    /**
+     * A shell command that restarts the server in place of the launcher's own restart, such as
+     * `systemctl --user reload pi-pocket`. Absent: the launcher restarts it (exit code 75).
+     */
+    restartCommand?: string;
 }
 
 /** The hours a run waits for a model's limit to clear, until the owner says otherwise. */
@@ -212,6 +217,25 @@ export class ConfigStore {
             delete this.#config.extensionSettings;
         } else {
             this.#config.extensionSettings = all;
+        }
+
+        this.save();
+    }
+
+    /** The owner's restart command (`restart.ts`); empty: the launcher restarts the server. */
+    get restartCommand(): string {
+        const command = this.#config.restartCommand;
+
+        return typeof command === "string" ? command.trim() : "";
+    }
+
+    set restartCommand(command: string) {
+        const trimmed = command.trim();
+
+        if (trimmed === "") {
+            delete this.#config.restartCommand;
+        } else {
+            this.#config.restartCommand = trimmed;
         }
 
         this.save();

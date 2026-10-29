@@ -62,6 +62,7 @@ const ORDER = [
     "session-tags.ts",
     "ask-someone.ts",
     "updates.ts",
+    "restart.ts",
     "design.ts",
 ];
 
@@ -99,6 +100,7 @@ const TITLES: Record<string, string> = {
     "session-tags.ts": "Session tags",
     "ask-someone.ts": "Ask someone",
     "updates.ts": "Pi Pocket updates",
+    "restart.ts": "Restart requests",
     "design.ts": "Design",
 };
 
@@ -137,6 +139,7 @@ export const BUILT_IN_TOOLS: ReadonlySet<string> = new Set([
     "repo_watch",
     "session_watch_pr",
     "ask_someone",
+    "request_restart",
     "design_preview",
     "design_export",
     "design_system",
