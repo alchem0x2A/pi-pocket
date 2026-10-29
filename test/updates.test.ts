@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { after, test } from "node:test";
 import {
     keptNote,
+    readMigration,
     readOutcome,
     readPending,
     rollBackUpdate,
@@ -31,13 +32,13 @@ import {
     nodeMeets,
     notesWarn,
     failureLines,
+    type MigrationRequest,
+    migrationPrompt,
     type Release,
     repositoryProblem,
     Updates,
     type UpdatesOptions,
-    type UpdateStatus,
 } from "../src/server/updates.ts";
-import { installsByItself } from "../src/server/extensions/updates.ts";
 
 const root = mkdtempSync(join(tmpdir(), "pi-pocket-updates-"));
 
@@ -802,55 +803,7 @@ test("a server that starts on an update stopped part way puts it back, without r
     assert.equal(readFileSync(join(app, "code.txt"), "utf8"), "code of 1.0.0\n");
 });
 
-test("the install by itself takes only a release that needs no question, and the launcher goes back only for the version's fault", () => {
-    const ready = {
-        version: "1.0.0",
-        repository: "x",
-        available: true,
-        blockers: [],
-        cautions: [],
-        packages: false,
-        busy: 0,
-        supervised: true,
-        rollback: true,
-        latest: releaseOf("1.1.0"),
-    } satisfies UpdateStatus;
-
-    assert.equal(installsByItself(ready), true);
-    assert.equal(installsByItself({ ...ready, busy: 1 }), false, "someone at work");
-    assert.equal(installsByItself({ ...ready, blockers: ["no"] }), false);
-    assert.equal(
-        installsByItself({ ...ready, rollback: false }),
-        false,
-        "a launcher that cannot go back",
-    );
-    assert.equal(installsByItself({ ...ready, step: "Checking" }), false);
-    assert.equal(
-        installsByItself({
-            ...ready,
-            latest: releaseOf("1.1.0", { notes: "> [!WARNING]\n> One way." }),
-        }),
-        false,
-    );
-    assert.equal(
-        installsByItself({ ...ready, latest: { ...releaseOf("1.1.0"), notes: undefined } }),
-        false,
-        "no notes to read a warning in",
-    );
-    const failed = {
-        v: 1 as const,
-        id: "x",
-        ok: false,
-        tag: "v1.1.0",
-        fromVersion: "1.0.0",
-        toVersion: "1.1.0",
-        message: "",
-        at: 0,
-    };
-
-    assert.equal(installsByItself({ ...ready, last: failed }), false, "it failed before");
-    assert.equal(installsByItself({ ...ready, last: { ...failed, toVersion: "1.0.5" } }), true);
-
+test("the launcher goes back only for the version's fault", () => {
     assert.equal(stopMeansRollBack(false, 1), true);
     assert.equal(stopMeansRollBack(false, null), true, "killed by a signal");
     assert.equal(stopMeansRollBack(false, 75), false, "a restart it asked for");
@@ -934,4 +887,98 @@ test("a failed npm says its cause, not its help for the command", () => {
         "code EUSAGE\n`npm ci` can only install packages when your package.json and package-lock.json are in sync.\nMissing: is-number@6.0.0 from lock file",
     );
     assert.equal(failureLines("one\ntwo\n"), "one\ntwo");
+});
+
+test("a new version is never installed: Pi Pocket fetches upstream and starts one migration session for it", async () => {
+    const { upstream, app, first } = setUp();
+    const next = release(upstream, "1.1.0");
+
+    run(app, ["remote", "add", "upstream", upstream]);
+    const asked: MigrationRequest[] = [];
+    const { updates, restarts } = updater(app, upstream, () => releaseOf("1.1.0"), {
+        migrate: async (request) => {
+            asked.push(request);
+
+            return { conversationId: 7, title: request.title };
+        },
+    });
+
+    const status = await updates.check();
+
+    assert.equal(status.available, true);
+    assert.equal(asked.length, 1, "one migration session");
+    assert.equal(asked[0]!.cwd, app);
+    assert.equal(asked[0]!.version, "1.1.0");
+    assert.match(asked[0]!.prompt, /upstream\/main/);
+    assert.match(asked[0]!.prompt, /Merge `upstream\/main` into this branch, or rebase/);
+    assert.equal(
+        run(app, ["rev-parse", "refs/remotes/upstream/main"]),
+        next,
+        "upstream is fetched first",
+    );
+    assert.equal(run(app, ["rev-parse", "HEAD"]), first, "the checkout does not move");
+    assert.equal(readFileSync(join(app, "code.txt"), "utf8"), "code of 1.0.0\n");
+    assert.equal(readPending(app), undefined);
+    assert.deepEqual(restarts, [], "no restart");
+    assert.equal(status.migration?.conversationId, 7);
+    assert.equal(readMigration(app)?.version, "1.1.0");
+
+    // The next look finds the same version: no second session.
+    await updates.check();
+    assert.equal(asked.length, 1);
+
+    // The owner asks for another.
+    const again = await updates.migrate();
+
+    assert.equal(asked.length, 2);
+    assert.equal(again.migration?.conversationId, 7);
+});
+
+test("a checkout without the upstream remote starts no migration session, and says how to add it", async () => {
+    const { upstream, app } = setUp();
+
+    release(upstream, "1.1.0");
+    let started = 0;
+    const { updates } = updater(app, upstream, () => releaseOf("1.1.0"), {
+        migrate: async () => {
+            started++;
+
+            return { conversationId: 1, title: "x" };
+        },
+    });
+    const status = await updates.check();
+
+    assert.equal(started, 0);
+    assert.match(status.migration?.error ?? "", /no remote named `upstream`/);
+    assert.match(status.migration?.error ?? "", /git remote add upstream/);
+
+    // Up to date: nothing to migrate.
+    const current = updater(app, upstream, () => releaseOf("1.0.0"), {
+        migrate: async () => {
+            started++;
+
+            return { conversationId: 1, title: "x" };
+        },
+    }).updates;
+
+    await assert.rejects(current.migrate(), /up to date/);
+    assert.equal(started, 0);
+});
+
+test("the migration prompt asks for a merge or rebase on a branch of its own, and no push or restart", () => {
+    const prompt = migrationPrompt({
+        release: { tag: "v1.1.0", version: "1.1.0", url: "https://example.com/r" },
+        remote: "upstream",
+        fetched: "upstream/main",
+        commit: "a".repeat(40),
+        local: { branch: "main", commit: "b".repeat(40) },
+        root: "/srv/pi-pocket",
+        version: "1.0.0",
+    });
+
+    assert.match(prompt, /Pi Pocket 1\.1\.0 \(tag v1\.1\.0\) is available/);
+    assert.match(prompt, /did not update itself/);
+    assert.match(prompt, /git log --oneline HEAD\.\.upstream\/main/);
+    assert.match(prompt, /Do not push/);
+    assert.match(prompt, /do not restart the server/);
 });

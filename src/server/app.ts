@@ -89,7 +89,7 @@ import { type GuardStatus, LancetGuard } from "./lancet.ts";
 import { takeLock } from "./lock.ts";
 import { Memory } from "./memory.ts";
 import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
-import { Updates } from "./updates.ts";
+import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
 import { pocketPackage, pocketVersion } from "./versions.ts";
 import { compactionReader } from "./compaction.ts";
 import { configureHttp } from "./net.ts";
@@ -421,6 +421,7 @@ export class PocketApp {
             ...(process.env.PI_POCKET_UPDATES_REPO
                 ? { repository: process.env.PI_POCKET_UPDATES_REPO }
                 : {}),
+            migrate: (request) => this.#startMigration(request),
         });
         this.config = new ConfigStore(options.dataDir);
         this.#lockFile = join(options.dataDir, "harness.lock");
@@ -1320,6 +1321,52 @@ export class PocketApp {
                 client.send("notice", { level, message });
             }
         }
+    }
+
+    /**
+     * A new version of Pi Pocket: a session for the owner, in a worktree of the checkout, where Pi merges or rebases it
+     * (`updates.ts`). The owner's tabs hear of it. The first message goes as the owner's, since Pi works for them.
+     */
+    async #startMigration(request: MigrationRequest): Promise<MigrationStarted> {
+        const owner = this.config.users.find((each) => each.role === "owner");
+
+        if (owner === undefined) {
+            throw new Error("There is no owner to start the session for.");
+        }
+
+        const { id } = await this.commands.createSession(owner, {
+            cwd: request.cwd,
+            title: request.title,
+            worktree: true,
+        });
+        let error: string | undefined;
+
+        try {
+            await this.commands.submit(
+                id,
+                owner,
+                {
+                    text: request.prompt,
+                    requestId: `migrate-${request.version.replace(/[^\w-]/g, "-")}`,
+                },
+                "Pi Pocket updates",
+            );
+        } catch (failed) {
+            error = `The migration session started, but its first message did not go: ${describe(failed)}`;
+        }
+
+        this.ownerNotice(
+            error === undefined ? "info" : "warning",
+            error === undefined
+                ? `Pi Pocket ${request.version} is available. A migration session started: "${request.title}".`
+                : `Pi Pocket ${request.version} is available. ${error}`,
+        );
+
+        return {
+            conversationId: Number(id),
+            title: request.title,
+            ...(error === undefined ? {} : { error }),
+        };
     }
 
     /** A notice for the owner's tabs alone: about what only they may change. */

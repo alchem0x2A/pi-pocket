@@ -1,36 +1,14 @@
 /**
- * Updates of Pi Pocket itself: it looks for a new release every 6 hours, tells the owner, shows its notes, and updates
- * the git checkout to it with one tap, then restarts; it can also install new releases by itself while no session is
- * working. Its routes and screens are the owner's alone (`updates.ts` does the work).
+ * Updates of Pi Pocket itself: it looks for a new release every 6 hours, fetches the upstream remote, and starts a Pi
+ * session that migrates the checkout to it (merge or rebase), with a notice to the owner. It never installs a version by
+ * itself. Its routes and screens are the owner's alone (`updates.ts` does the work).
  */
 import { defineExtension } from "@earendil-works/pi-durable";
 import type { ExtensionWeb, PocketHost, WebHandler, WebRequest } from "../host.ts";
-import type { UpdateStatus } from "../updates.ts";
 
 /** How often it looks for a new release, and how long after the start it first looks. */
 const CHECK_MS = 6 * 60 * 60 * 1000;
 const FIRST_CHECK_MS = 2 * 60 * 1000;
-/** How often an install that waits for the sessions to be quiet looks again, and how quiet they must have been. */
-const WAIT_MS = 5 * 60 * 1000;
-const QUIET_MS = 10 * 60 * 1000;
-
-/**
- * A release the install by itself may take: one an owner could install with no question asked, with nobody at work,
- * notes that say no warning, a launcher that can go back, and not one that failed before (did not start, or did not
- * install its packages).
- */
-export function installsByItself(status: UpdateStatus): boolean {
-    return (
-        status.busy === 0 &&
-        status.available &&
-        status.blockers.length === 0 &&
-        status.step === undefined &&
-        status.rollback &&
-        status.latest?.notes !== undefined &&
-        !status.latest.warning &&
-        !(status.last?.ok === false && status.last.toVersion === status.latest.version)
-    );
-}
 
 export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
     const updates = (host as Partial<PocketHost>).updates;
@@ -51,17 +29,9 @@ export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
             name: "check",
             label: "Look for new versions",
             description:
-                "Ask GitHub for the newest release every 6 hours, and say when there is one.",
+                "Ask GitHub for the newest release every 6 hours. When there is one, fetch the upstream remote and start a Pi session that migrates to it.",
             type: "boolean",
             default: true,
-        },
-        {
-            name: "auto",
-            label: "Install new versions by themselves",
-            description:
-                "Update and restart while no session has worked for 10 minutes. Never for a release whose notes have a warning, or a checkout with changes of its own.",
-            type: "boolean",
-            default: false,
         },
     ]);
 
@@ -100,77 +70,29 @@ export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
     );
     web.route(
         "POST",
-        "apply",
-        handle(({ body, user }) =>
-            updates.apply({
-                confirmWarning: body.confirmWarning === true,
-                allowBusy: body.allowBusy === true,
-                by: `asked by ${user.name}`,
-            }),
-        ),
+        "migrate",
+        handle(() => updates.migrate()),
     );
 
     web.onDispose(updates.subscribe((status) => web.send("status", status)));
-
-    /** When a session last worked: an install by itself waits until they have all been quiet a while. */
-    let lastWork = Date.now();
-
-    if (typeof host.on === "function") {
-        const worked = () => {
-            lastWork = Date.now();
-        };
-
-        web.onDispose(host.on("run.started", worked));
-        web.onDispose(host.on("run.ended", worked));
-        web.onDispose(host.on("message.sent", worked));
-    }
-
-    /** The owner wants installs by themselves, and sessions have all been quiet a while. */
-    const quiet = () => web.setting("auto") === true && Date.now() - lastWork >= QUIET_MS;
-
-    /** Install by itself: only what an owner could install with no question asked, while nobody works. */
-    const autoInstall = (status: UpdateStatus) => {
-        if (quiet() && installsByItself(status)) {
-            void updates
-                .apply({
-                    by: "installed by itself",
-                    // Installing packages can take minutes: someone may have started to work meanwhile. Core
-                    // checks for runs going too.
-                    stillWanted: () =>
-                        quiet()
-                            ? undefined
-                            : "Someone started to work: the install by itself waits.",
-                })
-                .catch(() => {});
-        }
-    };
 
     const look = () => {
         if (web.setting("check") === false) {
             return;
         }
 
-        void updates.check().then(autoInstall, () => {});
-    };
-
-    // Waiting for quiet sessions needs no new look at GitHub: the last one is enough.
-    const wait = () => {
-        if (web.setting("auto") === true) {
-            void updates.status().then(autoInstall, () => {});
-        }
+        // A new version starts its migration session in `check`: nothing installs by itself.
+        void updates.check().catch(() => {});
     };
 
     const first = setTimeout(look, FIRST_CHECK_MS);
     const every = setInterval(look, CHECK_MS);
-    const waiting = setInterval(wait, WAIT_MS);
 
     first.unref();
     every.unref();
-    waiting.unref();
     web.onDispose(() => {
         clearTimeout(first);
         clearInterval(every);
-        clearInterval(waiting);
     });
 
     return defineExtension({ name: "pocket-updates" });

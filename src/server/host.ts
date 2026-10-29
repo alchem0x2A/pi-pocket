@@ -502,8 +502,11 @@ export interface PocketHost {
         | "share"
         | "shareTheme"
     >;
-    /** Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. */
-    readonly updates: Pick<Updates, "status" | "check" | "apply" | "subscribe">;
+    /**
+     * Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. A new version is
+     * never installed from the app: a migration session merges it (`migrate`).
+     */
+    readonly updates: Pick<Updates, "status" | "check" | "migrate" | "subscribe">;
 }
 
 /**

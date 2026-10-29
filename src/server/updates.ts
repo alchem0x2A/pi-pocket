@@ -17,8 +17,10 @@ import { describe, HttpError } from "./errors.ts";
 import { git, GitError } from "./git.ts";
 import {
     finishPending,
+    type MigrationRecord,
     type PendingUpdate,
     readOutcome,
+    readMigration,
     readPending,
     recordOutcome,
     restoreModules,
@@ -26,6 +28,7 @@ import {
     finishPartial,
     type UpdateOutcome,
     updatePaths,
+    writeMigration,
     writePending,
 } from "./update-state.ts";
 import { atLeast, versionParts } from "./versions.ts";
@@ -77,6 +80,8 @@ export type UpdateStatus = {
     /** The step of an update under way. */
     step?: string;
     last?: UpdateOutcome;
+    /** The migration session started for the newest version, or why it did not start. */
+    migration?: MigrationRecord;
     /** The launcher can restart the server, and go back when a new version does not start. */
     supervised: boolean;
     rollback: boolean;
@@ -103,7 +108,26 @@ export interface UpdatesOptions {
     /** Tests give the newest release here, rather than asking GitHub. */
     releases?: (signal?: AbortSignal) => Promise<Release | undefined>;
     now?: () => number;
+    /**
+     * Start a Pi session that migrates the checkout to a new version (merge or rebase upstream), in a worktree of its
+     * own. Without it, a new version is only shown. Pi Pocket never moves the checkout by itself.
+     */
+    migrate?: (request: MigrationRequest) => Promise<MigrationStarted>;
+    /** The git remote to fetch before a migration starts: `upstream` when not given. */
+    remote?: string;
 }
+
+/** What a migration session needs: the checkout, and what Pi reads first. */
+export type MigrationRequest = {
+    cwd: string;
+    version: string;
+    tag: string;
+    title: string;
+    prompt: string;
+};
+
+/** The session that started; `error` when it started but the first message did not go. */
+export type MigrationStarted = { conversationId: number; title: string; error?: string };
 
 /** A release's tag: only these are taken, so the tag is safe in a refspec and its version is a version. */
 const TAG = /^v?(\d{1,4}\.\d{1,4}\.\d{1,4})$/;
@@ -326,6 +350,35 @@ function run(file: string, args: string[], cwd: string, timeoutMs: number, shell
             },
         );
     });
+}
+
+/** What Pi reads first in a migration session: where the new version is, and how to adopt it safely. */
+export function migrationPrompt(facts: {
+    release: Pick<Release, "tag" | "version" | "url">;
+    remote: string;
+    fetched: string;
+    commit: string;
+    local: { branch: string | null; commit: string };
+    root: string;
+    version: string;
+}): string {
+    const { release, remote, fetched, commit, local } = facts;
+
+    return [
+        `Pi Pocket ${release.version} (tag ${release.tag}) is available. This server runs ${facts.version}, from ${facts.root} on ${local.branch ?? "a detached HEAD"} at ${local.commit.slice(0, 12)}.`,
+        "",
+        `Pi Pocket did not update itself. It fetched the remote \`${remote}\` (newest: \`${fetched}\`)${commit === "" ? "" : `, and the release's commit is ${commit.slice(0, 12)}`}.`,
+        "This session works in a git worktree of its own, on a new branch: the running checkout does not change.",
+        "",
+        "Migrate this branch to the new version:",
+        `1. Read what changed: \`git log --oneline HEAD..${fetched}\`, and the release notes${release.url === undefined ? "" : ` (${release.url})`}. Look for a \`[!WARNING]\` alert or steps to do by hand.`,
+        `2. Merge \`${fetched}\` into this branch, or rebase this branch onto it when it has only a few local commits. Say which one you chose, and why.`,
+        "3. Resolve every conflict. Keep the local changes unless the new version replaces them.",
+        "4. Run `npm install`, then `npm run check`, `npm run lint`, and `npm test`. Fix what fails.",
+        "5. Report: the new commits, the conflicts and how you resolved them, the test results, and the steps for the owner to adopt this branch in the running checkout and restart.",
+        "",
+        "Do not push, do not change the running checkout, and do not restart the server. The owner does those.",
+    ].join("\n");
 }
 
 type Local =
@@ -700,6 +753,11 @@ export class Updates {
 
                 return last === undefined ? {} : { last };
             })(),
+            ...(() => {
+                const migration = readMigration(this.#root);
+
+                return migration === undefined ? {} : { migration };
+            })(),
             supervised: this.#options.supervised,
             rollback: this.#options.rollback,
         };
@@ -717,8 +775,10 @@ export class Updates {
     }
 
     async #check(signal?: AbortSignal): Promise<void> {
+        let release: Release | undefined;
+
         try {
-            const release = await this.#findRelease(signal);
+            release = await this.#findRelease(signal);
 
             this.#latest = release;
             this.#error = undefined;
@@ -728,9 +788,202 @@ export class Updates {
             }
         } catch (error) {
             this.#error = describe(error);
+            release = undefined;
         } finally {
             this.#checkedAt = this.#now;
         }
+
+        // A new version: never installed by itself. A Pi session migrates to it, once for each version.
+        if (
+            release !== undefined &&
+            newer(release.version, this.#options.version) &&
+            readMigration(this.#root)?.version !== release.version
+        ) {
+            await this.#migrate(release);
+        }
+    }
+
+    /**
+     * Start a migration session for the newest version again, as the owner asks (the first one failed, or they closed
+     * it). It checks first; 409 when there is no new version.
+     */
+    async migrate(): Promise<UpdateStatus> {
+        await this.check();
+        const latest = this.#latest;
+
+        if (latest === undefined || !newer(latest.version, this.#options.version)) {
+            throw new HttpError(409, "Pi Pocket is up to date.");
+        }
+
+        if (this.#options.migrate === undefined) {
+            throw new HttpError(409, "This server cannot start a migration session.");
+        }
+
+        await this.#migrate(latest);
+        void this.#changed();
+
+        return this.status();
+    }
+
+    /** One migration start at a time: a second waits for the first. */
+    #migrating: Promise<void> | undefined;
+
+    #migrate(release: Release): Promise<void> {
+        const run = async () => {
+            await this.#migrating?.catch(() => {});
+            await this.#startMigration(release);
+        };
+
+        const started = run();
+
+        this.#migrating = started.finally(() => {
+            if (this.#migrating === started) {
+                this.#migrating = undefined;
+            }
+        });
+
+        return started;
+    }
+
+    /**
+     * Fetch the `upstream` remote first, then start a Pi session that merges or rebases the new version into a branch
+     * of its own. The checkout the server runs from stays as it is: the owner adopts the branch by hand.
+     */
+    async #startMigration(release: Release): Promise<void> {
+        const start = this.#options.migrate;
+
+        if (start === undefined) {
+            return;
+        }
+
+        const record: MigrationRecord = {
+            v: 1,
+            tag: release.tag,
+            version: release.version,
+            commit: "",
+            at: this.#now,
+        };
+        const local = await this.#local().catch((): Local => ({ git: false }));
+
+        if (!local.git) {
+            this.#options.log(
+                `Pi Pocket ${release.version} is available. This copy is not a git checkout, so no migration session started.`,
+            );
+
+            return;
+        }
+
+        const remote = this.#options.remote ?? "upstream";
+        let fetched: string;
+
+        try {
+            fetched = await this.#fetchUpstream(remote);
+        } catch (error) {
+            writeMigration(this.#root, {
+                ...record,
+                error: `Fetching the remote \`${remote}\` failed, so no migration session started: ${describe(error)}`,
+            });
+            this.#options.log(
+                `Fetching ${remote} for ${release.version} failed: ${describe(error)}`,
+            );
+
+            return;
+        }
+
+        const commit =
+            this.#target?.tag === release.tag && this.#target.problem === undefined
+                ? this.#target.commit
+                : "";
+
+        record.commit = commit;
+        const title = `Migrate Pi Pocket to ${release.version}`;
+        const prompt = migrationPrompt({
+            release,
+            remote,
+            fetched,
+            commit,
+            local,
+            root: this.#root,
+            version: this.#options.version,
+        });
+
+        try {
+            const started = await start({
+                cwd: this.#root,
+                version: release.version,
+                tag: release.tag,
+                title,
+                prompt,
+            });
+
+            writeMigration(this.#root, {
+                ...record,
+                conversationId: started.conversationId,
+                title: started.title,
+                ...(started.error === undefined ? {} : { error: started.error }),
+            });
+            this.#options.log(
+                `Pi Pocket ${release.version} is available: migration session ${started.conversationId} started.`,
+            );
+        } catch (error) {
+            writeMigration(this.#root, {
+                ...record,
+                error: `The migration session did not start: ${describe(error)}`,
+            });
+            this.#options.log(
+                `The migration session for ${release.version} did not start: ${describe(error)}`,
+            );
+        }
+    }
+
+    /** `git fetch <remote>`, with its configured refspecs. Answers what it fetched, such as `upstream/main`. */
+    async #fetchUpstream(remote: string): Promise<string> {
+        if (!/^[\w.-]+$/.test(remote) || remote.startsWith("-")) {
+            throw new Error(`${JSON.stringify(remote)} is not a remote name`);
+        }
+
+        try {
+            await git(this.#root, ["remote", "get-url", "--", remote]);
+        } catch {
+            throw new Error(
+                `This checkout has no remote named \`${remote}\`. Add it with \`git remote add ${remote} ${this.repository}\`.`,
+            );
+        }
+
+        await git(this.#root, ["fetch", "--quiet", "--prune", "--", remote], {
+            timeoutMs: FETCH_TIMEOUT_MS,
+        });
+        const head = await git(this.#root, [
+            "symbolic-ref",
+            "--quiet",
+            "--short",
+            `refs/remotes/${remote}/HEAD`,
+        ]).then(
+            (out) => out.trim(),
+            () => "",
+        );
+
+        if (head !== "") {
+            return head;
+        }
+
+        for (const branch of ["main", "master"]) {
+            const found = await git(this.#root, [
+                "rev-parse",
+                "--verify",
+                "--quiet",
+                `refs/remotes/${remote}/${branch}`,
+            ]).then(
+                () => true,
+                () => false,
+            );
+
+            if (found) {
+                return `${remote}/${branch}`;
+            }
+        }
+
+        return remote;
     }
 
     async #findRelease(signal?: AbortSignal): Promise<Release | undefined> {
