@@ -1,17 +1,17 @@
 /*
- * Pi Pocket's theme: soft tiles over an Omarchy palette. The palette is the Omarchy theme's colors.toml (theme.js sets
- * the --o-* variables, from a bundled theme or the desktop's own); everything else mixes from it the way omarchy-shell
- * does: the foreground over the background at a few percent for fills and hairlines. Windows still tile like
- * Hyprland's, with rounded corners, 1px hairlines, and a soft accent ring on the one in focus. Geist sets the words;
- * JetBrains Mono only code, paths, branches, numbers, counts, and keys. Motion keeps Hyprland's curves.
+ * Pi Pocket's look: soft tiles over one palette, from Pi Pocket's pink, in a light and a dark half (the --o-* variables
+ * below; theme.js picks the half). Everything else mixes from it the way omarchy-shell does: the foreground over the
+ * background at a few percent for fills and hairlines. Windows still tile like Hyprland's, with rounded corners, 1px
+ * hairlines, and a soft accent ring on the one in focus. Geist sets the words; JetBrains Mono only code, paths,
+ * branches, numbers, counts, and keys. Motion keeps Hyprland's curves.
  */
 /*
  * Contents, in the order the cascade reads them. Search for "─── " and a name to jump to a section. A rule later in
  * the file wins over an earlier one of the same specificity, and some later sections restyle earlier ones on purpose:
  * move a rule only after checking what it crosses.
  *
- *   Fonts, tokens, and the reset   the palette's variables, light themes, scrollbars, base elements
- *   Motion                         Hyprland's curves, reduced motion, the theme reveal
+ *   Fonts, tokens, and the reset   the palette's variables, light mode, scrollbars, base elements
+ *   Motion                         Hyprland's curves, reduced motion, the light and dark reveal
  *   Loaders                        the boot screen, the spinner
  *   Layout                         windows on a desktop, the sidebar's edge
  *   Top bar
@@ -58,8 +58,7 @@
     font-display: swap;
 }
 
-/* Each font's own italic, which a browser downloads only when italic text shows (comments in code, emphasis). Fira
-   Code has none: the browser slants its upright letters. */
+/* Each font's own italic, which a browser downloads only when italic text shows (comments in code, emphasis). */
 @font-face {
     font-family: "Pocket Mono";
     src: url("/fonts/JetBrainsMono-Italic.woff2") format("woff2");
@@ -67,9 +66,6 @@
     font-style: italic;
     font-display: swap;
 }
-
-/* More fonts for themes to name in --sans and --mono (docs/extensions/themes.md lists them). A browser downloads one only
-   when a theme uses it. */
 
 /* The Nerd Fonts icons alone (their Mono build: one cell wide), in the private use areas they fill. */
 @font-face {
@@ -79,110 +75,30 @@
     unicode-range: U+E000-F8FF, U+F0000-F1AF0;
 }
 
-@font-face {
-    font-family: "Pocket Fira Code";
-    src: url("/fonts/FiraCode-VF.woff2") format("woff2");
-    font-weight: 300 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket IBM Plex Mono";
-    src: url("/fonts/IBMPlexMono-Variable.woff2") format("woff2");
-    font-weight: 100 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket IBM Plex Mono";
-    src: url("/fonts/IBMPlexMono-Variable-Italic.woff2") format("woff2");
-    font-weight: 100 700;
-    font-style: italic;
-    font-display: swap;
-}
-
-/* Iosevka has no variable font: the weights the app uses, upright and italic. 800 shows as 700, 100 as 400. Each file
-   keeps every character but drops the optional letter variants (ss and cv features) the app never turns on, which
-   were three quarters of its size. */
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Regular.woff2") format("woff2");
-    font-weight: 400;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-SemiBold.woff2") format("woff2");
-    font-weight: 600;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Bold.woff2") format("woff2");
-    font-weight: 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Italic.woff2") format("woff2");
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-SemiBoldItalic.woff2") format("woff2");
-    font-weight: 600;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-BoldItalic.woff2") format("woff2");
-    font-weight: 700;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Inter";
-    src: url("/fonts/InterVariable.woff2") format("woff2");
-    font-weight: 100 900;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Inter";
-    src: url("/fonts/InterVariable-Italic.woff2") format("woff2");
-    font-weight: 100 900;
-    font-style: italic;
-    font-display: swap;
-}
-
 :root {
-    /* The palette. These defaults are Tokyo Night; theme.js replaces them. */
-    --o-bg: #1a1b26;
-    --o-bg-dark: #13141c;
-    --o-bg-darker: #0e0e14;
-    --o-bg-light: #24283b;
-    --o-fg: #a9b1d6;
-    --o-fg-dim: #565f89;
-    --o-fg-light: #b4bee6;
-    --o-fg-bright: #c0caf5;
-    --o-accent: #7aa2f7;
-    --o-selection: #292e42;
+    /*
+     * The palette: one, from Pi Pocket's pink (--pink). This is the dark half, the adaptive one: its grounds are the pink's
+     * hue (345°) at low lightness, its accent the pink lifted toward white, and its other colors softened to match.
+     * The light half is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
+     */
+    --pink: #db2777;
+    --o-bg: #1b1418;
+    --o-bg-dark: #150f13;
+    --o-bg-darker: #100b0e;
+    --o-bg-light: #261b21;
+    --o-fg: #d8c7cf;
+    --o-fg-dim: #8b7580;
+    --o-fg-light: #e3d4db;
+    --o-fg-bright: #f4e9ee;
+    --o-accent: #f472b6;
+    --o-selection: #3d2431;
     --o-red: #f7768e;
-    --o-yellow: #e0af68;
-    --o-orange: #eb927b;
-    --o-green: #9ece6a;
-    --o-cyan: #449dab;
-    --o-blue: #7aa2f7;
-    --o-magenta: #ad8ee6;
+    --o-yellow: #e9c46a;
+    --o-orange: #f59e74;
+    --o-green: #93d3a2;
+    --o-cyan: #7fd1d9;
+    --o-blue: #8fb4f5;
+    --o-magenta: #d7a6f2;
 
     /* Surfaces, after omarchy-shell's control states: the foreground laid over the background. */
     --desk: var(--o-bg-darker);
@@ -217,7 +133,7 @@
     --spark: var(--o-magenta);
     /* A second accent, for what a theme draws in two colors (Hyprland's active border is a gradient): the app uses none. */
     --accent-2: var(--spark);
-    --brand: var(--o-orange);
+    --brand: var(--o-accent);
     --ok: var(--o-green);
     --ok-soft: color-mix(in srgb, var(--o-green) 14%, transparent);
     --warn: var(--o-yellow);
@@ -345,9 +261,27 @@
     --leading: 1.4;
 }
 
-/* Light themes: quieter text and the status colors darken toward the foreground, so they stay readable on light grounds. */
+/* Light mode: the pink itself as the accent on a white ground tinted toward it. Quieter text and the status colors darken
+   toward the foreground, so they stay readable on light grounds. */
 :root[data-mode="light"] {
     color-scheme: light;
+    --o-bg: #fdf8fa;
+    --o-bg-dark: #f7eef2;
+    --o-bg-darker: #efe3e9;
+    --o-bg-light: #ffffff;
+    --o-fg: #3d2b35;
+    --o-fg-dim: #8c7682;
+    --o-fg-light: #4b3843;
+    --o-fg-bright: #25161e;
+    --o-accent: var(--pink);
+    --o-selection: #f9d6e6;
+    --o-red: #d1343f;
+    --o-yellow: #c08a1e;
+    --o-orange: #c8551b;
+    --o-green: #2f8a57;
+    --o-cyan: #0f7f8c;
+    --o-blue: #2f63d6;
+    --o-magenta: #a3329f;
     --sh: rgba(40, 40, 70, 0.14);
     --accent-ink: #fff;
     --scrim: color-mix(in srgb, var(--desk) 55%, transparent);
@@ -639,7 +573,7 @@ kbd {
     transform: scaleX(0.7);
 }
 
-/* Theme changes: the new look grows as a circle from where it was chosen (theme.js sets the place). */
+/* Light and dark changes: the new look grows as a circle from where it was chosen (theme.js sets the place). */
 :root.theme-vt::view-transition-old(root),
 :root.theme-vt::view-transition-new(root) {
     animation: none;
@@ -9367,17 +9301,6 @@ textarea.notes {
     color: inherit;
 }
 
-.launcher-item .swatch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 28px;
-    height: 28px;
-    flex: none;
-    border-radius: calc(var(--r-row) - 1px);
-    overflow: hidden;
-    box-shadow: 0 0 0 1px var(--hair-2);
-}
-
 .launcher-empty {
     display: flex;
     flex-direction: column;
@@ -9521,157 +9444,6 @@ textarea.notes {
     }
 }
 
-/* ─── Appearance ───────────────────────────────────────────── */
-
-.theme-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-}
-
-/* A theme card draws a tiny Hyprland desktop in its own palette: the card sets the --o-* colors it uses. */
-.theme-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-    gap: 8px;
-    padding: 8px 8px 10px;
-    border-radius: var(--r-window);
-    background: var(--o-bg);
-    color: var(--o-fg);
-    border: 1px solid color-mix(in srgb, var(--o-fg) 17%, transparent);
-    transition:
-        border-color var(--t-hover) var(--ease-out),
-        box-shadow var(--t-hover) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .theme-card:hover {
-        border-color: var(--o-accent);
-    }
-}
-
-.theme-card:active {
-    transform: scale(0.97);
-}
-
-.theme-card.on {
-    border-color: var(--o-accent);
-    box-shadow:
-        0 0 0 2px var(--o-bg),
-        0 0 0 4px var(--o-accent);
-}
-
-.tc-desk {
-    display: flex;
-    gap: 5px;
-    height: 62px;
-    padding: 6px;
-    border-radius: 9px;
-    background: var(--o-bg-darker);
-}
-
-.tc-win {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 5px;
-    background: var(--o-bg);
-    border: 1px solid color-mix(in srgb, var(--o-fg) 13%, transparent);
-}
-
-.tc-win:first-child {
-    width: 34%;
-}
-
-.tc-win:last-child {
-    flex: 1;
-    border-color: var(--o-accent);
-}
-
-.tc-win i {
-    height: 4px;
-    border-radius: 2px;
-    background: var(--o-fg);
-    opacity: 0.4;
-}
-
-.tc-win i:nth-child(1) {
-    width: 80%;
-}
-
-.tc-win i:nth-child(2) {
-    width: 55%;
-}
-
-.tc-win i.lit {
-    margin-top: auto;
-    align-self: flex-end;
-    height: 8px;
-    border-radius: 3px;
-    background: var(--o-accent);
-    opacity: 1;
-    width: 30%;
-}
-
-.tc-name {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--o-fg-bright, var(--o-fg));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tc-name small {
-    font-weight: 400;
-    font-size: 11px;
-    color: inherit;
-    opacity: 0.6;
-}
-
-.tc-dots {
-    display: flex;
-    gap: 4px;
-}
-
-.tc-dots i {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-}
-
-.theme-desktop {
-    grid-column: 1 / -1;
-    flex-direction: row;
-}
-
-.theme-desktop .tc-desk {
-    width: 42%;
-    flex: none;
-    height: auto;
-    min-height: 70px;
-}
-
-.theme-desktop .tc-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-}
-
-.theme-desktop .tc-note {
-    padding: 0 0 0.45rem;
-    font-size: 0.68rem;
-    color: var(--o-fg);
-    opacity: 0.75;
-}
-
 .setting-row {
     display: flex;
     align-items: center;
@@ -9759,137 +9531,6 @@ textarea.notes {
     color: var(--body);
 }
 
-/* The theme: a card for each theme folder, in the app's own colors (a theme cannot be drawn small, as colors can). */
-.look-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 10px;
-}
-
-.look-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    min-height: 64px;
-    padding: 10px 12px;
-    text-align: left;
-    border-radius: var(--r-card);
-    background: var(--card);
-    border: 1px solid var(--hair-2);
-    transition: border-color var(--t-hover) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .look-card:not(:disabled):hover {
-        border-color: var(--accent-line);
-    }
-}
-
-.look-card.on {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-}
-
-.look-card.broken {
-    cursor: default;
-    opacity: 0.8;
-}
-
-.look-name {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.4rem;
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--text);
-}
-
-.look-name small {
-    font: 10.5px var(--mono);
-    color: var(--faint);
-}
-
-.look-detail {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.look-problem {
-    font-size: 12px;
-    color: var(--err);
-}
-
-.look-tools,
-.look-duplicate {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: 10px 0 4px;
-}
-
-.look-duplicate input {
-    flex: 1;
-    min-width: 160px;
-}
-
-/* The owner's fonts for the theme in use: a menu each for words and code, ligatures, and a preview in them. */
-.font-tools {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 8px 12px;
-    margin: 10px 0 4px;
-}
-
-.font-menu {
-    display: grid;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.font-menu .switch {
-    justify-self: start;
-}
-
-.font-menu strong {
-    padding: 6px 0;
-    font-weight: 500;
-    color: var(--text);
-    font-size: 14px;
-}
-
-.font-title,
-.font-duplicate {
-    grid-column: 1 / -1;
-}
-
-.font-title {
-    margin: 4px 0 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.font-title em {
-    font-style: normal;
-    color: var(--accent);
-}
-
-.font-duplicate {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-}
-
-.font-duplicate .look-duplicate {
-    flex: 1;
-    margin: 0;
-}
-
 .text-size {
     display: flex;
     flex: none;
@@ -9922,23 +9563,6 @@ textarea.notes {
     .setting-row:has(.text-size) .setting-text {
         flex-basis: 100%;
     }
-}
-
-.font-preview {
-    grid-column: 1 / -1;
-    padding: 10px 12px;
-    border: 1px solid var(--hair);
-    border-radius: var(--r-control);
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.font-preview code {
-    display: block;
-    margin-top: 4px;
-    font-family: var(--mono);
-    white-space: pre;
-    overflow-x: auto;
 }
 
 /* ─── Sign in: the app's screen (the server's pages are under Notices) ─── */

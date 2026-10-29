@@ -526,13 +526,11 @@ export function Composer() {
 
         fit();
         addEventListener("resize", fit);
-        // A theme's font wraps the text another way, once its stylesheets or the font itself have loaded.
-        document.addEventListener("pocket:theme", fit);
+        // A font wraps the text another way once it has loaded.
         document.fonts?.addEventListener("loadingdone", fit);
 
         return () => {
             removeEventListener("resize", fit);
-            document.removeEventListener("pocket:theme", fit);
             document.fonts?.removeEventListener("loadingdone", fit);
         };
     }, [text]);
@@ -1715,20 +1713,18 @@ function useStatusFit(ref) {
             frame = requestAnimationFrame(() => fitStatus(line, true));
         });
 
-        // Fitted again once a font loads, and when a theme (with fonts of its own) has: its text measures another width.
+        // Fitted again once a font loads: its text measures another width.
         const again = () => !gone && fitStatus(line, true);
 
         observer.observe(line);
         document.fonts?.ready.then(again);
         document.fonts?.addEventListener("loadingdone", again);
-        document.addEventListener("pocket:theme", again);
 
         return () => {
             gone = true;
             cancelAnimationFrame(frame);
             observer.disconnect();
             document.fonts?.removeEventListener("loadingdone", again);
-            document.removeEventListener("pocket:theme", again);
         };
     }, []);
 }

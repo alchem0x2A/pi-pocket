@@ -82,10 +82,10 @@ The host's members do not change while modules reload. A new member comes only a
 
 ### 7. CSS
 
-- The variables `--text`, `--muted`, `--accent`, `--bg`, `--card`, `--line`, `--err`, `--warn`, and `--ok`. They follow the theme.
+- The variables `--text`, `--muted`, `--accent`, `--bg`, `--card`, `--line`, `--err`, `--warn`, and `--ok`. They follow the light or dark mode.
 - The classes `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting`.
 - All other CSS is internal: other classes, other variables, the structure of the page, and the IDs of its elements.
-- Themes, new in 0.14.0, have a public surface of their own: the tokens, `data-part` names, and states in the theme surface reference.
+- The tokens, `data-part` names, and states in the CSS names reference (`reference/theme-surface.md`) are public too. They came with themes in 0.14.0; themes were removed later, and the names stay.
 
 ### 8. Events
 
@@ -155,7 +155,7 @@ All public interfaces are stable, unless the docs mark them experimental or depr
 
 `host.linkedSessions` remains experimental in 0.16.0. The human-bound `linkedSessions` on a conversation route is a separate stable interface, added in 0.16.0. Other public members are stable unless marked otherwise.
 
-Since 0.19.0, these `pocket` members are experimental too: `panel`, `openPanel`, `closePanel`, `status`, `topbar`, `composerButton`, `replyAction`, `insertText`, `arrange`, and their types. The `core:` ids of the items in slots are public, with the same promise as the names of the theme surface.
+Since 0.19.0, these `pocket` members are experimental too: `panel`, `openPanel`, `closePanel`, `status`, `topbar`, `composerButton`, `replyAction`, `insertText`, `arrange`, and their types. The `core:` ids of the items in slots are public, with the same promise as the CSS names.
 
 Since 0.22.0, these are experimental too: `web.publicPage` and `web.links`; `host.ask`, `hide`, `commandEnv`, and `browser`; `host.on`; `web.provide`, `use`, `onService`, `settings`, `setting`, and `onSettings`; `pocket.settings` and `onSettings`; and their types. So are the `browser` tool's `action` and target arguments, for hooks.
 
@@ -214,10 +214,9 @@ These can change in any release: the words of errors and notices, timing that th
 
 ### Reserved names
 
-- **A12. Pi Pocket can keep a new name for itself in any minor release:** a module, an extension, a tool, a command, or a theme id (a theme or a palette that comes with Pi Pocket). The release notes list it.\
+- **A12. Pi Pocket can keep a new name for itself in any minor release:** a module, an extension, a tool, or a command. The release notes list it.\
   _Reason:_ new built-in features need names. A module with its own prefix ([Names](../reference/names.md)) never meets them.
 - When a new reserved name is the name of a drop-in, Pi Pocket refuses the drop-in, and the Extensions sheet says why. For example, 0.14 keeps the tool `team` and the module `agent-teams`.
-- When a new reserved theme id is the id of a theme folder of the owner's, Pi Pocket does not read that folder, and tells the owner. The gallery does not accept a theme entry with a reserved id. For example, 0.14 keeps the theme `lantern`.
 
 ### Security fixes
 
@@ -263,9 +262,9 @@ These can change in any release: the words of errors and notices, timing that th
   _Reason:_ authors then know when to look, and one number shows the break.
 - The release notes list it under "Removed", with what to use instead.
 
-### Theme parts
+### Parts
 
-- **A20. When what a theme part names leaves the app, the part goes with it, in the same release, with a release note.** A theme's rules for it then match nothing, and the rest of the theme works as before. A part whose region stays but changes its name keeps the old name as an alias, by A17 and A18.\
+- **A20. When what a part names leaves the app, the part goes with it, in the same release, with a release note.** An extension's rules for it then match nothing, and the rest of its CSS works as before. A part whose region stays but changes its name keeps the old name as an alias, by A17 and A18.\
   _Reason:_ the app cannot keep a screen for the sake of a selector; a rename costs nothing to keep.
 
 ## Release notes: "For extension authors"

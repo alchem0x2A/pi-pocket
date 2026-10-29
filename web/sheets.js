@@ -245,7 +245,6 @@ function sheetBody(sheet) {
                 ? html`<${GalleryShareSheet}
                       key=${sheet.id}
                       file=${sheet.id}
-                      theme=${sheet.theme === true}
                   />`
                 : null;
             break;

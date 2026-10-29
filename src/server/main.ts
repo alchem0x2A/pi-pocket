@@ -221,7 +221,6 @@ stopWatching = (() => {
     ];
 
     opened.loader.watch();
-    opened.themes.watch();
 
     return () => {
         for (const each of stops) {

@@ -1,5 +1,7 @@
 # Theming (design for 0.14.0)
 
+Status: removed. Pi Pocket has one palette now (see architecture.md).
+
 Status: built for 0.14.0 (phases 1 and 2, except what is deferred below); the gallery's theme entries (phase 3) are built separately. [extensions/themes.md](../extensions/themes.md) and [extensions/reference/theme-surface.md](../extensions/reference/theme-surface.md) describe what was built. It differs from this design in these ways:
 
 - The in-house theme's findings added about 50 parts, more states, and tokens for windows, the timeline, a gutter, a second accent, and ligatures; and `colors-light.toml` for a pair of palettes.

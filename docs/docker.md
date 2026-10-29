@@ -36,11 +36,10 @@ Every folder that matters is a bind mount, so it stays outside the container and
 | ---------------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
 | `PI_POCKET_DATA`       | `./data`            | `/data`            | `pocket.sqlite`, `config.json`, `push.json`, uploads, worktrees, the browser profile, and logging |
 | `PI_POCKET_EXTENSIONS` | `./data/extensions` | `/data/extensions` | The owner's drop-in extensions, loaded from this folder                                           |
-| `PI_POCKET_THEMES`     | `./data/themes`     | `/data/themes`     | The owner's themes, loaded from this folder                                                       |
 | `PI_POCKET_PI_DIR`     | `./data/pi`         | `/home/node/.pi`   | Pi's `agent/` folder: `auth.json`, `settings.json`, skills, prompts, trust, sessions, packages    |
 | `PI_POCKET_WORKSPACE`  | `./data/workspace`  | `/workspace`       | The projects Pi works on, and where new sessions start                                            |
 
-The mounts are nested on purpose: `extensions`, `themes`, `pi`, and `workspace` are separate host folders under `./data`, even though the app reads them inside `/data` or `/home/node`. Dropping a `.ts` file into `./data/extensions` makes it appear in Menu → Extensions, off until the owner turns it on. The gallery's **Install** writes there too.
+The mounts are nested on purpose: `extensions`, `pi`, and `workspace` are separate host folders under `./data`, even though the app reads them inside `/data` or `/home/node`. Dropping a `.ts` file into `./data/extensions` makes it appear in Menu → Extensions, off until the owner turns it on. The gallery's **Install** writes there too.
 
 Pi's sign-ins live in `./data/pi/agent/auth.json`, not in Pi Pocket's database. Keeping that folder means a fresh database reuses the same sign-ins, and a Pi CLI on the host can share it (`PI_CODING_AGENT_DIR=/absolute/path/to/data/pi/agent`).
 

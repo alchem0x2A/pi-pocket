@@ -848,7 +848,7 @@ test("a reconnect that brings the same data keeps it, and draws no session row",
         const { options } = await import("preact");
         const { connect, store } = await import("/store.js");
         const settle = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve)));
-        const keys = ["me", "models", "guard", "server", "themeList", "folderFavorites", "sessions"];
+        const keys = ["me", "models", "guard", "server", "folderFavorites", "sessions"];
         const before = Object.fromEntries(keys.map((key) => [key, store.state[key]]));
         const stream = store.state.streamId;
         const Source = window.EventSource;

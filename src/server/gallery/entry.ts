@@ -2,8 +2,7 @@
  * The extension gallery's index, read strictly: everything in it comes from elsewhere. An index is one JSON file (the
  * index repository's generated `index.json`): its format, and an entry for each extension, which names the files of
  * one drop-in at a pinned commit of a GitHub repository, with each file's SHA-256, and what the module installs. An
- * entry with `kind: "theme"` names a theme folder's files the same way, and declares nothing: a Pi Pocket before
- * 0.14.0 reads it as not valid (it has a field that one does not know), so never installs it as an extension.
+ * index can still list themes (`kind: "theme"`), from when Pi Pocket had theme folders: they are skipped.
  *
  * Pi Pocket reads it here, and the index repository's checks use these same functions, so an entry they let in is one
  * Pi Pocket reads (they import this file from a Pi Pocket checkout, the loader's lists of reserved names with it). Text
@@ -14,8 +13,6 @@ import { createHash } from "node:crypto";
 import { BUILT_IN_COMMANDS } from "../extension-web.ts";
 import { INVISIBLE_CLASS } from "../fence.ts";
 import { BUILT_IN_MODULES, BUILT_IN_TOOLS, RESERVED_EXTENSIONS } from "../reload.ts";
-import { assetType, THEME_API, THEME_ID, THEME_LIMITS } from "../themes/format.ts";
-import { reservedThemeIds } from "../themes/reserved.ts";
 import { atLeast, POCKET_VERSION, versionParts } from "../versions.ts";
 
 // Where they always were: the index repository's checks import them from here.
@@ -97,35 +94,12 @@ export interface Entry {
     revoked: { commit: string; reason: string }[];
 }
 
-/**
- * A theme's entry (`kind: "theme"`): a theme folder (`themes/format.ts`) at a pinned commit, installed into the data
- * folder's `themes/<name>/`. It runs no code, so it declares nothing.
- */
-export interface ThemeEntry {
-    kind: "theme";
-    /** The theme's id: its folder's name, which its files are in (`<name>/theme.css`). */
-    name: string;
-    title: string;
-    description: string;
-    tags: string[];
-    author: { name: string; github?: string };
-    version: string;
-    source: { repo: string; commit: string; path: string };
-    files: EntryFile[];
-    /** The theme surface's version it needs (`THEME_API`). */
-    themeApi: number;
-    minPocket: string;
-    revoked: { commit: string; reason: string }[];
-}
-
 export interface Index {
     name?: string;
     /** The index's repository on GitHub, where entries are submitted. */
     repo?: string;
     /** The extensions' entries. */
     entries: Entry[];
-    /** The themes' entries. */
-    themes: ThemeEntry[];
     /** Entries for a newer Pi Pocket, or a newer extension API. */
     incompatible: number;
     /** Entries that are not valid, or repeat a name, with why. */
@@ -142,8 +116,11 @@ export interface Index {
 /** Why something in the index is not valid. */
 export class EntryError extends Error {}
 
-/** The kinds of entry this Pi Pocket reads: an entry with no `kind` is an extension's. Others are for a newer one. */
-const KINDS = ["extension", "theme"];
+/**
+ * The kinds of entry this Pi Pocket reads: an entry with no `kind` is an extension's. A theme's (`kind: "theme"`) is
+ * skipped before this is asked (`parseIndex`); others are for a newer one.
+ */
+const KINDS = ["extension"];
 
 // ─── Names ─────────────────────────────────────────────────────────────────────────
 
@@ -218,52 +195,6 @@ export function fileProblem(file: string, extension: string): string | undefined
 
     return undefined;
 }
-
-/**
- * Why a file name is not one a theme called `theme` may have, or undefined when it may: in its own folder (`<theme>/…`,
- * at most four folders deep), and one the theme format serves: `theme.json`, `colors.toml`, and `colors-light.toml` at
- * its top, stylesheets, `.woff2` fonts, and images. So a theme's files never reach past its folder in `themes/`.
- */
-export function themeFileProblem(file: string, theme: string): string | undefined {
-    if (typeof file !== "string" || file.length > 200) {
-        return "is not a file name of 200 characters at most";
-    }
-
-    const parts = file.split("/");
-
-    if (parts[0] !== theme || parts.length < 2) {
-        return `is not in the folder ${theme}/`;
-    }
-
-    if (parts.length > THEME_LIMITS.depth + 2) {
-        return `is more than ${THEME_LIMITS.depth} folders deep`;
-    }
-
-    for (const part of parts.slice(1)) {
-        if (!PART.test(part) || part === "node_modules") {
-            return `has the part ${JSON.stringify(part)}: use letters, digits, . _ and -, not starting with a dot`;
-        }
-
-        if (NOT_PORTABLE.test(part)) {
-            return `has the part ${JSON.stringify(part)}, which Windows reads as another name`;
-        }
-    }
-
-    const inner = parts.slice(1).join("/");
-
-    if (
-        SMALL_FILES.includes(inner) ||
-        inner.toLowerCase().endsWith(".css") ||
-        assetType(inner) !== undefined
-    ) {
-        return undefined;
-    }
-
-    return "is not a file a theme serves: theme.json, colors.toml, colors-light.toml, .css, .woff2, or an image (.png, .jpg, .webp, .avif, .gif, .svg)";
-}
-
-/** The files at the top of a theme's folder that say what it is: each is `THEME_LIMITS.small` at most. */
-const SMALL_FILES = ["theme.json", "colors.toml", "colors-light.toml"];
 
 // ─── Reading ───────────────────────────────────────────────────────────────────────
 
@@ -573,97 +504,6 @@ export function parseEntry(value: unknown): Entry {
     };
 }
 
-/**
- * Ids a theme in the index may not have, as Pi Pocket keeps them for itself (`reservedThemeIds`): `pocket`, `desktop`
- * (the desktop's colors), the themes that come with it (`web/themes/`), and its palettes (`web/themes.js`). Read from
- * this checkout, as the index's checks import this file from one.
- */
-export const RESERVED_THEMES: ReadonlySet<string> = await reservedThemeIds();
-
-/**
- * A theme's entry, checked whole: its files keep to the theme format's names and limits (`themes/format.ts`). What
- * its CSS does is checked when it is installed, before it is in place (`readTheme`), as for any theme folder.
- */
-export function parseThemeEntry(value: unknown): ThemeEntry {
-    const shape = object(
-        value,
-        "the entry",
-        [
-            "kind",
-            "name",
-            "title",
-            "description",
-            "tags",
-            "author",
-            "version",
-            "source",
-            "files",
-            "themeApi",
-            "minPocket",
-        ],
-        ["revoked"],
-    );
-
-    if (shape.kind !== "theme") {
-        throw new EntryError('kind is not "theme"');
-    }
-
-    const name = text(shape.name, "name", 48, THEME_ID);
-
-    if (RESERVED_THEMES.has(name)) {
-        throw new EntryError(`name ${name} is Pi Pocket's own: give it a name of its own`);
-    }
-
-    const about = common(shape);
-    const files = filesOf(shape.files, THEME_LIMITS.files, THEME_LIMITS.asset, (file) =>
-        themeFileProblem(file, name),
-    );
-    const inner = (file: EntryFile) => file.name.slice(name.length + 1);
-    const has = (path: string) => files.some((file) => inner(file) === path);
-
-    if (!has("theme.css") && !has("colors.toml") && !has("colors-light.toml")) {
-        throw new EntryError(
-            `files has no ${name}/theme.css, ${name}/colors.toml, or ${name}/colors-light.toml`,
-        );
-    }
-
-    if (has("theme.css") && !has("theme.json")) {
-        throw new EntryError(`files has ${name}/theme.css but no ${name}/theme.json`);
-    }
-
-    for (const file of files) {
-        if (SMALL_FILES.includes(inner(file)) && file.size > THEME_LIMITS.small) {
-            throw new EntryError(`${file.name} is more than ${THEME_LIMITS.small} bytes`);
-        }
-    }
-
-    const css = files.filter((file) => file.name.toLowerCase().endsWith(".css"));
-
-    if (css.reduce((sum, file) => sum + file.size, 0) > THEME_LIMITS.css) {
-        throw new EntryError(`its CSS files are more than ${THEME_LIMITS.css} bytes together`);
-    }
-
-    if (files.reduce((sum, file) => sum + file.size, 0) > THEME_LIMITS.total) {
-        throw new EntryError(`files are more than ${THEME_LIMITS.total} bytes together`);
-    }
-
-    if (!Number.isSafeInteger(shape.themeApi) || (shape.themeApi as number) < 1) {
-        throw new EntryError("themeApi is not a version of the theme surface, such as 1");
-    }
-
-    const { minPocket, revoked, ...rest } = about;
-
-    return {
-        kind: "theme",
-        name,
-        ...rest,
-        files,
-        themeApi: shape.themeApi as number,
-        minPocket,
-        revoked,
-    };
-}
-
 /** An entry's revoked commits, each with why: none when it has no `revoked`. */
 function revocations(value: unknown): Entry["revoked"] {
     return value === undefined
@@ -705,17 +545,11 @@ function revokedLoosely(value: unknown): Entry["revoked"] {
  * it does (its repository, folder, commit, files with their hashes, and what it declares). The index could change any
  * of them and keep the commit; an install or update the owner saw goes ahead only while this is the same.
  */
-export function pinOf(entry: Entry | ThemeEntry): string {
+export function pinOf(entry: Entry): string {
     const { name, source, files } = entry;
 
     return createHash("sha256")
-        .update(
-            JSON.stringify(
-                "kind" in entry
-                    ? { kind: entry.kind, name, source, files }
-                    : { name, source, files, declares: entry.declares },
-            ),
-        )
+        .update(JSON.stringify({ name, source, files, declares: entry.declares }))
         .digest("hex");
 }
 
@@ -728,7 +562,7 @@ export function compatibility(
     value: unknown,
     here: { api: number; version: string },
 ): "ok" | "newer" {
-    const { pocketApi, minPocket, kind, themeApi } = (
+    const { pocketApi, minPocket, kind } = (
         typeof value === "object" && value !== null ? value : {}
     ) as Shape;
 
@@ -737,10 +571,6 @@ export function compatibility(
     }
 
     if (typeof pocketApi === "number" && pocketApi > here.api) {
-        return "newer";
-    }
-
-    if (typeof themeApi === "number" && themeApi > THEME_API) {
         return "newer";
     }
 
@@ -786,7 +616,6 @@ export function parseIndex(source: string, here: { api: number; version: string 
 
     const index: Index = {
         entries: [],
-        themes: [],
         incompatible: 0,
         invalid: [],
         revoked: new Map(),
@@ -810,6 +639,11 @@ export function parseIndex(source: string, here: { api: number; version: string 
     const taken = new Set<string>();
 
     for (const item of shape.extensions) {
+        // A theme's entry, from when Pi Pocket had theme folders: not read, and not counted as one for later.
+        if ((item as Shape | null)?.kind === "theme") {
+            continue;
+        }
+
         const named = (item as Shape | null)?.name;
         const name = typeof named === "string" && NAME.test(named) ? named : undefined;
         const twice = name !== undefined && taken.has(name);
@@ -837,11 +671,7 @@ export function parseIndex(source: string, here: { api: number; version: string 
                 throw new EntryError(`a second entry is named ${name}`);
             }
 
-            if ((item as Shape | null)?.kind === "theme") {
-                index.themes.push(parseThemeEntry(item));
-            } else {
-                index.entries.push(parseEntry(item));
-            }
+            index.entries.push(parseEntry(item));
         } catch (error) {
             if (!(error instanceof EntryError)) {
                 throw error;
@@ -913,14 +743,9 @@ export function sha256(bytes: Uint8Array): string {
 }
 
 /**
- * Every name an entry declares, for checking two entries do not share one: its module's, extensions', and tools'; a
- * theme's id.
+ * Every name an entry declares, for checking two entries do not share one: its module's, extensions', and tools'.
  */
-export function claimedNames(entry: Entry | ThemeEntry): string[] {
-    if ("kind" in entry) {
-        return [`theme ${entry.name}`];
-    }
-
+export function claimedNames(entry: Entry): string[] {
     return [
         `module ${entry.name}`,
         ...entry.declares.extensions.map((name) => `extension ${name}`),

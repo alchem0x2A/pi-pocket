@@ -1,27 +1,27 @@
-# The theme surface
+# CSS names: tokens and parts
 
-What a theme may rely on, at theme API version 1: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. [../themes.md](../themes.md) is the guide. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there.
+The CSS names that an extension's stylesheet may rely on: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there. The file keeps its old name, from when Pi Pocket had themes. It has none now: the app has one palette (Pi Pocket's pink) in a light and a dark mode.
 
-This page is the one full list of the CSS names Pi Pocket keeps. Every name on it is there since 0.14.0, the first release with themes; a later one says since when. Everything else in the app's CSS and markup (class names, the order of elements) may change in any release.
+This page is the one full list of the CSS names Pi Pocket keeps. Every name on it is there since 0.14.0; a later one says since when. Everything else in the app's CSS and markup (class names, the order of elements) may change in any release.
 
 ## Extensions' CSS names
 
-The CSS names extensions may use are a subset of this page: the tokens `--text`, `--muted`, `--accent`, `--bg`, `--card`, `--line`, `--err`, `--warn`, and `--ok`, and the classes `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting`. A theme that changes those tokens changes extensions' pages with the app.
+The CSS names extensions may use are a subset of this page: the tokens `--text`, `--muted`, `--accent`, `--bg`, `--card`, `--line`, `--err`, `--warn`, and `--ok`, and the classes `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting`. They follow the light or dark mode, so an extension's page follows the app.
 
 ## Tokens
 
-Set them on `:root` in a theme. Most are made from others: a theme that sets `--bg`, `--body`, or `--accent` moves the ones made from them too.
+Extensions' CSS reads them. Most are made from others, so they move together when the mode changes. Do not set them on `:root`: a person's mode would then show your colors in the whole app.
 
-### The palette
+### The palette (`--o-*`)
 
-Set by Colors (`colors.toml`, an Omarchy palette, or the desktop's). A theme reads them, and may set them, though a `colors.toml` is the better place.
+The app's one palette, in `web/style.css`: the dark values in `:root`, the light ones in `:root[data-mode="light"]`. The base is `--pink: #db2777`. Read them; do not set them.
 
-| Token                                                                                     | `colors.toml` key                                                                     |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `--o-bg`, `--o-bg-dark`, `--o-bg-darker`, `--o-bg-light`                                  | `background`, `dark_background`, `darker_background`, `lighter_background`            |
-| `--o-fg`, `--o-fg-dim`, `--o-fg-light`, `--o-fg-bright`                                   | `foreground`, `dark_foreground` (or `muted`), `light_foreground`, `bright_foreground` |
-| `--o-accent`, `--o-selection`                                                             | `accent`, `selection`                                                                 |
-| `--o-red`, `--o-yellow`, `--o-orange`, `--o-green`, `--o-cyan`, `--o-blue`, `--o-magenta` | the same names                                                                        |
+| Token                                                                                     | What                                                                    |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `--o-bg`, `--o-bg-dark`, `--o-bg-darker`, `--o-bg-light`                                  | Grounds: pink-tinted, from the lightest to the deepest                  |
+| `--o-fg`, `--o-fg-dim`, `--o-fg-light`, `--o-fg-bright`                                   | Text, from the quietest to the strongest                                |
+| `--o-accent`, `--o-selection`                                                             | The accent (the pink; `#f472b6` in dark mode), and a selection's ground |
+| `--o-red`, `--o-yellow`, `--o-orange`, `--o-green`, `--o-cyan`, `--o-blue`, `--o-magenta` | Status and code colors                                                  |
 
 ### Surfaces, lines, and text
 
@@ -43,53 +43,52 @@ Set by Colors (`colors.toml`, an Omarchy palette, or the desktop's). A theme rea
 
 ### Accent and status
 
-| Token                                                                            | What                                                                                 |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `--accent`                                                                       | The accent (`--o-accent`)                                                            |
-| `--accent-2`                                                                     | A second accent, for what a theme draws in two colors (`--spark`). The app uses none |
-| `--accent-fill`, `--accent-ink`                                                  | The accent under text (buttons, badges), and the text on it                          |
-| `--accent-soft`, `--accent-line`                                                 | The accent as a soft fill, and as a line                                             |
-| `--focus-ring`                                                                   | The keyboard's focus ring (`--accent`). Change its color; keep the ring              |
-| `--spark`, `--brand`                                                             | The second color of loaders and thoughts; the π mark                                 |
-| `--ok`, `--ok-soft`                                                              | Done, worked                                                                         |
-| `--warn`, `--warn-soft`, `--warn-line`                                           | Waits for you, needs a look                                                          |
-| `--err`, `--err-soft`, `--err-line`                                              | Failed                                                                               |
-| `--hl-kw`, `--hl-str`, `--hl-num`, `--hl-fn`, `--hl-type`, `--hl-op`, `--hl-tag` | Code's colors: keywords, strings, numbers, functions, types, operators, tags         |
+| Token                                                                            | What                                                                         |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `--accent`                                                                       | The accent (`--o-accent`)                                                    |
+| `--accent-2`                                                                     | A second accent (`--spark`). The app uses none                               |
+| `--accent-fill`, `--accent-ink`                                                  | The accent under text (buttons, badges), and the text on it                  |
+| `--accent-soft`, `--accent-line`                                                 | The accent as a soft fill, and as a line                                     |
+| `--focus-ring`                                                                   | The keyboard's focus ring (`--accent`). Keep the ring                        |
+| `--spark`, `--brand`                                                             | The second color of loaders and thoughts; the π mark                         |
+| `--ok`, `--ok-soft`                                                              | Done, worked                                                                 |
+| `--warn`, `--warn-soft`, `--warn-line`                                           | Waits for you, needs a look                                                  |
+| `--err`, `--err-soft`, `--err-line`                                              | Failed                                                                       |
+| `--hl-kw`, `--hl-str`, `--hl-num`, `--hl-fn`, `--hl-type`, `--hl-op`, `--hl-tag` | Code's colors: keywords, strings, numbers, functions, types, operators, tags |
 
 ### Type, corners, space, shadows, motion
 
-| Token                                                          | Default                                                                                                                                                                                                                                                     |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--sans`, `--mono`                                             | Geist for words; JetBrains Mono for code, paths, counts, keys. The app's other fonts a theme can name: [themes.md](../themes.md)                                                                                                                            |
-| `--ligatures`                                                  | `none`: no ligatures, as in a terminal. `contextual` turns on a font's `calt`; `normal`, all its usual ones                                                                                                                                                 |
-| `--r-mark`, `--r-tag`, `--r-seg`, `--r-row`, `--r-control`     | 2, 4, 5, 6, 7 px: state squares, tags, segments, rows, fields                                                                                                                                                                                               |
-| `--r-card`, `--r-window`, `--r-sheet`, `--r-float`, `--r-pill` | 8, 10, 12, 12, 999 px: cards, windows, sheets, PiP, pills                                                                                                                                                                                                   |
-| `--radius`                                                     | A control's corner that names none (`--r-control`)                                                                                                                                                                                                          |
-| `--gap-out`, `--gap-in`, `--border`                            | 8, 4, 1 px: the tiled windows' gaps and border                                                                                                                                                                                                              |
-| `--window-border`, `--window-border-active`                    | A tiled window's border color (`--hair`), and the one in focus (`--accent-line`)                                                                                                                                                                            |
-| `--window-ring`                                                | The shadow around the window in focus (`0 0 0 3px var(--accent-soft)`)                                                                                                                                                                                      |
-| `--space-x`, `--space-y`, `--leading`                          | Density's scale of room (1, 1) and the conversation's line height (1.65)                                                                                                                                                                                    |
-| `--transcript-width`, `--composer-width`                       | The conversation and the message box at their widest: `clamp(720px, 72%, 1200px)` of the pane, and 48 px more. Set them as a share of the pane, with a floor, so phones keep their width; Appearance's Width (Wide, Full) sets them inline over the theme's |
-| `--transcript-gutter`                                          | `0px`: room before the conversation's turns, for a column of a theme's own                                                                                                                                                                                  |
-| `--timeline-x`, `--step-mark-size`, `--step-gap`               | 22.5, 19, 10 px: where the timeline's rule and its marks' centers are, the marks' size, and the gap to their words                                                                                                                                          |
-| `--wallpaper`                                                  | `none`: what shows in the gaps between tiled windows. The desktop's wallpaper wins when Appearance shows it                                                                                                                                                 |
-| `--sh`, `--shadow`, `--pop`                                    | The shadow color; a soft lift; what floats (sheets, menus, the launcher)                                                                                                                                                                                    |
-| `--ease-out`, `--ease-in-out`, `--ease-almost`                 | Hyprland's curves                                                                                                                                                                                                                                           |
-| `--t-in`, `--t-out`, `--t-fade`, `--t-border`, `--t-hover`     | 410, 150, 175, 540, 140 ms                                                                                                                                                                                                                                  |
-| `--ease-spring`, `--ease-glide`, `--ease-exit`                 | Fluid motion's curves: a spring that settles with a 2% overshoot (a `linear()` curve), a glide to rest with none, and a quick exit (since 0.20.0)                                                                                                           |
-| `--t-spring`, `--t-glide`, `--t-exit`, `--stagger`             | 560, 420, 150 ms, and 24 ms between staggered arrivals: Fluid motion's (since 0.20.0)                                                                                                                                                                       |
+| Token                                                          | Default                                                                                                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--sans`, `--mono`                                             | Geist for words; JetBrains Mono for code, paths, counts, keys.                                                                                    |
+| `--ligatures`                                                  | `none`: no ligatures, as in a terminal                                                                                                            |
+| `--r-mark`, `--r-tag`, `--r-seg`, `--r-row`, `--r-control`     | 2, 4, 5, 6, 7 px: state squares, tags, segments, rows, fields                                                                                     |
+| `--r-card`, `--r-window`, `--r-sheet`, `--r-float`, `--r-pill` | 8, 10, 12, 12, 999 px: cards, windows, sheets, PiP, pills                                                                                         |
+| `--radius`                                                     | A control's corner that names none (`--r-control`)                                                                                                |
+| `--gap-out`, `--gap-in`, `--border`                            | 8, 4, 1 px: the tiled windows' gaps and border                                                                                                    |
+| `--window-border`, `--window-border-active`                    | A tiled window's border color (`--hair`), and the one in focus (`--accent-line`)                                                                  |
+| `--window-ring`                                                | The shadow around the window in focus (`0 0 0 3px var(--accent-soft)`)                                                                            |
+| `--space-x`, `--space-y`, `--leading`                          | Density's scale of room (1, 1) and the conversation's line height (1.65)                                                                          |
+| `--transcript-width`, `--composer-width`                       | The conversation and the message box at their widest: `clamp(720px, 72%, 1200px)` of the pane, and 48 px more.                                    |
+| `--transcript-gutter`                                          | `0px`: room before the conversation's turns                                                                                                       |
+| `--timeline-x`, `--step-mark-size`, `--step-gap`               | 22.5, 19, 10 px: where the timeline's rule and its marks' centers are, the marks' size, and the gap to their words                                |
+| `--sh`, `--shadow`, `--pop`                                    | The shadow color; a soft lift; what floats (sheets, menus, the launcher)                                                                          |
+| `--ease-out`, `--ease-in-out`, `--ease-almost`                 | Hyprland's curves                                                                                                                                 |
+| `--t-in`, `--t-out`, `--t-fade`, `--t-border`, `--t-hover`     | 410, 150, 175, 540, 140 ms                                                                                                                        |
+| `--ease-spring`, `--ease-glide`, `--ease-exit`                 | Fluid motion's curves: a spring that settles with a 2% overshoot (a `linear()` curve), a glide to rest with none, and a quick exit (since 0.20.0) |
+| `--t-spring`, `--t-glide`, `--t-exit`, `--stagger`             | 560, 420, 150 ms, and 24 ms between staggered arrivals: Fluid motion's (since 0.20.0)                                                             |
 
-Most corners in the app are these tokens, some a pixel or two from one (`calc(var(--r-row) - 1px)`), so they follow when a theme changes the scale. The timeline's rule, marks, and what shows under each step all place themselves from `--timeline-x`, `--step-mark-size`, and `--step-gap`, so a theme that moves the marks moves them all.
+Most corners in the app are these tokens, some a pixel or two from one (`calc(var(--r-row) - 1px)`), so they follow when the scale changes. The timeline's rule, marks, and what shows under each step all place themselves from `--timeline-x`, `--step-mark-size`, and `--step-gap`, so they move together.
 
 ### Set by the person
 
-Read them; a theme cannot change them, as they are each person's choice in Appearance.
+Read them; do not set them, as they are each person's choice in Appearance.
 
-| Token                                    | What                                                                                |
-| ---------------------------------------- | ----------------------------------------------------------------------------------- |
-| `--text-size`                            | The conversation's text size, 10 to 32 px (13 to 17 before 0.20.0)                  |
-| `--sidebar-w`                            | The open sidebar's width, as dragged                                                |
-| `--transcript-width`, `--composer-width` | Only with Width set to Wide or Full: then they are inline, and win over the theme's |
+| Token                                    | What                                                               |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| `--text-size`                            | The conversation's text size, 10 to 32 px (13 to 17 before 0.20.0) |
+| `--sidebar-w`                            | The open sidebar's width, as dragged                               |
+| `--transcript-width`, `--composer-width` | Only with Width set to Wide or Full: then they are inline          |
 
 ## Parts
 
@@ -218,20 +217,18 @@ On `<html>`:
 | Attribute      | Values                                                                                                                                                                                                                                                                                                                           |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `data-mode`    | `dark` or `light`: the colors' mode                                                                                                                                                                                                                                                                                              |
-| `data-theme`   | The theme in use: `pocket`, or a theme folder's id                                                                                                                                                                                                                                                                               |
-| `data-colors`  | The colors in use: `desktop`, a palette's id, or a folder's (`id`, `id@dark`, `id@light`)                                                                                                                                                                                                                                        |
 | `data-tiling`  | `on` or `off`: tiled windows on wide screens                                                                                                                                                                                                                                                                                     |
 | `data-rail`    | `on` when the sidebar is folded to the rail                                                                                                                                                                                                                                                                                      |
-| `data-width`   | `comfortable` (the theme's width), `wide`, or `full`: Appearance's Width. With `wide` or `full`, the widths are the person's; a theme that lays things out by the column's width reads this, as `:root[data-width="full"]`                                                                                                       |
+| `data-width`   | `comfortable` (the app's width), `wide`, or `full`: Appearance's Width. With `wide` or `full`, the widths are the person's; CSS that depends on the column's width reads this, as `:root[data-width="full"]`                                                                                                                     |
 | `data-density` | `comfortable`, `compact`, or `tight`                                                                                                                                                                                                                                                                                             |
-| `data-motion`  | `full`, `reduced`, or `fluid` (since 0.20.0): Appearance's Motion. Auto gives `full` or `reduced`; `fluid` is chosen only. With `fluid`, `--ease-out` is `--ease-glide`, and a theme that wants motion for both writes `:root:not([data-motion="reduced"])`                                                                      |
+| `data-motion`  | `full`, `reduced`, or `fluid` (since 0.20.0): Appearance's Motion. Auto gives `full` or `reduced`; `fluid` is chosen only. With `fluid`, `--ease-out` is `--ease-glide`, and CSS that wants motion for both writes `:root:not([data-motion="reduced"])`                                                                          |
 | `data-focus`   | The window in focus: `pane` (the conversation's, at first), `sidebar`, `peeks`, `people-panel`, `browser-panel`, `files-panel`, or `extension-panel` (since 0.19.0): the window's part name. The app draws the focus only on wide screens with tiling on: `:root[data-tiling="on"][data-focus="sidebar"] [data-part~="sidebar"]` |
 
 Widths: below 700 px is the phone layout (sheets from the bottom, one screen at a time); the sidebar shows from 960 px; from 1100 px the Files tile and the Browser panel sit beside the conversation.
 
 ## Pseudo-elements the app uses
 
-A part's `::before` and `::after` are a theme's to use, except these, which the app draws (some are tap areas, larger than what shows). Use the other one, or a child:
+A part's `::before` and `::after` are free for extensions' CSS to use, except these, which the app draws (some are tap areas, larger than what shows). Use the other one, or a child:
 
 | Part                                           | The app's                                                                   |
 | ---------------------------------------------- | --------------------------------------------------------------------------- |
@@ -243,15 +240,15 @@ A part's `::before` and `::after` are a theme's to use, except these, which the 
 
 What is inside a part (its children without a part of their own) may use its pseudo-elements in any release.
 
-## Layers
+## The layer
 
-`@layer pocket, palette, theme;`: the app's CSS and extensions' stylesheets, then the colors, then the theme. Later layers win over earlier ones, whatever the selectors' specificity, and in every condition: a theme's rule for a property replaces the app's on phones, on touch screens, and on hover too. `!important` reverses that: the app's `!important` rules win over a theme's. The ones a theme is likely to meet: reduced motion, `--ligatures` (so each `font` shorthand cannot reset it), and fields' 16px on touch screens (so iOS does not zoom into them); a few more keep app states whole (the resize cursor while a width is dragged, a page leaving on back, the browser's forward button on a phone). Inline values win over all of them: the text size and the widths people drag, unless a theme marks a size `!important`, which a theme must not do.
+`@layer pocket;`: the app's CSS and extensions' stylesheets (`pocket.style()`) are in one layer, `pocket`, so they win and lose against each other by specificity and order. A stylesheet outside the layer (a `<link>`) wins over the app. Some of the app's rules are `!important` and keep app states whole: reduced motion, `--ligatures` (so each `font` shorthand cannot reset it), fields' 16px on touch screens (so iOS does not zoom into them), the resize cursor while a width is dragged, a page leaving on back, and the browser's forward button on a phone. Inline values win over all of them: the text size and the widths people drag.
 
 ## Changes
 
 These names change by the deprecation rules of [the API policy](../policies/api-stability.md#deprecation):
 
-- **Additions** (a new token, part, state, or value) come in any minor release, with no change to `themeApi`. A theme that needs one sets `minPocket` to the release that added it.
+- **Additions** (a new token, part, state, or value) come in any minor release, with no change to the API version. An extension that needs one sets `minPocket` to the release that added it.
 - **A rename or a removal** first keeps the old name as an alias: `--old: var(--new)` in the app's CSS, or both names in `data-part` (`data-part="new old"`). The alias stays for at least one minor release and at least 90 days, from the first stable release that deprecates it, whichever is later. This page and the release notes mark it deprecated, with its replacement and its earliest removal.
-- **The removal** comes only in a minor release after that time, and raises `themeApi` by one. The release notes list it under "Removed", with what to use instead.
-- **A part whose region leaves the app** goes with it, in the same release, with a release note ([A20](../policies/api-stability.md#theme-parts)): a theme's rules for it match nothing, and the rest of the theme works as before.
+- **The removal** comes only in a minor release after that time. The release notes list it under "Removed", with what to use instead.
+- **A part whose region leaves the app** goes with it, in the same release, with a release note ([A20](../policies/api-stability.md#parts)): an extension's rules for it match nothing, and the rest of its CSS works as before.

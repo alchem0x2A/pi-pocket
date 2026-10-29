@@ -1,5 +1,5 @@
-// The extension gallery: drop-ins and themes other people wrote, from a reviewed index. Browse and search them, read
-// one's code before it is installed, install it (a drop-in off; a theme into Appearance's list, not applied), ask Pi to
+// The extension gallery: drop-ins other people wrote, from a reviewed index. Browse and search them, read
+// one's code before it is installed, install it (off until turned on), ask Pi to
 // review a drop-in, turn it on, update it with a diff, remove it; and share your own as a draft index entry. The
 // owner's alone; the server side is src/server/gallery.ts.
 //
@@ -20,7 +20,6 @@ import {
     store,
     uid,
 } from "../store.js";
-import { BASE_LOOK, prefs, setPrefs } from "../theme.js";
 import { copyText, formatBytes, html, Icon, Loader, Sheet, SheetBack, timeAgo } from "../ui.js";
 
 /** The owner's, while its module is on. */
@@ -89,10 +88,6 @@ const declared = (declares, key) =>
 
 const RISK =
     "It runs inside the server with your rights, in every session. Lancet Guard does not see what its code does.";
-const THEME_RISK =
-    "A theme is CSS, fonts, and images. It runs no code, and it loads nothing from other sites. But it can hide or relabel what people see, approvals too: install only themes you trust.";
-
-const isTheme = (item) => item?.kind === "theme";
 
 /** A link out, to an address the server built (or a GitHub profile): never one the index wrote. */
 const Out = ({ href, class: className = "", children }) =>
@@ -153,7 +148,7 @@ function useListing(shared) {
 }
 
 /**
- * A steady mark for an extension or theme: its icon, or the first letter of its name, in a color of the theme picked
+ * A steady mark for an extension: its icon, or the first letter of its name, in a color
  * from its name, so the same one looks the same everywhere.
  */
 export function Tile({ name, title, icon = null, large = false }) {
@@ -168,7 +163,7 @@ export function Tile({ name, title, icon = null, large = false }) {
     </span>`;
 }
 
-/** How an installed extension or theme stands, in a word: revoked, on, or installed. */
+/** How an installed extension stands, in a word: revoked, on, or installed. */
 function RowState({ installed }) {
     if (installed.revoked !== null) {
         return html`<span class="ext-state bad">Revoked</span>`;
@@ -186,8 +181,7 @@ function EntryRow({ entry, selected, onOpen, onChanged }) {
     const [busy, setBusy] = useState(false);
     const going = useRef(false);
     const installed = entry.installed ?? (entry.listed === false ? entry : null);
-    const theme = isTheme(entry);
-    const meta = [theme && "Theme", entry.author?.name, entry.unlisted].filter(Boolean).join(" · ");
+    const meta = [entry.author?.name, entry.unlisted].filter(Boolean).join(" · ");
 
     const install = () => {
         if (going.current) {
@@ -207,7 +201,7 @@ function EntryRow({ entry, selected, onOpen, onChanged }) {
 
     return html`<div class=${`ext-row ${selected ? "selected" : ""}`}>
         <button class="ext-row-open" aria-current=${selected ? "true" : undefined} onClick=${onOpen}>
-            <${Tile} name=${entry.name} title=${entry.title} icon=${theme ? "palette" : null} />
+            <${Tile} name=${entry.name} title=${entry.title} />
             <span class="ext-row-text">
                 <span class="ext-row-title">${entry.title}</span>
                 ${entry.description && html`<span class="ext-row-desc">${entry.description}</span>`}
@@ -352,7 +346,6 @@ export function GallerySheet({
     const { data, problem, loading, load } = listing;
     const [query, setQuery] = useState("");
     const [tag, setTag] = useState(null);
-    const [kind, setKind] = useState(null);
     const needle = query.trim().toLowerCase();
     const installed = data?.installed ?? [];
     const updates = installed.filter((item) => item.update).length;
@@ -370,13 +363,8 @@ export function GallerySheet({
                   ...installed.filter((item) => !item.listed && (tab !== "updates" || item.update)),
               ];
     const tags = tab === "discover" ? topTags(offered, 10) : [];
-    const kinds =
-        tab === "discover" && offered.some(isTheme) && !offered.every(isTheme)
-            ? ["extension", "theme"]
-            : [];
     const matches = entries.filter(
         (entry) =>
-            (kind === null || (kind === "theme") === isTheme(entry)) &&
             (tag === null || entry.tags?.includes(tag)) &&
             (needle === "" ||
                 [entry.name, entry.title, entry.description ?? "", ...(entry.tags ?? [])].some(
@@ -392,7 +380,6 @@ export function GallerySheet({
     const changeTab = (next) => {
         setQuery("");
         setTag(null);
-        setKind(null);
         openSheet({ type: origin, tab: next });
     };
 
@@ -435,8 +422,8 @@ export function GallerySheet({
                     <${Icon} name="search" size=${16} />
                     <input
                         type="search"
-                        placeholder=${tab === "installed" ? "Search installed" : "Search extensions and themes"}
-                        aria-label="Search extensions and themes"
+                        placeholder=${tab === "installed" ? "Search installed" : "Search extensions"}
+                        aria-label="Search extensions"
                         value=${query}
                         onInput=${(event) => setQuery(event.currentTarget.value)}
                     />
@@ -456,22 +443,10 @@ export function GallerySheet({
             </div>
         </div>
         ${
-            (tags.length > 1 || kinds.length > 0) &&
-            html`<div class="gallery-tags ext-filters" role="group" aria-label="Kinds and tags">
-                ${chip("all", "All", kind === null && tag === null, () => {
-                    setKind(null);
-                    setTag(null);
-                })}
-                ${kinds.map((each) =>
-                    chip(
-                        `kind-${each}`,
-                        each === "theme" ? "Themes" : "Extensions",
-                        kind === each,
-                        () => setKind(kind === each ? null : each),
-                    ),
-                )}
-                ${kinds.length > 0 && tags.length > 1 && html`<span class="ext-filters-gap"></span>`}
-                ${(tags.length > 1 ? tags : []).map((each) =>
+            tags.length > 1 &&
+            html`<div class="gallery-tags ext-filters" role="group" aria-label="Tags">
+                ${chip("all", "All", tag === null, () => setTag(null))}
+                ${tags.map((each) =>
                     chip(each, `#${each}`, tag === each, () => setTag(tag === each ? null : each)),
                 )}
             </div>`
@@ -513,7 +488,7 @@ export function GallerySheet({
                             tab === "updates" && !needle
                                 ? html`<span class="ext-empty-mark"><${Icon} name="check" size=${20} /></span>
                                       <span>Everything is up to date.</span>`
-                                : needle || tag || kind
+                                : needle || tag
                                   ? "Nothing matches. Try other words, or All."
                                   : "The index has nothing for this Pi Pocket yet."
                         }
@@ -743,15 +718,14 @@ function Adds({ declares }) {
 }
 
 /** The head of an entry: its mark, name, who made it, its version, and how it stands here. */
-function EntryHead({ name, title, entry, installed, theme }) {
+function EntryHead({ name, title, entry, installed }) {
     const by = [
         entry?.author && `by ${entry.author.name}`,
         `v${installed?.version ?? entry.version}`,
-        theme && "Theme",
     ].filter(Boolean);
 
     return html`<header class="ext-detail-head">
-        <${Tile} name=${name} title=${title} icon=${theme ? "palette" : null} large=${true} />
+        <${Tile} name=${name} title=${title} large=${true} />
         <div class="ext-detail-name">
             <h3 class="pi-title">${title}</h3>
             <div class="ext-detail-by">
@@ -835,18 +809,6 @@ export function GalleryEntrySheet({ name, listing, embedded = false }) {
                     : html`<p class="muted">The index does not list ${name}, and it is not installed.</p>`
             }
         <//>`;
-    }
-
-    if (isTheme(entry ?? installed)) {
-        return html`<${ThemeEntry}
-            name=${name}
-            entry=${entry}
-            installed=${installed}
-            problem=${problem}
-            busy=${busy}
-            run=${run}
-            embedded=${embedded}
-        />`;
     }
 
     const title = installed?.title ?? entry.title;
@@ -1091,118 +1053,6 @@ function EntryFacts({ entry, installed, needs }) {
     </dl>`;
 }
 
-/**
- * A theme's entry: what it is, its files, and installing, updating, and removing it. Installing puts it in the list in
- * Appearance; it changes nothing until someone chooses it there.
- */
-function ThemeEntry({ name, entry, installed, problem, busy, run, embedded }) {
-    const title = installed?.title ?? entry.title;
-    const files =
-        entry && (!installed || entry.source.commit === installed.commit) ? entry.files : null;
-    const offeredRevoked = !installed && entry ? revocation(entry, entry.source.commit) : undefined;
-
-    const install = () =>
-        run(() => galleryApi(`install/${encodeURIComponent(name)}`, { pin: entry.pin }));
-
-    const uninstall = () => {
-        if (
-            confirm(
-                `Remove the theme ${title}?\n\nIts folder moves to themes/.removed/ in the data folder. Browsers that use it go back to Pocket.`,
-            )
-        ) {
-            run(async () => {
-                await galleryApi(`uninstall/${encodeURIComponent(name)}`, {});
-
-                if (prefs().look === name) {
-                    setPrefs({ look: BASE_LOOK });
-                }
-            });
-        }
-    };
-
-    return html`<${EntryFrame} title=${title} embedded=${embedded}>
-        ${problem && html`<div class="error-box small">${problem}</div>`}
-        ${
-            (installed?.revoked ?? offeredRevoked) &&
-            html`<div class="error-box gallery-revoked" role="alert">
-                <strong>The gallery revoked this version.</strong> Its reason: ${installed?.revoked ?? offeredRevoked}
-            </div>`
-        }
-        <${EntryHead}
-            name=${name}
-            title=${title}
-            entry=${entry}
-            installed=${installed}
-            theme=${true}
-        />
-        <${UpdateCallout} installed=${installed} name=${name} busy=${busy} />
-        <${Steps}
-            steps=${[
-                {
-                    title: "Install",
-                    text: "It joins the list in Appearance. Nothing changes until someone chooses it.",
-                    done: installed !== null,
-                    now: installed === null,
-                    actions: html`${
-                        installed === null &&
-                        html`<button
-                            class="button small primary"
-                            disabled=${busy || offeredRevoked !== undefined}
-                            onClick=${install}
-                        >
-                            Install
-                        </button>`
-                    }
-                    <button
-                        class="button small"
-                        disabled=${busy}
-                        onClick=${() => openGallerySheet("gallery-source", name)}
-                    >
-                        View source
-                    </button>`,
-                },
-                {
-                    title: "Choose it",
-                    text: "Each person picks a theme for their own browser, under Theme in Appearance.",
-                    now: installed !== null,
-                    actions:
-                        installed &&
-                        html`<button
-                            class="button small primary"
-                            onClick=${() => openSheet({ type: "appearance" })}
-                        >
-                            Open Appearance
-                        </button>`,
-                },
-            ]}
-        />
-        <p class="ext-assure"><${Icon} name="shield" size=${15} /><span>${THEME_RISK}</span></p>
-        ${
-            installed?.problem &&
-            html`<div class="gallery-warn small">Appearance does not offer it as it is: ${installed.problem}</div>`
-        }
-        <${Changed} installed=${installed} />
-        <details class="gallery-technical">
-            <summary>Technical details</summary>
-            <${EntryFacts}
-                entry=${entry}
-                installed=${installed}
-                needs=${entry && `Pi Pocket ${entry.minPocket} or newer · theme API ${entry.themeApi}`}
-            />
-            <${Files} files=${files} />
-        </details>
-        ${
-            installed &&
-            html`<${Remove}
-                label="Remove"
-                text="Moves it to themes/.removed/ in the data folder."
-                busy=${busy}
-                onClick=${uninstall}
-            />`
-        }
-    <//>`;
-}
-
 /** An extension's files, to read: as installed, or downloaded from the pinned commit before it is. */
 export function GallerySourceSheet({ name }) {
     const [data, setData] = useState(null);
@@ -1401,11 +1251,8 @@ export function GalleryUpdateSheet({ name }) {
             </div>`
         }
         ${
-            data.declares === null
-                ? html`<p class="muted small">
-                      It is checked as every theme is before it is in place. The version you have now goes to themes/.removed/ in the data folder.
-                  </p>`
-                : html`<div class="group">
+            data.declares !== null &&
+            html`<div class="group">
                       <div class="group-title">What it declares</div>
                       ${
                           changes.length === 0
@@ -1514,11 +1361,11 @@ function Field({ id, label, hint, value, onInput, problem, placeholder, mono = t
 }
 
 /**
- * Share one of your own drop-ins, or with `theme`, one of your theme folders (`file` is its id): the checks, where its
+ * Share one of your own drop-ins (`file`): the checks, where its
  * files are on GitHub (only its author knows), its index entry made from both, and the pull request, which opens only
  * once the entry can pass the index's checks.
  */
-export function GalleryShareSheet({ file, theme = false }) {
+export function GalleryShareSheet({ file }) {
     const [data, setData] = useState(null);
     const [problem, setProblem] = useState(null);
     const [form, setForm] = useState({
@@ -1530,11 +1377,8 @@ export function GalleryShareSheet({ file, theme = false }) {
         name: null,
     });
 
-    useRoute(`${theme ? "share-theme" : "share"}/${encodeURIComponent(file)}`, setData, setProblem);
-    // A theme by its name, as Appearance shows it; a drop-in by its file.
-    const shareName = theme
-        ? (store.state.themeList?.find((each) => each.id === file)?.name ?? file)
-        : file;
+    useRoute(`share/${encodeURIComponent(file)}`, setData, setProblem);
+    const shareName = file;
 
     if (!data) {
         return html`<${Sheet} title=${`Share ${shareName}`} onClose=${closeSheet} wide=${true} className="gallery">
@@ -1639,7 +1483,7 @@ export function GalleryShareSheet({ file, theme = false }) {
                     id="share-path"
                     label="Folder (optional)"
                     hint="Only when the files are not at the top of the repository."
-                    placeholder=${theme ? "theme" : "extension"}
+                    placeholder="extension"
                     value=${form.path}
                     onInput=${set("path")}
                     problem=${wrong.path}
@@ -1647,8 +1491,8 @@ export function GalleryShareSheet({ file, theme = false }) {
                 <${Field}
                     id="share-tags"
                     label="Tags"
-                    hint=${`A few words people search for, such as ${theme ? "dark, calm" : "usage, time"}.`}
-                    placeholder=${theme ? "dark, minimal" : "usage, limits"}
+                    hint="A few words people search for, such as usage, time."
+                    placeholder="usage, limits"
                     value=${form.tags}
                     onInput=${set("tags")}
                     problem=${wrong.tags}

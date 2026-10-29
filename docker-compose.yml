@@ -43,12 +43,10 @@ services:
             # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
         volumes:
-            # Pi Pocket's database, people, settings, uploads, worktrees, and themes.
+            # Pi Pocket's database, people, settings, uploads, and worktrees.
             - ${PI_POCKET_DATA:-./data}:/data
             # The owner's drop-in extensions, loaded from this external folder.
             - ${PI_POCKET_EXTENSIONS:-./data/extensions}:/data/extensions
-            # The owner's themes, loaded from this external folder.
-            - ${PI_POCKET_THEMES:-./data/themes}:/data/themes
             # Pi's own folder: auth.json, settings.json, AGENTS.md, skills, prompts,
             # trust.json, and sessions. Keeping it here lets a fresh database reuse the
             # same sign-ins, and lets a Pi CLI on the host share the folder.

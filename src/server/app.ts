@@ -103,8 +103,6 @@ import { PIP_COMPACT_CHOICES, PipCompaction } from "./pip-compact.ts";
 import { RepoWatches } from "./repo-watches.ts";
 import { snippet } from "./projection.ts";
 import { loadPromptTemplates, type PromptTemplate, type SkillCommand } from "./prompts.ts";
-import { BASE_THEME, Themes } from "./themes.ts";
-import { THEME_ID } from "./themes/format.ts";
 import { LimitGate, type LimitTuning } from "./limit-gate.ts";
 import { CacheKeeper } from "./cache-keeper.ts";
 import { measureModelStreams } from "./timing.ts";
@@ -349,8 +347,6 @@ export class PocketApp {
     readonly gallery = new Gallery(this);
     /** Updates of Pi Pocket itself: the newest release, and updating to it (`updates.ts`). */
     readonly updates: Updates;
-    /** Theme folders: the app's look and layout, built in and the owner's (`themes.ts`). */
-    readonly themes: Themes;
     /** Each conversation's browser page, which Pi and the people in the conversation share. */
     readonly browsers: Browsers;
     /** What extension modules add to the app: their routes, browser modules, and events (`extension-web.ts`). */
@@ -502,25 +498,6 @@ export class PocketApp {
                     );
             },
         });
-        this.themes = new Themes({
-            builtIn: join(APP_ROOT, "web", "themes"),
-            dataDir: options.dataDir,
-            notify: (message) => this.ownerNotice("warning", message),
-            // Everyone's tabs: a theme anyone may have chosen changed, or one came or went.
-            changed: () => {
-                const lists = { owner: this.themes.list(true), others: this.themes.list(false) };
-
-                for (const client of this.#clients) {
-                    client.send(
-                        "themes",
-                        client.user.role === "owner" ? lists.owner : lists.others,
-                    );
-                }
-
-                void this.#themeDefaultStillHere();
-            },
-            log: (line) => this.#log(line),
-        });
         this.webs = new ExtensionWebs({
             changed: (access) => this.#websChanged(access),
             deliver: (part, access, event, data, to) => {
@@ -667,7 +644,6 @@ export class PocketApp {
     pauseReloads(paused: boolean): void {
         this.reloadsPaused = paused;
         this.loader?.pause(paused);
-        this.themes?.pause(paused);
     }
 
     /** Write a line to the server log. */
@@ -845,15 +821,10 @@ export class PocketApp {
             // What a module's load says can name the server's folders, or quote a provider: the owner's to read.
             { webs: this.webs, notify: (level, message) => this.ownerNotice(level, message) },
         );
-        await this.themes.load().catch((error: unknown) => {
-            this.#log(`Themes could not be read: ${describe(error)}`);
-        });
-        // A gallery update the server stopped in the middle of goes back first, so no extension loads half of one, and
-        // a theme it had out of its folder is back before the owner's default is checked.
+        // A gallery update the server stopped in the middle of goes back first, so no extension loads half of one.
         await this.gallery.recover().catch((error: unknown) => {
             this.#log(`The extension gallery could not check its updates: ${describe(error)}`);
         });
-        await this.#themeDefaultStillHere();
         await this.loader.loadAll();
 
         const storage = await openNodeSqliteStorage(join(this.dataDir, "pocket.sqlite"));
@@ -1474,10 +1445,6 @@ export class PocketApp {
         client.send("hello", this.#helloFor(client, hello));
         this.#sendSessions(client, this.sessions(client.user));
         this.#sendPip(client);
-
-        if (client.user.role === "owner" && this.themes.failure !== undefined) {
-            client.send("notice", { level: "warning", message: this.themes.failure });
-        }
 
         if (arriving) {
             this.#peopleChanged(client.user.id);
@@ -2224,8 +2191,6 @@ export class PocketApp {
                 approvalRule: this.config.approvalRule,
                 // The model and thinking level new sessions start with, or null for the last one picked.
                 defaultModel: this.config.defaultModel ?? null,
-                // The theme and colors of browsers that have not chosen their own, or null for the app's own.
-                themeDefault: this.config.themeDefault ?? null,
                 // The models Pi may start subagents on: the owner's to see and change.
                 ...(user.role === "owner"
                     ? { subagentModels: [...this.config.subagentModels] }
@@ -2239,8 +2204,6 @@ export class PocketApp {
             },
             // Read after the guard's wait, so a connecting device does not replace a live update with an older list.
             folderFavorites: await this.folderFavorites.list(user),
-            // Every theme folder, for Appearance and for the look this tab uses (`theme.js`).
-            themes: this.themes.list(user.role === "owner"),
         };
     }
 
@@ -3208,83 +3171,6 @@ export class PocketApp {
     }
 
     /**
-     * The theme and colors browsers start with until their person chooses (`config.themeDefault`): the owner's to set,
-     * or `null` for the app's own. Everyone's tabs hear it in `hello`.
-     */
-    async setThemeDefault(user: User, choice: unknown): Promise<void> {
-        if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner sets the default theme");
-        }
-
-        if (choice === null) {
-            this.config.themeDefault = undefined;
-        } else {
-            const { look, colors } = (choice ?? {}) as { look?: unknown; colors?: unknown };
-
-            if (
-                typeof look !== "string" ||
-                typeof colors !== "string" ||
-                !THEME_ID.test(look) ||
-                !THEME_ID.test(colors.replace(/@(dark|light)$/, ""))
-            ) {
-                throw new HttpError(
-                    400,
-                    "The default is { look, colors }: a theme's id and colors' id, or null",
-                );
-            }
-
-            if (!this.themes.list().some((each) => each.id === look && each.usable)) {
-                throw new HttpError(404, "No such theme");
-            }
-
-            // Colors that are not here (the desktop's, on a machine without Omarchy) would leave new browsers on none.
-            if (!(await this.themes.hasColors(colors))) {
-                throw new HttpError(404, "No such colors here");
-            }
-
-            this.config.themeDefault = { look, colors };
-        }
-
-        await this.#refreshClients();
-    }
-
-    /**
-     * The owner's default after a theme went (removed in Appearance or the gallery, or its folder deleted): a theme that
-     * is gone gives way to Pocket, and colors that went with it (its own) to the desktop's; with both gone, no default.
-     * Everyone's tabs hear it.
-     */
-    async #themeDefaultStillHere(): Promise<void> {
-        const before = this.config.themeDefault;
-
-        // When the owner's themes could not be read at the start, they are not gone: keep the default for the next start.
-        if (before === undefined || this.themes.failure !== undefined) {
-            return;
-        }
-
-        try {
-            const lookGone =
-                before.look !== BASE_THEME &&
-                !this.themes.list().some((each) => each.id === before.look);
-            // The desktop's colors are the app's own default: they never go.
-            const colorsGone =
-                before.colors !== "desktop" && !(await this.themes.hasColors(before.colors));
-
-            if (!lookGone && !colorsGone) {
-                return;
-            }
-
-            const look = lookGone ? BASE_THEME : before.look;
-            const colors = colorsGone ? "desktop" : before.colors;
-
-            this.config.themeDefault =
-                look === BASE_THEME && colors === "desktop" ? undefined : { look, colors };
-            await this.#refreshClients();
-        } catch (error) {
-            this.#log(`The default theme could not be checked: ${describe(error)}`);
-        }
-    }
-
-    /**
      * The owner picks the model and thinking level new sessions start with: a signed-in model, its level kept to one it
      * has. Null leaves it to the last model picked, as before there was a choice.
      */
@@ -3515,7 +3401,6 @@ export class PocketApp {
         this.#closing ??= (async () => {
             clearTimeout(this.#sessionsTimer);
             this.alerts.close();
-            this.themes.close();
             await this.cacheKeeper.close();
             this.spend.close();
             this.limits.close();

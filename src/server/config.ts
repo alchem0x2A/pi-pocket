@@ -67,12 +67,6 @@ export interface StoredInvite {
     createdBy: string;
 }
 
-/** The theme (a theme folder's id, or "pocket") and the colors ("desktop", a palette's id, or a folder's) a browser
- * starts with until its person chooses. */
-export interface ThemeDefault {
-    look: string;
-    colors: string;
-}
 export interface ModelChoice {
     provider: string;
     modelId: string;
@@ -89,8 +83,6 @@ interface PocketConfig {
     lastModel?: ModelChoice;
     /** The model and thinking level new sessions start with, as the owner chose; absent: the last one picked. */
     defaultModel?: ModelChoice;
-    /** The theme and colors of browsers that have not chosen their own (`theme.js`), as the owner chose; absent: Pocket. */
-    themeDefault?: ThemeDefault;
     /** Extension modules (file names in `src/server/extensions/`) the owner turned off. */
     disabledExtensions?: string[];
     /** Extension modules the owner turned on. Matters for modules that are off by default, like Lancet Guard. */
@@ -148,6 +140,8 @@ export class ConfigStore {
 
         if (existsSync(this.file)) {
             this.#config = JSON.parse(readFileSync(this.file, "utf8")) as PocketConfig;
+            // An older Pi Pocket kept the owner's default theme here: there are no themes now, so the next save drops it.
+            delete (this.#config as { themeDefault?: unknown }).themeDefault;
         } else {
             const ownerToken = newToken();
 
@@ -182,20 +176,6 @@ export class ConfigStore {
 
     set lastModel(choice: ModelChoice | undefined) {
         this.#config.lastModel = choice;
-        this.save();
-    }
-
-    get themeDefault(): ThemeDefault | undefined {
-        return this.#config.themeDefault;
-    }
-
-    set themeDefault(choice: ThemeDefault | undefined) {
-        if (choice === undefined) {
-            delete this.#config.themeDefault;
-        } else {
-            this.#config.themeDefault = choice;
-        }
-
         this.save();
     }
 

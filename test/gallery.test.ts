@@ -2,7 +2,7 @@
 import { cleanUp, openApp, owner, root, scriptedModel } from "./helpers.ts";
 import type { Installed } from "../src/server/gallery.ts";
 import assert from "node:assert/strict";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import {
     existsSync,
     mkdirSync,
@@ -283,46 +283,38 @@ test("a revoked version is flagged where it is installed, and is never installed
     });
 });
 
-test("a theme installs into the themes folder only as pinned, and only when its CSS passes the theme check", async () => {
-    const themes = join(dataDir, "themes");
-
-    const theme = (name: string, css: string, commit: string) => {
-        const files = {
-            [`${name}/theme.json`]: '{ "themeApi": 1, "name": "Test theme" }\n',
-            [`${name}/theme.css`]: css,
-            // A light palette beside the theme: part of the format, so part of an entry.
-            [`${name}/colors-light.toml`]: 'background = "#fafafa"\nforeground = "#222222"\n',
-        };
-        const { pocketApi: _api, declares: _declares, ...rest } = entry(name, files, commit);
-
-        return { ...rest, kind: "theme", themeApi: 1 };
-    };
-
-    const good = ":root { --accent: #c2410c; }\n";
-
-    await index(
-        theme("paper", good, "a".repeat(40)),
-        // It would load the app's own address with the person's cookie: the check refuses it.
-        theme("leaky", ':root { --wallpaper: url("/api/state"); }\n', "b".repeat(40)),
-        theme("swapped", good, "c".repeat(40)),
-    );
-    served.set(
-        `https://raw.githubusercontent.com/someone/pocket-swapped/${"c".repeat(40)}/swapped/theme.css`,
-        good.replace("c2410c", "000000"),
+test("an index that still lists themes is read: its extensions are offered, its themes skipped", async () => {
+    const {
+        pocketApi: _api,
+        declares: _declares,
+        ...rest
+    } = entry("paper", { "paper/theme.css": ":root { --accent: #c2410c; }\n" }, "a".repeat(40));
+    const listing = await index(
+        { ...rest, kind: "theme", themeApi: 1 },
+        entry("ticker", { "ticker.ts": clock }, "b".repeat(40)),
     );
 
-    await assert.rejects(app.gallery.install("leaky", await pin("leaky")), { status: 422 });
-    await assert.rejects(app.gallery.install("swapped", await pin("swapped")), /SHA-256/);
-    await app.gallery.install("paper", await pin("paper"));
+    assert.equal(listing.error, undefined);
+    assert.deepEqual(
+        listing.entries.map((each) => each.name),
+        ["ticker"],
+    );
+    assert.equal(listing.hidden.incompatible, 0);
+    assert.deepEqual(listing.hidden.invalid, []);
+    await assert.rejects(app.gallery.install("paper", "x"), { status: 404 });
+});
 
-    assert.deepEqual(readdirSync(themes), ["paper"]);
-    assert.equal(readFileSync(join(themes, "paper", "theme.css"), "utf8"), good);
-    assert.equal(app.themes.list().find((each) => each.id === "paper")?.usable, true);
+test("a config.json from when Pi Pocket had themes still loads, and drops the old default", async () => {
+    const file = join(dataDir, "config.json");
 
-    // The owner's default, and a restart while an update had the theme out of its folder: it stays the default.
-    app.config.themeDefault = { look: "paper", colors: "desktop" };
     await app.close();
-    renameSync(join(themes, "paper"), join(themes, `.gallery-paper-${randomUUID()}.part`));
+    const config = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+
+    writeFileSync(
+        file,
+        JSON.stringify({ ...config, themeDefault: { look: "paper", colors: "desktop" } }),
+    );
     await open();
-    assert.deepEqual(app.config.themeDefault, { look: "paper", colors: "desktop" });
+    app.config.lastModel = app.config.lastModel;
+    assert.equal("themeDefault" in JSON.parse(readFileSync(file, "utf8")), false);
 });
