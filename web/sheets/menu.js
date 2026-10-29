@@ -28,7 +28,7 @@ import {
     store,
 } from "../store.js";
 import { defineItem, slotItems } from "../slots.js";
-import { isPinned, lookLabel, togglePin } from "../theme.js";
+import { isPinned, modeLabel, togglePin } from "../theme.js";
 import { currentTrust, trustAvailable } from "../trust.js";
 import { branchAvailable } from "./branch.js";
 import { memoryAvailable, memoryHint, useMemory } from "./memory.js";
@@ -538,7 +538,7 @@ export function MenuSheet({ places = true }) {
         }
         <div class="group">
             <div class="group-title">App</div>
-            ${item("Appearance", () => openSheet({ type: "appearance" }), lookLabel())}
+            ${item("Appearance", () => openSheet({ type: "appearance" }), modeLabel())}
             ${!touch && item("Keyboard shortcuts", () => openSheet({ type: "shortcuts" }), "?")}
             ${
                 me?.role === "owner" &&

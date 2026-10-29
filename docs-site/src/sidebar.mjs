@@ -29,7 +29,6 @@ export const SIDEBAR = [
             ["docs/extensions/tool-calls.md", "How tool calls show"],
             ["docs/extensions/events.md", "Events"],
             ["docs/extensions/cleanups.md", "Cleanups"],
-            ["docs/extensions/themes.md", "Themes"],
             ["docs/extensions/testing.md", "Testing"],
             ["docs/extensions/publishing.md", "Publishing to the gallery"],
             ["docs/extensions/built-in.md", "Making it built in"],

@@ -881,8 +881,6 @@ const handlers = {
             models: kept(state.models, data.models),
             guard: kept(state.guard, data.guard),
             server: keptServer(state.server, data.server, asked),
-            // Every theme folder (`theme.js`): an older server lists none.
-            themeList: kept(state.themeList, Array.isArray(data.themes) ? data.themes : []),
             // This connection's id, which peek lists name (`peeks.js`). `GET /api/me` answers without one.
             ...(data.connection === undefined ? {} : { streamId: data.connection }),
         });
@@ -900,8 +898,6 @@ const handlers = {
     "folder-favorites": (folderFavorites) =>
         setChanged({ folderFavorites: kept(store.state.folderFavorites, folderFavorites) }),
     models: (models) => setChanged({ models: kept(store.state.models, models) }),
-    // A theme folder came, went, or changed (`theme.js` loads its new version).
-    themes: (themeList) => setChanged({ themeList: kept(store.state.themeList, themeList) }),
     // Every subagent in every session, while this tab shows the subagents board (`subagents-board.js`).
     subagents: (agents) => store.state.board && store.set({ boardAgents: agents }),
     view: applyView,
@@ -1322,7 +1318,6 @@ export async function start() {
             models: hello.models,
             guard: hello.guard,
             server: keptServer(store.state.server, hello.server, asked),
-            themeList: Array.isArray(hello.themes) ? hello.themes : [],
         });
         connect();
     } catch (error) {

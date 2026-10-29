@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useArtifactBridge } from "../artifact-bridge.js";
 import { browserModuleState, openExtPanel } from "../extension-ui.js";
 import { api, attempt, closeSheet, notify, openSheet, store } from "../store.js";
-import { modeOf, paletteOf, themeVars } from "../theme.js";
+import { modeNow } from "../theme.js";
 import { copyText, formatBytes, formatWhen, html, Icon, Loader, Sheet, timeAgo } from "../ui.js";
 
 /**
@@ -11,12 +11,11 @@ import { copyText, formatBytes, formatWhen, html, Icon, Loader, Sheet, timeAgo }
  * and would otherwise take the browser's light or dark (`src/server/http/artifacts.ts`).
  */
 function themeQuery() {
-    const palette = paletteOf();
-    const vars = themeVars(palette);
-    const hex = (name) => vars[name].replace(/^#/, "");
+    const style = getComputedStyle(document.documentElement);
+    const hex = (name) => style.getPropertyValue(name).trim().replace(/^#/, "");
 
     return `?${new URLSearchParams({
-        mode: modeOf(palette),
+        mode: modeNow(),
         bg: hex("--o-bg"),
         fg: hex("--o-fg"),
         text: hex("--o-fg-bright"),

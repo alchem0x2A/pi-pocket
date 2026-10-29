@@ -82,12 +82,12 @@ Ask these questions in this order. The first "yes" gives the answer.
 - **Extension:** each language, as a locale pack that has only data.
 - **Why:** the keys and the fallback must be the same on all screens (C5). A language is the preference of some people (C6).
 
-### Themes (#90, 0.14.0)
+### Themes (#90, 0.14.0; removed)
 
-- **Core:** the theme surface, which every theme can change: tokens (CSS variables), the `data-part` names of the parts of the screen, and their documented states. Also the loading and the checks of theme folders.
-- **Not core:** each theme, as a folder in `~/.pi-pocket/themes/`. Duplicate the Pocket theme, change the copy, and choose it in settings.
-- **Why:** the tokens and the parts must be the same for every theme (C5). The look is a preference (C6). The default theme stays the one that Pi Pocket ships.
-- The theme guide and the theme surface reference tell what a theme can change.
+- Themes were removed. Pi Pocket has one palette, in light and dark. Its CSS names (tokens, `data-part` names, states) stay, for extensions' stylesheets.
+- **Core:** the CSS names, and the colors and the mode.
+- **Not core:** a different look. An extension's stylesheet can restyle its own pages.
+- **Why:** the tokens and the parts must be the same for every screen (C5).
 
 ### Session tags (#118, 0.20.0)
 

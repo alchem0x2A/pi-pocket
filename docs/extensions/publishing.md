@@ -11,7 +11,7 @@ Menu → **Extensions** opens a hub with **Discover**, **Installed**, and **Upda
 
 Each entry gives the files of one drop-in, at one commit of a GitHub repository, with the size and the SHA-256 of each file, and what the module installs.
 
-The index lists themes too, with `"kind": "theme"` ([Themes](themes.md#themes-in-the-gallery)). A theme installs into the data folder's `themes/`, after the same checks as every theme folder, and each person chooses it in Appearance. A Pi Pocket before 0.14.0 counts a theme's entry as one it cannot read, so it never installs one as an extension.
+An index may still list themes (`"kind": "theme"`), from when Pi Pocket had them. Pi Pocket skips them: it does not show or install a theme. Do not submit a theme.
 
 ## What Pi Pocket checks
 

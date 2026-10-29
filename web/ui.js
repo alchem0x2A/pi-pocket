@@ -1394,11 +1394,8 @@ export function useSlide(ref, selector, axis = "y", key = undefined) {
         }
 
         const settle = (event) => event.target !== host && measure();
-        // A theme's stylesheets can move the element without resizing the list.
-        const again = () => measure();
 
         host.addEventListener("transitionend", settle);
-        document.addEventListener("pocket:theme", again);
         const observer =
             typeof ResizeObserver === "function" ? new ResizeObserver(() => measure()) : null;
 
@@ -1406,7 +1403,6 @@ export function useSlide(ref, selector, axis = "y", key = undefined) {
 
         return () => {
             host.removeEventListener("transitionend", settle);
-            document.removeEventListener("pocket:theme", again);
             observer?.disconnect();
         };
     }, [ref.current]);
@@ -1440,8 +1436,8 @@ export function Slide({ box, axis = "y" }) {
 
 /**
  * Which side of the screen an element stands on, `left` or `right`, as it is laid out now: a theme may move the sidebar
- * or the drawer to the right, and what is dragged by its edge must follow. Looked at again as the window resizes and
- * when a theme's stylesheets load (`pocket:theme`, from `theme.js`). `of` gives the element from the ref's.
+ * or the drawer to the right, and what is dragged by its edge must follow. Looked at again as the window resizes. `of`
+ * gives the element from the ref's.
  */
 export function useSide(ref, of = (element) => element) {
     const [side, setSide] = useState("left");
@@ -1477,16 +1473,14 @@ export function useSide(ref, of = (element) => element) {
             watcher.current.observe(element);
         }
     });
-    // And when the window or the theme changes, which can move it without resizing it.
+    // And when the window changes, which can move it without resizing it.
     useLayoutEffect(() => {
         const again = () => look.current();
 
         addEventListener("resize", again);
-        document.addEventListener("pocket:theme", again);
 
         return () => {
             removeEventListener("resize", again);
-            document.removeEventListener("pocket:theme", again);
             watcher.current?.disconnect();
         };
     }, []);
