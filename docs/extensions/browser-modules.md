@@ -127,6 +127,8 @@ These, and slots, came in 0.19.0, and are experimental: they can change in a min
 
 **`composerButton({ id, title, icon or iconPath, … })`** adds a button on the left of the message box's row. **`insertText(text)`** puts text into the message box for the person to send: a prompt template, a snippet, a screenshot's description. It never sends.
 
+**`pip.ask(text, { send })`** gives the person's PiP, their assistant, a message of the module's: the findings of an analyser, a question about what the module shows. By default it opens PiP and puts the text in its message box, for the person to read, edit, and send. With `send: true` it sends at once, but only just after the person tapped or pressed a key anywhere in the app (so send only from their own action, such as a button's `run`); elsewhere the answer is `{ ok: false, reason }`. It never throws for a person who has no PiP, and resolves with `{ ok: false, reason: "PiP is not available" }`. The text starts with a line that names the module, and PiP reads it as the person's own message, so fence what the module did not write (a session's title, a web page) as untrusted data. It came in 0.26.0, and is experimental. Check for it first: `pocket.pip?.ask`.
+
 **`composerKey({ id, keys, label, run(box) })`** adds a key in the message boxes, the session's and PiP's: Ctrl+W to delete a word, Alt+Backspace, keys of an editor you are used to. It comes before the box's own keys. `run` gets the box's `text`, its selection (`start`, `end`), and `set(text, caret)`, which edits the box as typing does. It came in 0.20.0, and is experimental. A browser tab never gets some keys, such as Ctrl+W, which closes the tab: they reach the page only in an installed app's window, if at all.
 
 **`onConversation(listener)`**, **`messages({ before, limit, signal })`**, and **`reveal(id)`** let a module follow the session the tab shows, read its people's messages a page at a time, and scroll the transcript to one: an outline of a long session, a list of its questions. The app loads earlier history for `reveal`, and the server checks access for each page. They came in 0.20.0, and are experimental.
@@ -185,12 +187,12 @@ Nothing outside a module can stop a loop that never yields and calls nothing of 
 ## Look like the app
 
 - The pieces take what the app's own pieces take: `Icon({ name or path, size })`, `Loader({ label })`, `Spinner({ label })`, `Markdown({ text })`, and `Switch({ on, label, onChange, disabled })`.
-- Use the app's colors, which follow the theme: `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--bg)`, `var(--card)`, `var(--line)`, `var(--err)`, `var(--warn)`, and `var(--ok)`.
+- Use the app's colors, which follow the light or dark mode: `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--bg)`, `var(--card)`, `var(--line)`, `var(--err)`, `var(--warn)`, and `var(--ok)`.
 - Use these classes: `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting` (a row with a label and a control).
 
-Pi Pocket keeps these names. They are part of [the theme surface](reference/theme-surface.md#extensions-css-names), and a module can use its other tokens too. The rest of its CSS can change.
+Pi Pocket keeps these names. They are part of [the CSS names reference](reference/theme-surface.md#extensions-css-names), and a module can use its other tokens too. The rest of its CSS can change.
 
-To load a stylesheet of your own, put it in the module's folder, and call `pocket.style(path)`. The stylesheet goes in the app's own cascade layer: it wins and loses against the app's rules by specificity and order, and a theme's rules win over both. Do not add a `<link>` of your own: it would be outside the layers, and win over the app and the theme alike.
+To load a stylesheet of your own, put it in the module's folder, and call `pocket.style(path)`. The stylesheet goes in the app's own cascade layer: it wins and loses against the app's rules by specificity and order. Do not add a `<link>` of your own: it would be outside the layer, and win over the app.
 
 ## When it fails
 

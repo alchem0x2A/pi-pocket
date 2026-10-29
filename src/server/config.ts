@@ -67,12 +67,6 @@ export interface StoredInvite {
     createdBy: string;
 }
 
-/** The theme (a theme folder's id, or "pocket") and the colors ("desktop", a palette's id, or a folder's) a browser
- * starts with until its person chooses. */
-export interface ThemeDefault {
-    look: string;
-    colors: string;
-}
 export interface ModelChoice {
     provider: string;
     modelId: string;
@@ -89,8 +83,6 @@ interface PocketConfig {
     lastModel?: ModelChoice;
     /** The model and thinking level new sessions start with, as the owner chose; absent: the last one picked. */
     defaultModel?: ModelChoice;
-    /** The theme and colors of browsers that have not chosen their own (`theme.js`), as the owner chose; absent: Pocket. */
-    themeDefault?: ThemeDefault;
     /** Extension modules (file names in `src/server/extensions/`) the owner turned off. */
     disabledExtensions?: string[];
     /** Extension modules the owner turned on. Matters for modules that are off by default, like Lancet Guard. */
@@ -111,6 +103,11 @@ interface PocketConfig {
      * setting with no value here has its default. Since 0.22.0; an older Pi Pocket ignores it.
      */
     extensionSettings?: Record<string, Record<string, string | number | boolean>>;
+    /**
+     * A shell command that restarts the server in place of the launcher's own restart, such as
+     * `systemctl --user reload pi-pocket`. Absent: the launcher restarts it (exit code 75).
+     */
+    restartCommand?: string;
 }
 
 /** The hours a run waits for a model's limit to clear, until the owner says otherwise. */
@@ -148,6 +145,8 @@ export class ConfigStore {
 
         if (existsSync(this.file)) {
             this.#config = JSON.parse(readFileSync(this.file, "utf8")) as PocketConfig;
+            // An older Pi Pocket kept the owner's default theme here: there are no themes now, so the next save drops it.
+            delete (this.#config as { themeDefault?: unknown }).themeDefault;
         } else {
             const ownerToken = newToken();
 
@@ -185,20 +184,6 @@ export class ConfigStore {
         this.save();
     }
 
-    get themeDefault(): ThemeDefault | undefined {
-        return this.#config.themeDefault;
-    }
-
-    set themeDefault(choice: ThemeDefault | undefined) {
-        if (choice === undefined) {
-            delete this.#config.themeDefault;
-        } else {
-            this.#config.themeDefault = choice;
-        }
-
-        this.save();
-    }
-
     get defaultModel(): ModelChoice | undefined {
         return this.#config.defaultModel;
     }
@@ -232,6 +217,25 @@ export class ConfigStore {
             delete this.#config.extensionSettings;
         } else {
             this.#config.extensionSettings = all;
+        }
+
+        this.save();
+    }
+
+    /** The owner's restart command (`restart.ts`); empty: the launcher restarts the server. */
+    get restartCommand(): string {
+        const command = this.#config.restartCommand;
+
+        return typeof command === "string" ? command.trim() : "";
+    }
+
+    set restartCommand(command: string) {
+        const trimmed = command.trim();
+
+        if (trimmed === "") {
+            delete this.#config.restartCommand;
+        } else {
+            this.#config.restartCommand = trimmed;
         }
 
         this.save();

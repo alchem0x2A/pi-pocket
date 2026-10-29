@@ -13,7 +13,7 @@ Runs on your own machine or directly on your phone. No cloud VM.
 
 [Website](https://tannermidd.github.io/pi-pocket/) · [Quick start](#quick-start) · [Feature tour](docs/features.md) · [Docs](https://tannermidd.github.io/pi-pocket/docs/)
 
-<img src="docs/showcase-0.12.1.png" alt="Pi Pocket in the Tokyo Night theme, on a desktop and a phone. On the desktop, the session list beside a conversation where Pi has fixed a sign-in redirect loop, its edits and a passing run of 48 tests folded into a timeline. On the phone, the same session after a teammate, Alex, asks for the push: Lancet Guard waits for approval before git push." width="100%">
+<img src="docs/showcase-0.12.1.png" alt="Pi Pocket on a desktop and a phone. On the desktop, the session list beside a conversation where Pi has fixed a sign-in redirect loop, its edits and a passing run of 48 tests folded into a timeline. On the phone, the same session after a teammate, Alex, asks for the push: Lancet Guard waits for approval before git push." width="100%">
 
 </div>
 
@@ -37,7 +37,9 @@ npm install -g pi-pocket
 pi-pocket
 ```
 
-Or try it with `npx pi-pocket`. To change Pi Pocket's code, or to start migration sessions for new versions, run a git checkout instead:
+Newer npm may print "install-scripts ... not yet covered by allowScripts" for `@google/genai` and `protobufjs`, which come from Pi's model library. The warning is expected: Pi Pocket needs neither script. `npm config set allow-scripts=@google/genai,protobufjs --location=user` quiets it by letting both run, which does no harm.
+
+Or try it with `npx pi-pocket`. To change Pi Pocket's code, run a git checkout instead:
 
 ```bash
 git clone https://github.com/TannerMidd/pi-pocket.git
@@ -79,7 +81,7 @@ Choose a mode in the launcher, or pass `--access`:
 | `cloudflare` | Anyone with the link | Free https quick tunnel, no account; needs `cloudflared` |
 | `tailscale`  | Your tailnet         | Tailscale address only                                   |
 
-Other options: `--port` (8787), `--cwd`, `--data` (`~/.pi-pocket`), `--host`, and `-y` to reuse the last access choice. `npm start -- --help` lists them all. `PI_POCKET_BROWSER` and `PI_POCKET_BROWSER_ARGS` pick the built-in browser and its flags when Chromium or Chrome is not found by itself.
+Other options: `--port` (8787), `--cwd`, `--data` (`~/.pi-pocket`), `--host`, and `-y` to reuse the last access choice. `npm start -- --help` lists them all. `PI_POCKET_BROWSER` and `PI_POCKET_BROWSER_ARGS` pick the built-in browser and its flags when Chromium or Chrome is not found by itself. `PI_POCKET_PROMPT_DATE=1` puts today's date in Pi's system prompt; it is left out by default, so the prompt cache does not start over when the date changes. `PI_POCKET_CACHE_KEEPER=off` turns off the prompt cache keeper, which keeps a model's prompt cache warm while a run waits on a tool call ([features](docs/features.md)).
 
 > [!WARNING]
 > Anyone who can steer a session can make Pi run commands on this machine, as you. That reaches your files, Pi Pocket's own settings and tokens, and its code. Invite only people you would trust at your keyboard. View-only users cannot make Pi act. [SECURITY.md](SECURITY.md) says what is protected and what is not.

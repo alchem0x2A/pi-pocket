@@ -15,6 +15,10 @@ import { join, resolve } from "node:path";
 import type { AccessInfo, PocketApp } from "./app.ts";
 import { APP_ROOT, dataDir } from "./config.ts";
 import type { createHandler } from "./http.ts";
+import { restoreMissingNpmPackage } from "./update-state.ts";
+
+// A resident process can reach recovery even when a stopped package switch left no live folder.
+restoreMissingNpmPackage(APP_ROOT);
 
 const RESTART_CODE = 75;
 /**
@@ -217,7 +221,6 @@ stopWatching = (() => {
     ];
 
     opened.loader.watch();
-    opened.themes.watch();
 
     return () => {
         for (const each of stops) {

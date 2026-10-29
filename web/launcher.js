@@ -1,6 +1,5 @@
-// The launcher, after Omarchy's Walker: one box for sessions, actions, and themes. Mod+K opens it anywhere. Arrowing
-// onto a theme shows it at once; Enter keeps it, Escape goes back. Start with > for actions only, @ for sessions, # for
-// themes.
+// The launcher, after Omarchy's Walker: one box for sessions and actions, Appearance's settings among them. Mod+K opens
+// it anywhere. Start with > for actions only, @ for sessions.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { browserAvailable, toggleBrowser } from "./browser.js";
 import { folderColor } from "./avatar.js";
@@ -23,6 +22,7 @@ import { recentLabels } from "./sheets/folder.js";
 import { galleryAvailable } from "./sheets/gallery.js";
 import { memoryAvailable } from "./sheets/memory.js";
 import { piSessionsAvailable } from "./sheets/pi-sessions.js";
+import { restartAvailable, restartHint } from "./sheets/restart.js";
 import {
     actions,
     attempt,
@@ -40,21 +40,7 @@ import {
     store,
     workspaceOrder,
 } from "./store.js";
-import {
-    BASE_LOOK,
-    chooseLook,
-    folderPaletteIds,
-    isPinned,
-    lookIds,
-    paletteOf,
-    prefs,
-    preview,
-    setPrefs,
-    themeIds,
-    themeVars,
-    togglePin,
-    varsStyle,
-} from "./theme.js";
+import { chooseMode, isPinned, modeNow, prefs, setPrefs, togglePin } from "./theme.js";
 import { trustAvailable } from "./trust.js";
 import {
     APPLE,
@@ -178,9 +164,27 @@ function actionItems() {
         },
         {
             label: "Appearance",
-            detail: "theme, colors, tiling, motion, text size, thinking, reply speed",
+            detail: "dark mode, tiling, motion, text size, thinking, reply speed",
             icon: "palette",
+            keywords: "settings theme colors",
             run: () => openSheet({ type: "appearance" }),
+        },
+        {
+            label: prefs().mode === "auto" ? "Turn auto dark mode off" : "Turn auto dark mode on",
+            detail:
+                prefs().mode === "auto"
+                    ? `Appearance: keep ${modeNow()} mode`
+                    : "Appearance: light or dark as the system is",
+            icon: "palette",
+            keywords: "theme light dark mode system auto appearance",
+            run: (event) => chooseMode(prefs().mode === "auto" ? modeNow() : "auto", event),
+        },
+        {
+            label: modeNow() === "dark" ? "Use light mode" : "Use dark mode",
+            detail: "Appearance: turns auto dark mode off",
+            icon: "palette",
+            keywords: "theme light dark mode appearance",
+            run: (event) => chooseMode(modeNow() === "dark" ? "light" : "dark", event),
         },
         wide && {
             label: prefs().tiling ? "Turn tiling off" : "Turn tiling on",
@@ -493,17 +497,12 @@ function actionItems() {
             icon: "users",
             run: () => openSheet({ type: "name" }),
         },
-        me?.role === "owner" &&
-            server?.supervised && {
-                label: "Restart server",
-                detail: "running work resumes",
-                icon: "reload",
-                run: () =>
-                    attempt(async () => {
-                        await api("restart", {});
-                        notify("info", "Restarting. Running work continues after the restart.");
-                    }),
-            },
+        restartAvailable() && {
+            label: "Restart server",
+            detail: restartHint(),
+            icon: "reload",
+            run: () => openSheet({ type: "restart" }),
+        },
         { label: "Sign out", detail: "this browser", icon: "logout", run: signOut },
         // What extensions' browser modules added (`extension-ui.js`).
         ...extensionLauncherItems(),
@@ -568,58 +567,8 @@ function sessionItems() {
     });
 }
 
-/** Theme folders that change the look, as launcher items: no preview (their stylesheets load when chosen). */
-function lookItems() {
-    const vars = themeVars(paletteOf());
-
-    return lookIds()
-        .map(
-            (id) =>
-                store.state.themeList?.find((each) => each.id === id && each.usable) ??
-                (id === BASE_LOOK ? { id, name: "Pocket", builtIn: true } : null),
-        )
-        .filter(Boolean)
-        .map((look) => ({
-            kind: "theme",
-            key: `look:${look.id}`,
-            label: look.name,
-            detail: look.builtIn ? "theme, built in" : "theme",
-            text: `theme ${look.name} ${look.id}`,
-            look: look.id,
-            vars,
-        }));
-}
-
-function themeItems() {
-    const desktop = store.state.desktopTheme;
-    const ids = [...(desktop ? ["desktop"] : []), ...themeIds(), ...folderPaletteIds()];
-
-    return [
-        ...lookItems(),
-        ...ids.map((id) => {
-            const palette = paletteOf(id);
-            const name = id === "desktop" ? `Desktop · ${palette.name}` : palette.name;
-
-            return {
-                kind: "theme",
-                key: `theme:${id}`,
-                label: name,
-                detail:
-                    id === "desktop"
-                        ? "follows your Omarchy theme"
-                        : palette.colors.mode === "light"
-                          ? "light"
-                          : "dark",
-                text: `theme ${name} ${id}`,
-                theme: id,
-                vars: themeVars(palette),
-            };
-        }),
-    ];
-}
-
-const GROUP_NAMES = { session: "Sessions", action: "Actions", theme: "Themes" };
-const PREFIXES = { ">": "action", "@": "session", "#": "theme" };
+const GROUP_NAMES = { session: "Sessions", action: "Actions" };
+const PREFIXES = { ">": "action", "@": "session" };
 
 /** Hits in one displayed field, without changing the text or score used by the fuzzy matcher. */
 function fieldHits(hits, start, length) {
@@ -658,7 +607,6 @@ export function Launcher({ leaving, returnTo }) {
     const input = useRef(null);
     const list = useRef(null);
     const dialog = useRef(null);
-    const chosen = useRef(false);
 
     // Phones: a sheet from the bottom edge, which drags back down to close, as the app's other sheets do.
     useDragToClose(dialog, {
@@ -675,7 +623,6 @@ export function Launcher({ leaving, returnTo }) {
         const all = [
             ...(prefix === undefined || prefix === "session" ? sessionItems() : []),
             ...(prefix === undefined || prefix === "action" ? actionItems() : []),
-            ...(prefix === undefined || prefix === "theme" ? themeItems() : []),
         ];
         const scored = [];
 
@@ -686,18 +633,16 @@ export function Launcher({ leaving, returnTo }) {
                 continue;
             }
 
-            // Themes' scorer text begins with "theme ", not with their displayed label.
-            const hits = fieldHits(match.hits, item.kind === "theme" ? 6 : 0, item.label.length);
-            const detailHits =
-                item.kind === "theme"
-                    ? []
-                    : fieldHits(match.hits, item.label.length + 1, (item.detail ?? "").length);
+            const hits = fieldHits(match.hits, 0, item.label.length);
+            const detailHits = fieldHits(
+                match.hits,
+                item.label.length + 1,
+                (item.detail ?? "").length,
+            );
             const detail = resultDetail(item, detailHits);
             const matchNote =
                 match.hits.length > 0 && hits.length === 0 && detailHits.length === 0
-                    ? item.kind === "theme"
-                        ? "Theme name or ID match"
-                        : (item.words?.find((word) => word.includes(needle)) ?? "Keyword match")
+                    ? (item.words?.find((word) => word.includes(needle)) ?? "Keyword match")
                     : null;
 
             scored.push({
@@ -755,7 +700,6 @@ export function Launcher({ leaving, returnTo }) {
         store.state.browserOpen,
         store.state.filesOpen,
         store.state.filesTab,
-        store.state.desktopTheme,
         store.state.appearance,
         store.state.me,
         store.state.server,
@@ -774,7 +718,7 @@ export function Launcher({ leaving, returnTo }) {
     const limitedRecent = recent && recent.total > recent.items.length;
 
     // Focus after inert is removed, not in a pending passive effect. LauncherHost keys every logical opening,
-    // including a same-task reopen, so query, selection, and the theme commit flag cannot leak across openings.
+    // including a same-task reopen, so query and selection cannot leak across openings.
     // Issue #62, reported by @arunsathiya.
     useLayoutEffect(() => {
         if (leaving) {
@@ -871,10 +815,6 @@ export function Launcher({ leaving, returnTo }) {
     }, [leaving]);
     useEffect(
         () => () => {
-            if (!chosen.current) {
-                preview(null);
-            }
-
             const active = document.activeElement;
             const lost =
                 active === null ||
@@ -896,17 +836,6 @@ export function Launcher({ leaving, returnTo }) {
         },
         [],
     );
-    useEffect(() => {
-        if (leaving) {
-            if (!chosen.current) {
-                preview(null);
-            }
-
-            return;
-        }
-
-        preview(selected?.kind === "theme" && selected.theme ? selected.theme : null);
-    }, [selected?.key, leaving]);
     useLayoutEffect(() => {
         if (!leaving) {
             list.current?.querySelector(".launcher-item.on")?.scrollIntoView({ block: "nearest" });
@@ -946,24 +875,7 @@ export function Launcher({ leaving, returnTo }) {
             return;
         }
 
-        chosen.current = item.kind === "theme";
         close();
-
-        if (item.kind === "theme") {
-            preview(null);
-
-            if (item.look) {
-                chooseLook(item.look, event);
-
-                return;
-            }
-
-            if (item.theme !== prefs().theme) {
-                setPrefs({ theme: item.theme });
-            }
-
-            return;
-        }
 
         item.run(event);
     };
@@ -1067,8 +979,8 @@ export function Launcher({ leaving, returnTo }) {
                 <input
                     ref=${input}
                     value=${query}
-                    placeholder="Sessions, actions, themes…"
-                    aria-label="Search sessions, actions, and themes"
+                    placeholder="Sessions, actions, settings…"
+                    aria-label="Search sessions, actions, and settings"
                     autocomplete="off"
                     autocapitalize="none"
                     spellcheck=${false}
@@ -1094,7 +1006,6 @@ export function Launcher({ leaving, returnTo }) {
                     ["", "All"],
                     ["@", "Sessions"],
                     [">", "Actions"],
-                    ["#", "Themes"],
                 ].map(
                     ([token, label]) => html`<button
                         aria-pressed=${(prefix ? query[0] : "") === token}
@@ -1179,39 +1090,22 @@ export function Launcher({ leaving, returnTo }) {
                                     onMouseMove=${() => mine !== index && setPick(mine)}
                                     onClick=${(event) => run(item, event)}
                                 >
-                                    ${
-                                        item.kind === "theme"
-                                            ? html`
-                                                <span
-                                                    class="swatch"
-                                                    style=${varsStyle(item.vars)}
-                                                    aria-hidden="true"
-                                                >
-                                                    <i style="background:var(--o-bg)"></i>
-                                                    <i style="background:var(--o-accent)"></i>
-                                                    <i style="background:var(--o-green)"></i>
-                                                    <i style="background:var(--o-red)"></i>
-                                                </span>
-                                            `
-                                            : html`
-                                                <span class="glyph" aria-hidden="true">
-                                                    ${
-                                                        item.kind === "session"
-                                                            ? html`<span
-                                                                class="launcher-folder"
-                                                                style=${`--folder:${item.folder}`}
-                                                            ></span>`
-                                                            : html`
-                                                                <${Icon}
-                                                                    name=${item.icon}
-                                                                    path=${item.iconPath}
-                                                                    size=${16}
-                                                                />
-                                                            `
-                                                    }
-                                                </span>
-                                            `
-                                    }
+                                    <span class="glyph" aria-hidden="true">
+                                        ${
+                                            item.kind === "session"
+                                                ? html`<span
+                                                    class="launcher-folder"
+                                                    style=${`--folder:${item.folder}`}
+                                                ></span>`
+                                                : html`
+                                                    <${Icon}
+                                                        name=${item.icon}
+                                                        path=${item.iconPath}
+                                                        size=${16}
+                                                    />
+                                                `
+                                        }
+                                    </span>
                                     <span class="main">
                                         <span class="launcher-title">
                                             <${Marked} text=${item.label} hits=${item.hits} />
@@ -1241,13 +1135,6 @@ export function Launcher({ leaving, returnTo }) {
                                         html`<span class=${`launcher-state ${item.tone}`}>
                                             ${item.status}
                                         </span>`
-                                    }
-                                    ${
-                                        item.kind === "theme" &&
-                                        (item.look
-                                            ? item.look === prefs().look
-                                            : item.theme === prefs().theme) &&
-                                        html`<span class="hint">current</span>`
                                     }
                                     ${
                                         item.keys &&
@@ -1282,10 +1169,10 @@ export function Launcher({ leaving, returnTo }) {
                     <kbd>↑</kbd><kbd>↓</kbd> move <kbd>↵</kbd> open <kbd>esc</kbd> close
                 </span>
                 <span class="launcher-prefix-help">
-                    <kbd>></kbd> actions <kbd>@</kbd> sessions <kbd>#</kbd> themes
+                    <kbd>></kbd> actions <kbd>@</kbd> sessions
                 </span>
                 <span class="launcher-touch-help">
-                    Tap a result · > actions, @ sessions, # themes
+                    Tap a result · > actions, @ sessions
                 </span>
             </div>
         </section>

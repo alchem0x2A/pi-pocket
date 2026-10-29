@@ -2,7 +2,7 @@
 
 People often change Pi Pocket from inside itself. You can run on the server that you change, and so can all the other people who use it. [AGENTS.md](../AGENTS.md) gives the rules in short; this page gives all of them.
 
-Change a git checkout only. In a copy installed with npm (in a `node_modules` folder), the next update with npm replaces each edit, and the folder often belongs to another user.
+Change a git checkout only. In a copy installed with npm (in a `node_modules` folder), the next update with npm replaces each edit, and the folder often belongs to another user. An update from the app (Menu → Update Pi Pocket) of a global npm install also swaps the whole package folder, so it removes edits there too.
 
 Before you start, read [map.md](map.md) to find the code that you need, and the part of [architecture.md](architecture.md) about it. Say what you will change. Then wait for a yes, unless the person asked for exactly that change.
 
@@ -59,9 +59,13 @@ The copy listens on `127.0.0.2:8899`. Browsers keep cookies for each host, not f
 
 ## Restarting
 
-Server changes outside `extensions/` need a restart. Only the owner can restart, from Menu → **Restart server**. This menu item shows when Pi Pocket runs under its launcher, as `pi-pocket` does.
+Server changes outside `extensions/` need a restart. Only the owner can restart, from Menu → **Restart server**. This menu item shows when Pi Pocket runs under its launcher, as `pi-pocket` does, or when the owner set a restart command.
 
-- **Never restart while your own tool call runs**, and never on your own. Finish the edit, run `npm run check` and `npm test`, and then ask the person to restart.
+- **Never restart while your own tool call runs**, and never on your own. Finish the edit, run `npm run check` and `npm test`, and then call `request_restart` with a short reason. The owner gets a button for it. End your turn after the call, so the restart can happen.
+- The Restart server sheet says whether a restart is needed: it lists the server files that differ from what the server started with. `request_restart` with `status` tells you the same. A change to the launcher (`src/launcher/`, `bin/pi-pocket.js`) needs the launcher itself, or its service, to start again.
+- Before it restarts, the server loads every server module in a new process. If one does not load, the server keeps running and the sheet shows the error. **Restart anyway** skips the check.
+- **When tools finish** waits until no tool call runs in any session, for 10 minutes at most, then restarts.
+- **Restart command**: a shell command that restarts the server in place of the launcher, such as `systemctl --user reload pi-pocket` for a systemd service whose `ExecReload` sends `SIGUSR2` to the launcher (`ExecReload=/bin/kill -USR2 $MAINPID`). Empty, the launcher restarts the server (exit code 75). It runs as the server's user, in its own process group.
 - Work that runs continues after a restart. A tool call that the restart stopped, and that is not safe to repeat, comes back to the model as interrupted.
 - A server that does not start stops Pi Pocket for everyone, and you cannot correct it from the app. The launcher tries again and again, more slowly each time, and prints the error in its terminal. A correction of the file is enough: the next try uses it. While an update from the app is under way, the launcher goes back to the version before instead.
 - Changes that are not committed stop an update from the app (Menu → Update Pi Pocket): commit them, or put them aside with `git stash`, first.

@@ -1,17 +1,17 @@
 /*
- * Pi Pocket's theme: soft tiles over an Omarchy palette. The palette is the Omarchy theme's colors.toml (theme.js sets
- * the --o-* variables, from a bundled theme or the desktop's own); everything else mixes from it the way omarchy-shell
- * does: the foreground over the background at a few percent for fills and hairlines. Windows still tile like
- * Hyprland's, with rounded corners, 1px hairlines, and a soft accent ring on the one in focus. Geist sets the words;
- * JetBrains Mono only code, paths, branches, numbers, counts, and keys. Motion keeps Hyprland's curves.
+ * Pi Pocket's look: soft tiles over one palette, after Rosé Pine, in a light and a dark half (the --o-* variables
+ * below; theme.js picks the half). Everything else mixes from it the way omarchy-shell does: the foreground over the
+ * background at a few percent for fills and hairlines. Windows still tile like Hyprland's, with rounded corners, 1px
+ * hairlines, and a soft accent ring on the one in focus. Geist sets the words; JetBrains Mono only code, paths,
+ * branches, numbers, counts, and keys. Motion keeps Hyprland's curves.
  */
 /*
  * Contents, in the order the cascade reads them. Search for "─── " and a name to jump to a section. A rule later in
  * the file wins over an earlier one of the same specificity, and some later sections restyle earlier ones on purpose:
  * move a rule only after checking what it crosses.
  *
- *   Fonts, tokens, and the reset   the palette's variables, light themes, scrollbars, base elements
- *   Motion                         Hyprland's curves, reduced motion, the theme reveal
+ *   Fonts, tokens, and the reset   the palette's variables, light mode, scrollbars, base elements
+ *   Motion                         Hyprland's curves, reduced motion, the light and dark reveal
  *   Loaders                        the boot screen, the spinner
  *   Layout                         windows on a desktop, the sidebar's edge
  *   Top bar
@@ -58,8 +58,7 @@
     font-display: swap;
 }
 
-/* Each font's own italic, which a browser downloads only when italic text shows (comments in code, emphasis). Fira
-   Code has none: the browser slants its upright letters. */
+/* Each font's own italic, which a browser downloads only when italic text shows (comments in code, emphasis). */
 @font-face {
     font-family: "Pocket Mono";
     src: url("/fonts/JetBrainsMono-Italic.woff2") format("woff2");
@@ -67,9 +66,6 @@
     font-style: italic;
     font-display: swap;
 }
-
-/* More fonts for themes to name in --sans and --mono (docs/extensions/themes.md lists them). A browser downloads one only
-   when a theme uses it. */
 
 /* The Nerd Fonts icons alone (their Mono build: one cell wide), in the private use areas they fill. */
 @font-face {
@@ -79,110 +75,30 @@
     unicode-range: U+E000-F8FF, U+F0000-F1AF0;
 }
 
-@font-face {
-    font-family: "Pocket Fira Code";
-    src: url("/fonts/FiraCode-VF.woff2") format("woff2");
-    font-weight: 300 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket IBM Plex Mono";
-    src: url("/fonts/IBMPlexMono-Variable.woff2") format("woff2");
-    font-weight: 100 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket IBM Plex Mono";
-    src: url("/fonts/IBMPlexMono-Variable-Italic.woff2") format("woff2");
-    font-weight: 100 700;
-    font-style: italic;
-    font-display: swap;
-}
-
-/* Iosevka has no variable font: the weights the app uses, upright and italic. 800 shows as 700, 100 as 400. Each file
-   keeps every character but drops the optional letter variants (ss and cv features) the app never turns on, which
-   were three quarters of its size. */
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Regular.woff2") format("woff2");
-    font-weight: 400;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-SemiBold.woff2") format("woff2");
-    font-weight: 600;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Bold.woff2") format("woff2");
-    font-weight: 700;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-Italic.woff2") format("woff2");
-    font-weight: 400;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-SemiBoldItalic.woff2") format("woff2");
-    font-weight: 600;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Iosevka";
-    src: url("/fonts/Iosevka-BoldItalic.woff2") format("woff2");
-    font-weight: 700;
-    font-style: italic;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Inter";
-    src: url("/fonts/InterVariable.woff2") format("woff2");
-    font-weight: 100 900;
-    font-display: swap;
-}
-
-@font-face {
-    font-family: "Pocket Inter";
-    src: url("/fonts/InterVariable-Italic.woff2") format("woff2");
-    font-weight: 100 900;
-    font-style: italic;
-    font-display: swap;
-}
-
 :root {
-    /* The palette. These defaults are Tokyo Night; theme.js replaces them. */
-    --o-bg: #1a1b26;
-    --o-bg-dark: #13141c;
-    --o-bg-darker: #0e0e14;
-    --o-bg-light: #24283b;
-    --o-fg: #a9b1d6;
-    --o-fg-dim: #565f89;
-    --o-fg-light: #b4bee6;
-    --o-fg-bright: #c0caf5;
-    --o-accent: #7aa2f7;
-    --o-selection: #292e42;
-    --o-red: #f7768e;
-    --o-yellow: #e0af68;
-    --o-orange: #eb927b;
-    --o-green: #9ece6a;
-    --o-cyan: #449dab;
-    --o-blue: #7aa2f7;
-    --o-magenta: #ad8ee6;
+    /*
+     * The palette: one, after Rosé Pine (rosepinetheme.com), with contrast set the way Modus Vivendi and Operandi set
+     * theirs: body text at 7:1 or more on the ground (WCAG AAA), and every color used as text at 4.5:1 or more. This is
+     * the dark half, Rosé Pine's own (main), with Love as the accent, lifted to 7:1. The light half, after Rosé Pine
+     * Dawn, is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
+     */
+    --o-bg: #191724;
+    --o-bg-dark: #1f1d2e;
+    --o-bg-darker: #12101d;
+    --o-bg-light: #26233a;
+    --o-fg: #e0def4;
+    --o-fg-dim: #908caa;
+    --o-fg-light: #e7e5f8;
+    --o-fg-bright: #edecfb;
+    --o-accent: #f97c9e;
+    --o-selection: #403d52;
+    --o-red: #fd7e7d;
+    --o-yellow: #f6c177;
+    --o-orange: #e8c0aa;
+    --o-green: #adcfb2;
+    --o-cyan: #9ccfd8;
+    --o-blue: #abc8e7;
+    --o-magenta: #c4a7e7;
 
     /* Surfaces, after omarchy-shell's control states: the foreground laid over the background. */
     --desk: var(--o-bg-darker);
@@ -217,7 +133,7 @@
     --spark: var(--o-magenta);
     /* A second accent, for what a theme draws in two colors (Hyprland's active border is a gradient): the app uses none. */
     --accent-2: var(--spark);
-    --brand: var(--o-orange);
+    --brand: var(--o-accent);
     --ok: var(--o-green);
     --ok-soft: color-mix(in srgb, var(--o-green) 14%, transparent);
     --warn: var(--o-yellow);
@@ -345,9 +261,28 @@
     --leading: 1.4;
 }
 
-/* Light themes: quieter text and the status colors darken toward the foreground, so they stay readable on light grounds. */
+/* Light mode, after Rosé Pine Dawn: its warm paper ground, its Text darkened to 7:1 for the body, and its colors darkened
+   to 4.5:1 each, as Modus Operandi does. Quieter text and the status colors darken toward the foreground, so they stay
+   readable on light grounds. */
 :root[data-mode="light"] {
     color-scheme: light;
+    --o-bg: #faf4ed;
+    --o-bg-dark: #f2e9e1;
+    --o-bg-darker: #e8dfd7;
+    --o-bg-light: #fffaf3;
+    --o-fg: #534e75;
+    --o-fg-dim: #706c8a;
+    --o-fg-light: #474267;
+    --o-fg-bright: #3c375c;
+    --o-accent: #a7576e;
+    --o-selection: #f0d8dd;
+    --o-red: #a0504b;
+    --o-yellow: #9d6305;
+    --o-orange: #a45f35;
+    --o-green: #52795a;
+    --o-cyan: #3b7984;
+    --o-blue: #3d648b;
+    --o-magenta: #7d6795;
     --sh: rgba(40, 40, 70, 0.14);
     --accent-ink: #fff;
     --scrim: color-mix(in srgb, var(--desk) 55%, transparent);
@@ -639,7 +574,7 @@ kbd {
     transform: scaleX(0.7);
 }
 
-/* Theme changes: the new look grows as a circle from where it was chosen (theme.js sets the place). */
+/* Light and dark changes: the new look grows as a circle from where it was chosen (theme.js sets the place). */
 :root.theme-vt::view-transition-old(root),
 :root.theme-vt::view-transition-new(root) {
     animation: none;
@@ -4362,6 +4297,17 @@ pre.diff .del {
     height: 2px;
     border-radius: 1px;
     background: linear-gradient(90deg, var(--accent), var(--spark));
+}
+
+/* Commands Pi runs in the background, with the session not working: the same underline, dashed and quiet. */
+.ws.has-background:not(.busy)::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 3px;
+    height: 2px;
+    background: repeating-linear-gradient(90deg, var(--muted) 0 3px, transparent 3px 6px);
 }
 
 .ws .unread-dot {
@@ -9356,17 +9302,6 @@ textarea.notes {
     color: inherit;
 }
 
-.launcher-item .swatch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: 28px;
-    height: 28px;
-    flex: none;
-    border-radius: calc(var(--r-row) - 1px);
-    overflow: hidden;
-    box-shadow: 0 0 0 1px var(--hair-2);
-}
-
 .launcher-empty {
     display: flex;
     flex-direction: column;
@@ -9510,157 +9445,6 @@ textarea.notes {
     }
 }
 
-/* ─── Appearance ───────────────────────────────────────────── */
-
-.theme-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-}
-
-/* A theme card draws a tiny Hyprland desktop in its own palette: the card sets the --o-* colors it uses. */
-.theme-card {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    text-align: left;
-    gap: 8px;
-    padding: 8px 8px 10px;
-    border-radius: var(--r-window);
-    background: var(--o-bg);
-    color: var(--o-fg);
-    border: 1px solid color-mix(in srgb, var(--o-fg) 17%, transparent);
-    transition:
-        border-color var(--t-hover) var(--ease-out),
-        box-shadow var(--t-hover) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .theme-card:hover {
-        border-color: var(--o-accent);
-    }
-}
-
-.theme-card:active {
-    transform: scale(0.97);
-}
-
-.theme-card.on {
-    border-color: var(--o-accent);
-    box-shadow:
-        0 0 0 2px var(--o-bg),
-        0 0 0 4px var(--o-accent);
-}
-
-.tc-desk {
-    display: flex;
-    gap: 5px;
-    height: 62px;
-    padding: 6px;
-    border-radius: 9px;
-    background: var(--o-bg-darker);
-}
-
-.tc-win {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px;
-    border-radius: 5px;
-    background: var(--o-bg);
-    border: 1px solid color-mix(in srgb, var(--o-fg) 13%, transparent);
-}
-
-.tc-win:first-child {
-    width: 34%;
-}
-
-.tc-win:last-child {
-    flex: 1;
-    border-color: var(--o-accent);
-}
-
-.tc-win i {
-    height: 4px;
-    border-radius: 2px;
-    background: var(--o-fg);
-    opacity: 0.4;
-}
-
-.tc-win i:nth-child(1) {
-    width: 80%;
-}
-
-.tc-win i:nth-child(2) {
-    width: 55%;
-}
-
-.tc-win i.lit {
-    margin-top: auto;
-    align-self: flex-end;
-    height: 8px;
-    border-radius: 3px;
-    background: var(--o-accent);
-    opacity: 1;
-    width: 30%;
-}
-
-.tc-name {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--o-fg-bright, var(--o-fg));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tc-name small {
-    font-weight: 400;
-    font-size: 11px;
-    color: inherit;
-    opacity: 0.6;
-}
-
-.tc-dots {
-    display: flex;
-    gap: 4px;
-}
-
-.tc-dots i {
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
-}
-
-.theme-desktop {
-    grid-column: 1 / -1;
-    flex-direction: row;
-}
-
-.theme-desktop .tc-desk {
-    width: 42%;
-    flex: none;
-    height: auto;
-    min-height: 70px;
-}
-
-.theme-desktop .tc-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-}
-
-.theme-desktop .tc-note {
-    padding: 0 0 0.45rem;
-    font-size: 0.68rem;
-    color: var(--o-fg);
-    opacity: 0.75;
-}
-
 .setting-row {
     display: flex;
     align-items: center;
@@ -9748,137 +9532,6 @@ textarea.notes {
     color: var(--body);
 }
 
-/* The theme: a card for each theme folder, in the app's own colors (a theme cannot be drawn small, as colors can). */
-.look-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-    gap: 10px;
-}
-
-.look-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    min-height: 64px;
-    padding: 10px 12px;
-    text-align: left;
-    border-radius: var(--r-card);
-    background: var(--card);
-    border: 1px solid var(--hair-2);
-    transition: border-color var(--t-hover) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .look-card:not(:disabled):hover {
-        border-color: var(--accent-line);
-    }
-}
-
-.look-card.on {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-}
-
-.look-card.broken {
-    cursor: default;
-    opacity: 0.8;
-}
-
-.look-name {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.4rem;
-    font-size: 13.5px;
-    font-weight: 500;
-    color: var(--text);
-}
-
-.look-name small {
-    font: 10.5px var(--mono);
-    color: var(--faint);
-}
-
-.look-detail {
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.look-problem {
-    font-size: 12px;
-    color: var(--err);
-}
-
-.look-tools,
-.look-duplicate {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: 10px 0 4px;
-}
-
-.look-duplicate input {
-    flex: 1;
-    min-width: 160px;
-}
-
-/* The owner's fonts for the theme in use: a menu each for words and code, ligatures, and a preview in them. */
-.font-tools {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 8px 12px;
-    margin: 10px 0 4px;
-}
-
-.font-menu {
-    display: grid;
-    gap: 4px;
-    font-size: 12px;
-    color: var(--muted);
-}
-
-.font-menu .switch {
-    justify-self: start;
-}
-
-.font-menu strong {
-    padding: 6px 0;
-    font-weight: 500;
-    color: var(--text);
-    font-size: 14px;
-}
-
-.font-title,
-.font-duplicate {
-    grid-column: 1 / -1;
-}
-
-.font-title {
-    margin: 4px 0 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.font-title em {
-    font-style: normal;
-    color: var(--accent);
-}
-
-.font-duplicate {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-}
-
-.font-duplicate .look-duplicate {
-    flex: 1;
-    margin: 0;
-}
-
 .text-size {
     display: flex;
     flex: none;
@@ -9911,23 +9564,6 @@ textarea.notes {
     .setting-row:has(.text-size) .setting-text {
         flex-basis: 100%;
     }
-}
-
-.font-preview {
-    grid-column: 1 / -1;
-    padding: 10px 12px;
-    border: 1px solid var(--hair);
-    border-radius: var(--r-control);
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.font-preview code {
-    display: block;
-    margin-top: 4px;
-    font-family: var(--mono);
-    white-space: pre;
-    overflow-x: auto;
 }
 
 /* ─── Sign in: the app's screen (the server's pages are under Notices) ─── */
@@ -17548,4 +17184,56 @@ pre.gallery-code {
     .inline-artifact .rich-tabs {
         margin-left: 0;
     }
+}
+
+/* Restart server (`sheets/restart.js`): whether a restart is needed, Pi's requests, and the restart command. */
+.restart-state {
+    margin: 0;
+    font-size: 14px;
+}
+
+.restart-state.needed {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.restart-files summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.restart-files pre {
+    margin-top: 6px;
+}
+
+.restart-request {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--r-control);
+    font-size: 13.5px;
+}
+
+.restart-request > .grow {
+    flex: 1 1 14rem;
+}
+
+.restart-actions {
+    flex-wrap: wrap;
+}
+
+.menu-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
 }

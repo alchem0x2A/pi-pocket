@@ -53,6 +53,7 @@ import { Commands } from "./commands.ts";
 import { LinkedSessions } from "./linked-sessions.ts";
 import { APP_ROOT, ConfigStore, modulesWith, type User } from "./config.ts";
 import {
+    ArtifactAssetDoc,
     ArtifactBodyDoc,
     type ArtifactMeta,
     ArtifactsDoc,
@@ -67,6 +68,7 @@ import {
     MemoryDoc,
     type SessionMeta,
     SessionsDoc,
+    SpendDoc,
     type SubagentRecord,
     SubagentsDoc,
     TurnsDoc,
@@ -90,6 +92,8 @@ import { takeLock } from "./lock.ts";
 import { Memory } from "./memory.ts";
 import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
 import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
+import { Restarts, type RestartStatus } from "./restart.ts";
+import { runningToolCount } from "./running.ts";
 import { pocketPackage, pocketVersion } from "./versions.ts";
 import { compactionReader } from "./compaction.ts";
 import { configureHttp } from "./net.ts";
@@ -101,9 +105,8 @@ import { PIP_COMPACT_CHOICES, PipCompaction } from "./pip-compact.ts";
 import { RepoWatches } from "./repo-watches.ts";
 import { snippet } from "./projection.ts";
 import { loadPromptTemplates, type PromptTemplate, type SkillCommand } from "./prompts.ts";
-import { BASE_THEME, Themes } from "./themes.ts";
-import { THEME_ID } from "./themes/format.ts";
 import { LimitGate, type LimitTuning } from "./limit-gate.ts";
+import { CacheKeeper } from "./cache-keeper.ts";
 import { measureModelStreams } from "./timing.ts";
 import { Providers } from "./providers.ts";
 import { PushStore } from "./push.ts";
@@ -300,6 +303,8 @@ export class PocketApp {
     readonly providers = new Providers(this);
     /** Model requests that hit a limit wait for it to clear, then go on (`limit-gate.ts`). */
     readonly limits: LimitGate;
+    /** Keeps the prompt cache warm while a run waits on a tool call (`cache-keeper.ts`). */
+    readonly cacheKeeper: CacheKeeper;
     readonly schedules = new Schedules(this);
     /** Commands Pi runs in the background, watched until they end (`background.ts`). */
     readonly background = new BackgroundTasks(this);
@@ -344,8 +349,8 @@ export class PocketApp {
     readonly gallery = new Gallery(this);
     /** Updates of Pi Pocket itself: the newest release, and updating to it (`updates.ts`). */
     readonly updates: Updates;
-    /** Theme folders: the app's look and layout, built in and the owner's (`themes.ts`). */
-    readonly themes: Themes;
+    /** Restarting the server: whether it is needed, the check before, and Pi's requests (`restart.ts`). */
+    readonly restarts: Restarts;
     /** Each conversation's browser page, which Pi and the people in the conversation share. */
     readonly browsers: Browsers;
     /** What extension modules add to the app: their routes, browser modules, and events (`extension-web.ts`). */
@@ -413,6 +418,7 @@ export class PocketApp {
             supervised: options.supervised && options.restart !== undefined,
             // The launcher says so when it goes back to the version before a new one that does not start.
             rollback: process.env.PI_POCKET_ROLLBACK === "1",
+            npmRollback: process.env.PI_POCKET_NPM_ROLLBACK === "1",
             restart: () => options.restart?.(),
             quiesce: (paused) => this.pauseReloads(paused),
             busy: () => this.#busy.size,
@@ -426,6 +432,45 @@ export class PocketApp {
         this.config = new ConfigStore(options.dataDir);
         this.#lockFile = join(options.dataDir, "harness.lock");
         this.#log = options.log ?? ((line) => console.log(line));
+        this.restarts = new Restarts({
+            appRoot: options.appRoot ?? APP_ROOT,
+            ...(options.restart === undefined ? {} : { restart: options.restart }),
+            command: () => this.config.restartCommand,
+            runningTools: () => runningToolCount(this),
+            changed: (status) => this.#restartChanged(status),
+            notice: (level, message) => this.ownerNotice(level, message),
+            log: (line) => this.#log(line),
+            // Only a server that can restart watches its code: tests open many apps.
+            watch: options.restart !== undefined,
+        });
+        this.cacheKeeper = new CacheKeeper({
+            log: (line) => this.#log(line),
+            conversationOf: (sessionId) => this.#conversationOfSession(sessionId),
+            isRunning: (conversationId) => this.#busy.has(conversationId as ConversationId),
+            accountFor: (conversationId) => {
+                const id = conversationId as ConversationId;
+                const payer = this.spend.payer(id);
+
+                return {
+                    check: () => {
+                        const person = this.config.userById(payer);
+
+                        if (person === undefined || !this.#busy.has(id)) {
+                            return false;
+                        }
+
+                        try {
+                            this.spend.check(person, id);
+
+                            return true;
+                        } catch {
+                            return false;
+                        }
+                    },
+                    recordUsage: (message) => this.spend.recordModelUsage(id, payer, message),
+                };
+            },
+        });
         this.limits = new LimitGate({
             hours: () => this.config.limitWaitHours,
             epoch: (provider) => this.providers.signInEpoch(provider),
@@ -468,25 +513,6 @@ export class PocketApp {
                         this.#log(`browser page not saved: ${describe(error)}`),
                     );
             },
-        });
-        this.themes = new Themes({
-            builtIn: join(APP_ROOT, "web", "themes"),
-            dataDir: options.dataDir,
-            notify: (message) => this.ownerNotice("warning", message),
-            // Everyone's tabs: a theme anyone may have chosen changed, or one came or went.
-            changed: () => {
-                const lists = { owner: this.themes.list(true), others: this.themes.list(false) };
-
-                for (const client of this.#clients) {
-                    client.send(
-                        "themes",
-                        client.user.role === "owner" ? lists.owner : lists.others,
-                    );
-                }
-
-                void this.#themeDefaultStillHere();
-            },
-            log: (line) => this.#log(line),
         });
         this.webs = new ExtensionWebs({
             changed: (access) => this.#websChanged(access),
@@ -634,7 +660,6 @@ export class PocketApp {
     pauseReloads(paused: boolean): void {
         this.reloadsPaused = paused;
         this.loader?.pause(paused);
-        this.themes?.pause(paused);
     }
 
     /** Write a line to the server log. */
@@ -679,12 +704,16 @@ export class PocketApp {
         }
 
         this.models = await ModelRuntime.create();
+        // Innermost: observe the adapter payload only after the caller and all extension shapers finish.
+        this.cacheKeeper.installPayloadObserver(this.models);
         installRequestShaping(this.models, this.#shapers, this.#log);
         this.providers.modelRefresh.watch(this.models);
         this.#configureModels?.(this.models);
         measureModelStreams(this.models);
         // Outside the timing wrapper: each attempt is timed on its own, not the wait before it.
         this.limits.install(this.models);
+        // Outermost: it sees each real request finish, and replays it through the wrappers below.
+        this.cacheKeeper.install(this.models);
         await this.models.getAvailable().catch(() => []);
 
         const registry = createRegistry();
@@ -772,6 +801,7 @@ export class PocketApp {
             memory: this.memory,
             gallery: this.gallery,
             updates: this.updates,
+            restarts: this.restarts,
             text: Object.freeze({ quoted, defang }),
             thinkingLevels: THINKING_LEVELS,
         };
@@ -808,15 +838,10 @@ export class PocketApp {
             // What a module's load says can name the server's folders, or quote a provider: the owner's to read.
             { webs: this.webs, notify: (level, message) => this.ownerNotice(level, message) },
         );
-        await this.themes.load().catch((error: unknown) => {
-            this.#log(`Themes could not be read: ${describe(error)}`);
-        });
-        // A gallery update the server stopped in the middle of goes back first, so no extension loads half of one, and
-        // a theme it had out of its folder is back before the owner's default is checked.
+        // A gallery update the server stopped in the middle of goes back first, so no extension loads half of one.
         await this.gallery.recover().catch((error: unknown) => {
             this.#log(`The extension gallery could not check its updates: ${describe(error)}`);
         });
-        await this.#themeDefaultStillHere();
         await this.loader.loadAll();
 
         const storage = await openNodeSqliteStorage(join(this.dataDir, "pocket.sqlite"));
@@ -953,6 +978,20 @@ export class PocketApp {
     /** Every commit, as Pi Durable publishes it: what the app keeps in memory follows it, and so do the open views. */
     #committed(publication: CommitPublication): void {
         let sessionsChanged = false;
+        let alreadyPaid = false;
+
+        // Auxiliary requests pay their captured person in the same commit as usage, in either document order.
+        // A commit with both documents must pay every usage change. Normal spend counts never change UsageDoc.
+        for (const change of publication.changes) {
+            if (
+                change.type === "document" &&
+                change.record.kind === SpendDoc.definition.kind &&
+                change.value !== null
+            ) {
+                this.spend.countedChanged(change.value as { people: Record<string, number> });
+                alreadyPaid = true;
+            }
+        }
 
         // Usage in a commit is from the work that was going on before it: it is counted before a message the same
         // commit places changes whom Pi works for.
@@ -962,7 +1001,11 @@ export class PocketApp {
                 change.record.kind === UsageDoc.definition.kind &&
                 change.conversationId !== undefined
             ) {
-                this.spend.usageChanged(change.conversationId, change.value as UsageState | null);
+                this.spend.usageChanged(
+                    change.conversationId,
+                    change.value as UsageState | null,
+                    alreadyPaid,
+                );
 
                 // A team's top session with a limit shows the team's spend: it follows a linked session's too.
                 const root = this.rootOf(change.conversationId);
@@ -1091,6 +1134,8 @@ export class PocketApp {
 
                 if (!busy) {
                     this.spend.runEnded(id);
+                    // No request follows the last tool call of a run that ended or was stopped (PiP's runs too).
+                    this.cacheKeeper.runEnded(Number(id));
                     this.pipCompaction.runEnded(id);
 
                     if (this.#sessions[String(id)] !== undefined) {
@@ -1372,6 +1417,15 @@ export class PocketApp {
         };
     }
 
+    /** The restart status changed: the owner's tabs show it (`restart` events). */
+    #restartChanged(status: RestartStatus): void {
+        for (const client of this.#clients) {
+            if (client.user.role === "owner") {
+                client.send("restart", status);
+            }
+        }
+    }
+
     /** A notice for the owner's tabs alone: about what only they may change. */
     ownerNotice(level: "info" | "warning" | "error", message: string): void {
         this.#log(`[${level}] ${message}`);
@@ -1466,10 +1520,6 @@ export class PocketApp {
         client.send("hello", this.#helloFor(client, hello));
         this.#sendSessions(client, this.sessions(client.user));
         this.#sendPip(client);
-
-        if (client.user.role === "owner" && this.themes.failure !== undefined) {
-            client.send("notice", { level: "warning", message: this.themes.failure });
-        }
 
         if (arriving) {
             this.#peopleChanged(client.user.id);
@@ -1962,13 +2012,19 @@ export class PocketApp {
         return true;
     }
 
-    /** Count the commands a session runs in the background, starting ones too. True when the count changed. */
+    /**
+     * Count the commands a session runs in the background, starting ones too. While their extension is off no watch
+     * settles a task whose process died, so only a task with a live process counts. True when the count changed.
+     */
     #noteBackground(
         id: ConversationId,
         doc: { items: Record<string, BackgroundTask> } | null | undefined,
     ): boolean {
+        const watched = this.background.running;
         const running = Object.values(doc?.items ?? {}).filter(
-            (item) => item.status === "running" || item.status === "starting",
+            (item) =>
+                (item.status === "running" || item.status === "starting") &&
+                (watched || this.background.alive(id, item)),
         ).length;
 
         if (running === (this.#background.get(id) ?? 0)) {
@@ -2182,6 +2238,8 @@ export class PocketApp {
                 pocketVersion: pocketVersion(),
                 supervised: this.supervised,
                 startedAt: this.startedAt,
+                // Whether a restart is needed, how one is done, and Pi's requests: the owner's alone (`restart.ts`).
+                ...(user.role === "owner" ? { restart: this.restarts.status() } : {}),
                 home: homedir(),
                 defaultCwd: this.defaultCwd,
                 extensions: this.loader.extensionNames(),
@@ -2210,8 +2268,6 @@ export class PocketApp {
                 approvalRule: this.config.approvalRule,
                 // The model and thinking level new sessions start with, or null for the last one picked.
                 defaultModel: this.config.defaultModel ?? null,
-                // The theme and colors of browsers that have not chosen their own, or null for the app's own.
-                themeDefault: this.config.themeDefault ?? null,
                 // The models Pi may start subagents on: the owner's to see and change.
                 ...(user.role === "owner"
                     ? { subagentModels: [...this.config.subagentModels] }
@@ -2225,8 +2281,6 @@ export class PocketApp {
             },
             // Read after the guard's wait, so a connecting device does not replace a live update with an older list.
             folderFavorites: await this.folderFavorites.list(user),
-            // Every theme folder, for Appearance and for the look this tab uses (`theme.js`).
-            themes: this.themes.list(user.role === "owner"),
         };
     }
 
@@ -2733,7 +2787,7 @@ export class PocketApp {
         }
     }
 
-    async artifactBody(id: ConversationId, artifact: string, version: number | undefined) {
+    async artifactBody(id: ConversationId, artifact: string, version?: number) {
         const index = await this.harness.snapshot(ArtifactsDoc, id, context);
         // Its own entries only: `__proto__` and the like name no artifact.
         const meta =
@@ -2766,6 +2820,50 @@ export class PocketApp {
         }
 
         return { meta, version: chosen.version, content: body.content };
+    }
+
+    /** One manifest asset. Missing names must not load the rest of a potentially large bundle. */
+    async artifactAsset(id: ConversationId, artifact: string, version: number, name: string) {
+        const found = await this.artifactBody(id, artifact, version);
+        const manifest = found.meta.versions.find((each) => each.version === found.version)!.assets;
+        const asset =
+            manifest !== undefined && Object.hasOwn(manifest, name) ? manifest[name] : undefined;
+
+        if (asset === undefined) {
+            throw new HttpError(404, "No such asset");
+        }
+
+        const stored = await this.harness.snapshot(ArtifactAssetDoc, asset.hash, context);
+
+        if (stored === undefined) {
+            throw new HttpError(404, "Artifact asset is missing");
+        }
+
+        return {
+            name,
+            type: asset.type,
+            bytes: Buffer.from(stored.base64, "base64"),
+            title: found.meta.title,
+        };
+    }
+
+    /** A complete bundle for rendering and export. Callers must check conversation access first. */
+    async artifactBundle(id: ConversationId, artifact: string, version?: number) {
+        const found = await this.artifactBody(id, artifact, version);
+        const manifest = found.meta.versions.find((each) => each.version === found.version)!.assets;
+        const assets = await Promise.all(
+            Object.entries(manifest ?? {}).map(async ([name, asset]) => {
+                const stored = await this.harness.snapshot(ArtifactAssetDoc, asset.hash, context);
+
+                if (stored === undefined) {
+                    throw new HttpError(404, "Artifact asset is missing");
+                }
+
+                return { name, type: asset.type, bytes: Buffer.from(stored.base64, "base64") };
+            }),
+        );
+
+        return { ...found, assets };
     }
 
     /** The folder a conversation works in. */
@@ -3150,83 +3248,6 @@ export class PocketApp {
     }
 
     /**
-     * The theme and colors browsers start with until their person chooses (`config.themeDefault`): the owner's to set,
-     * or `null` for the app's own. Everyone's tabs hear it in `hello`.
-     */
-    async setThemeDefault(user: User, choice: unknown): Promise<void> {
-        if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner sets the default theme");
-        }
-
-        if (choice === null) {
-            this.config.themeDefault = undefined;
-        } else {
-            const { look, colors } = (choice ?? {}) as { look?: unknown; colors?: unknown };
-
-            if (
-                typeof look !== "string" ||
-                typeof colors !== "string" ||
-                !THEME_ID.test(look) ||
-                !THEME_ID.test(colors.replace(/@(dark|light)$/, ""))
-            ) {
-                throw new HttpError(
-                    400,
-                    "The default is { look, colors }: a theme's id and colors' id, or null",
-                );
-            }
-
-            if (!this.themes.list().some((each) => each.id === look && each.usable)) {
-                throw new HttpError(404, "No such theme");
-            }
-
-            // Colors that are not here (the desktop's, on a machine without Omarchy) would leave new browsers on none.
-            if (!(await this.themes.hasColors(colors))) {
-                throw new HttpError(404, "No such colors here");
-            }
-
-            this.config.themeDefault = { look, colors };
-        }
-
-        await this.#refreshClients();
-    }
-
-    /**
-     * The owner's default after a theme went (removed in Appearance or the gallery, or its folder deleted): a theme that
-     * is gone gives way to Pocket, and colors that went with it (its own) to the desktop's; with both gone, no default.
-     * Everyone's tabs hear it.
-     */
-    async #themeDefaultStillHere(): Promise<void> {
-        const before = this.config.themeDefault;
-
-        // When the owner's themes could not be read at the start, they are not gone: keep the default for the next start.
-        if (before === undefined || this.themes.failure !== undefined) {
-            return;
-        }
-
-        try {
-            const lookGone =
-                before.look !== BASE_THEME &&
-                !this.themes.list().some((each) => each.id === before.look);
-            // The desktop's colors are the app's own default: they never go.
-            const colorsGone =
-                before.colors !== "desktop" && !(await this.themes.hasColors(before.colors));
-
-            if (!lookGone && !colorsGone) {
-                return;
-            }
-
-            const look = lookGone ? BASE_THEME : before.look;
-            const colors = colorsGone ? "desktop" : before.colors;
-
-            this.config.themeDefault =
-                look === BASE_THEME && colors === "desktop" ? undefined : { look, colors };
-            await this.#refreshClients();
-        } catch (error) {
-            this.#log(`The default theme could not be checked: ${describe(error)}`);
-        }
-    }
-
-    /**
      * The owner picks the model and thinking level new sessions start with: a signed-in model, its level kept to one it
      * has. Null leaves it to the last model picked, as before there was a choice.
      */
@@ -3457,7 +3478,8 @@ export class PocketApp {
         this.#closing ??= (async () => {
             clearTimeout(this.#sessionsTimer);
             this.alerts.close();
-            this.themes.close();
+            this.restarts.close();
+            await this.cacheKeeper.close();
             this.spend.close();
             this.limits.close();
             this.background.close();

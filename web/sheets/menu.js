@@ -28,10 +28,11 @@ import {
     store,
 } from "../store.js";
 import { defineItem, slotItems } from "../slots.js";
-import { isPinned, lookLabel, togglePin } from "../theme.js";
+import { isPinned, modeLabel, togglePin } from "../theme.js";
 import { currentTrust, trustAvailable } from "../trust.js";
 import { branchAvailable } from "./branch.js";
 import { memoryAvailable, memoryHint, useMemory } from "./memory.js";
+import { restartAvailable, restartHint, restartWanted } from "./restart.js";
 import { defaultLabel, defaultsKept } from "./model.js";
 import { copyText, html, Icon, item, PlaceTile, Sheet, shortPath } from "../ui.js";
 
@@ -538,7 +539,7 @@ export function MenuSheet({ places = true }) {
         }
         <div class="group">
             <div class="group-title">App</div>
-            ${item("Appearance", () => openSheet({ type: "appearance" }), lookLabel())}
+            ${item("Appearance", () => openSheet({ type: "appearance" }), modeLabel())}
             ${!touch && item("Keyboard shortcuts", () => openSheet({ type: "shortcuts" }), "?")}
             ${
                 me?.role === "owner" &&
@@ -561,17 +562,13 @@ export function MenuSheet({ places = true }) {
             ${extensionMenuItems().map((each) => item(each.label, each.run, each.hint))}
             ${item("Extensions", () => openSheet({ type: "extensions" }), extensionsHint())}
             ${
-                me?.role === "owner" &&
-                server?.supervised &&
+                restartAvailable() &&
                 item(
-                    "Restart server",
-                    () =>
-                        attempt(async () => {
-                            await api("restart", {});
-                            closeSheet();
-                            notify("info", "Restarting. Running work continues after the restart.");
-                        }),
-                    "running work resumes",
+                    restartWanted()
+                        ? html`Restart server <span class="menu-dot" aria-label="needed"></span>`
+                        : "Restart server",
+                    () => openSheet({ type: "restart" }),
+                    restartHint(),
                 )
             }
             ${item(html`<span class="menu-signout">Sign out</span>`, signOut)}

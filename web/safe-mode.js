@@ -1,5 +1,5 @@
-// Safe mode: a tab opened with `?noext=1` loads no extensions' browser modules (`extension-ui.js`) and no theme
-// (`theme.js`), so one that breaks the app can be turned off from it. It holds for as long as the tab stays open.
+// Safe mode: a tab opened with `?noext=1` loads no extensions' browser modules (`extension-ui.js`),
+// so one that breaks the app can be turned off from it. It holds for as long as the tab stays open.
 import { replaceAddress } from "./back.js";
 
 /** Where a tab keeps that it is in safe mode: in its session storage, so reloads and reconnects keep it. */
@@ -45,7 +45,7 @@ function startSafeMode() {
 let safe = startSafeMode();
 const listeners = new Set();
 
-/** This tab loads no browser modules of extensions and no theme (it was opened with `?noext=1`). */
+/** This tab loads no browser modules of extensions (it was opened with `?noext=1`). */
 export const safeMode = () => safe;
 
 /** Hear when this tab leaves safe mode. */
@@ -55,7 +55,7 @@ export function onSafeModeEnd(listener) {
     return () => listeners.delete(listener);
 }
 
-/** Leave safe mode: the tab loads its browser modules and its theme again. */
+/** Leave safe mode: the tab loads its browser modules again. */
 export function leaveSafeMode() {
     safe = false;
 

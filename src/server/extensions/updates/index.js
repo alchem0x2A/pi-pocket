@@ -27,6 +27,13 @@ const remember = (key, value) => {
     }
 };
 
+/** How the running copy was installed (`installKind` in the server's status), in words for the sheet. */
+const INSTALLED = {
+    "npm-global": "installed with npm (global)",
+    "npm-local": "installed with npm (local)",
+    npx: "run with npx",
+};
+
 /** "5 minutes ago", "3 hours ago", "2 days ago". */
 function ago(at) {
     const minutes = Math.max(0, Math.round((Date.now() - at) / 60_000));
@@ -230,11 +237,14 @@ export default function setup(pocket) {
                 : undefined;
         const step = current.step ?? working;
         // While an update moves the checkout, the server does not read it: no commit then is no word on it.
-        const where = current.commit
-            ? `${current.branch ?? "detached"} · ${current.commit.slice(0, 7)}`
-            : current.step === undefined
-              ? "not a git checkout"
-              : null;
+        // A server older than this field, or one that cannot tell, sends no kind: the checkout words then.
+        const where = Object.hasOwn(INSTALLED, current.installKind)
+            ? INSTALLED[current.installKind]
+            : current.commit
+              ? `${current.branch ?? "detached"} · ${current.commit.slice(0, 7)}`
+              : current.step === undefined
+                ? "not a git checkout"
+                : null;
 
         return html`<div class="updates-sheet">
             <div class="updates-card">

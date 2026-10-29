@@ -1050,6 +1050,8 @@ const ICONS = {
     star: "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z",
     palette:
         "M12 3a9 9 0 100 18c1 0 1.5-.8 1.5-1.5 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H16a5 5 0 005-5c0-4.4-4-7.8-9-7.8zM7.5 12.5h.01M9.5 8h.01M14.5 8h.01M17 11.5h.01",
+    sun: "M12 16a4 4 0 100-8 4 4 0 000 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+    moon: "M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z",
     pulse: "M3 12h4l2-6 4 12 2-6h6",
     keyboard: "M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10",
     swatch: "M4 4h7v16H4zM11 9l6-4 3 5-9 6M11 16h9v4h-9",
@@ -1394,11 +1396,8 @@ export function useSlide(ref, selector, axis = "y", key = undefined) {
         }
 
         const settle = (event) => event.target !== host && measure();
-        // A theme's stylesheets can move the element without resizing the list.
-        const again = () => measure();
 
         host.addEventListener("transitionend", settle);
-        document.addEventListener("pocket:theme", again);
         const observer =
             typeof ResizeObserver === "function" ? new ResizeObserver(() => measure()) : null;
 
@@ -1406,7 +1405,6 @@ export function useSlide(ref, selector, axis = "y", key = undefined) {
 
         return () => {
             host.removeEventListener("transitionend", settle);
-            document.removeEventListener("pocket:theme", again);
             observer?.disconnect();
         };
     }, [ref.current]);
@@ -1440,8 +1438,8 @@ export function Slide({ box, axis = "y" }) {
 
 /**
  * Which side of the screen an element stands on, `left` or `right`, as it is laid out now: a theme may move the sidebar
- * or the drawer to the right, and what is dragged by its edge must follow. Looked at again as the window resizes and
- * when a theme's stylesheets load (`pocket:theme`, from `theme.js`). `of` gives the element from the ref's.
+ * or the drawer to the right, and what is dragged by its edge must follow. Looked at again as the window resizes. `of`
+ * gives the element from the ref's.
  */
 export function useSide(ref, of = (element) => element) {
     const [side, setSide] = useState("left");
@@ -1477,16 +1475,14 @@ export function useSide(ref, of = (element) => element) {
             watcher.current.observe(element);
         }
     });
-    // And when the window or the theme changes, which can move it without resizing it.
+    // And when the window changes, which can move it without resizing it.
     useLayoutEffect(() => {
         const again = () => look.current();
 
         addEventListener("resize", again);
-        document.addEventListener("pocket:theme", again);
 
         return () => {
             removeEventListener("resize", again);
-            document.removeEventListener("pocket:theme", again);
             watcher.current?.disconnect();
         };
     }, []);

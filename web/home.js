@@ -4,7 +4,7 @@ import { folderColor } from "./avatar.js";
 import { useEffect, useRef } from "preact/hooks";
 import { sessionMark } from "./sessions.js";
 import { canSteer, navigate, openSheet, scoped, store, workspaceOrder } from "./store.js";
-import { lookLabel, prefs } from "./theme.js";
+import { modeLabel, prefs } from "./theme.js";
 import { html, Icon, Keys, shortPath, timeAgo } from "./ui.js";
 
 const LOGO = [
@@ -63,7 +63,7 @@ export function Splash() {
         return () => removeEventListener("keydown", onKey);
     }, []);
     const rows = [
-        ["theme", lookLabel()],
+        ["mode", modeLabel()],
         [
             "layout",
             `${p.tiling ? "tiled windows" : "flat"}, sidebar ${p.sidebar === "rail" ? "folded" : "open"}`,

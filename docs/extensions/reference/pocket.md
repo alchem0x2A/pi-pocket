@@ -558,6 +558,16 @@ Since 0.19.0 · Experimental
 
 Puts text into the message box of the session that the tab shows, after what is there: on a new paragraph, or with `inline: true`, after a space. The person sends it, or not: it never sends. A sheet that shows closes, so the box shows. With no session open, it does nothing. Text past 100,000 characters throws.
 
+### `pip`
+
+```ts
+readonly pip: PipApi;
+```
+
+Since 0.26.0 · Experimental
+
+The part of `pocket` that talks to the person's PiP, their assistant. It has one method, `pip.ask`. See [`PipApi`](#pipapi).
+
 ### `arrange`
 
 ```ts
@@ -662,7 +672,7 @@ style(path: string): void;
 
 Since 0.14.0 · Stable
 
-Loads a stylesheet from the browser module's folder, such as `pocket.style("look.css")`, into the app's own cascade layer (a theme's rules win over it). The stylesheet goes with this version. A path out of the folder throws. When the stylesheet does not load, a notice says so. A browser module that is one file has no folder, so it cannot load a stylesheet.
+Loads a stylesheet from the browser module's folder, such as `pocket.style("look.css")`, into the app's own cascade layer, `pocket`. The stylesheet goes with this version. A path out of the folder throws. When the stylesheet does not load, a notice says so. A browser module that is one file has no folder, so it cannot load a stylesheet.
 
 ### `onDispose`
 
@@ -1094,6 +1104,34 @@ Since 0.20.0 · Experimental
 - `by`: who wrote it: their id and name, when known. A message from before Pi Pocket kept authors has neither.
 - `at`: when it was sent, in milliseconds since 1970 on the server's clock, or null.
 
+### `PipApi`
+
+```ts
+interface PipApi {
+    ask(text: string, options?: { send?: boolean }): Promise<PipAskResult>;
+}
+```
+
+Since 0.26.0 · Experimental
+
+- `ask(text, options)`: gives PiP `text` as the person's own message. PiP sees it as it sees typed text.
+    - The text starts with a line that names the module (`From the extension “Usage”:`), as an artifact's follow-up starts with its source. So the message never reads as a command, and the person and PiP know where it came from.
+    - By default, it opens PiP and puts the text in PiP's message box, after what is there. The person reads it, edits it, and sends it, or not.
+    - With `send: true`, it sends the text at once, but only just after the person tapped or pressed a key (other than Escape) anywhere in the app, as a tap serves an artifact's follow-up; it need not be on the module's own controls. One tap serves for 5 seconds and for one send, so ask only from the person's own action. Without a tap, nothing is sent or drafted, and the answer says why. If PiP cannot take the message (it is not ready, or the send fails), a notice says so and the text waits in the box.
+    - It works for a person who has PiP. For anyone else, and while the app does not know yet, it does not throw: the answer is `{ ok: false, reason }`.
+    - Text that is empty or past 100,000 characters throws, as `insertText` does.
+
+### `PipAskResult`
+
+```ts
+type PipAskResult = { ok: true; sent: boolean } | { ok: false; reason: string };
+```
+
+Since 0.26.0 · Experimental
+
+- `ok: true`: the text went to PiP. `sent` is true when it was sent, and false when it waits in PiP's message box.
+- `ok: false`: nothing happened. `reason` says why, in words for a person: `"PiP is not available"`, `"Sending needs a click or a key press just before"`, or that the module's version is no longer loaded. Do not match on the words: they can change.
+
 ### `ComposerKeySpec`
 
 ```ts
@@ -1158,7 +1196,7 @@ An id that is not in the slot does nothing.
 
 ## Slots
 
-A slot is a place in the app that is a list of named items: the app's own items and those of modules. Each item has an id. The app's items are `core:…`. A module's items are `ext:<module>:<id>`, with the `id` that the module gave: a panel's top bar button has the panel's id. The ids of the app's items are kept as the theme surface's names are ([API stability](../policies/api-stability.md)).
+A slot is a place in the app that is a list of named items: the app's own items and those of modules. Each item has an id. The app's items are `core:…`. A module's items are `ext:<module>:<id>`, with the `id` that the module gave: a panel's top bar button has the panel's id. The ids of the app's items are kept as the CSS names are ([API stability](../policies/api-stability.md)).
 
 What shows comes in layers, the last one wins: each item's default place, then the `before` or `after` of a module's own item, then each module's `arrange`, then the person's own choices in Appearance → Layout. These are kept in the browser.
 
@@ -1317,7 +1355,7 @@ Since 0.14.0 · Stable
 
 ## CSS names Pi Pocket keeps
 
-To look like the app, use its colors and classes. The colors follow the theme. Pi Pocket keeps these names. The rest of its CSS can change. These names are a subset of [the theme surface](theme-surface.md#extensions-css-names), the one full list of the tokens, parts, and states Pi Pocket keeps.
+To look like the app, use its colors and classes. The colors follow the light or dark mode. Pi Pocket keeps these names. The rest of its CSS can change. These names are a subset of [the CSS names reference](theme-surface.md#extensions-css-names), the one full list of the tokens, parts, and states Pi Pocket keeps.
 
 - Colors: `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--bg)`, `var(--card)`, `var(--line)`, `var(--err)`, `var(--warn)`, and `var(--ok)`.
 - Classes: `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting` (a row with a label and a control).

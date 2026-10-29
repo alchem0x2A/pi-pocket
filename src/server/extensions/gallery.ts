@@ -1,5 +1,5 @@
 /**
- * The extension gallery: find drop-ins and themes other people wrote in a reviewed index, install them (drop-ins off),
+ * The extension gallery: find drop-ins other people wrote in a reviewed index, install them (drop-ins off),
  * read their code, ask Pi to review it, update them with a diff, remove them, and share your own. Its routes are the
  * owner's alone; the web app shows it in Menu → Extensions and as the launcher's Find extensions (`gallery.ts` does the
  * work).
@@ -15,8 +15,6 @@ import type { ExtensionWeb, PocketHost, WebHandler, WebRequest } from "../host.t
  */
 const NAME = /^[a-z0-9][a-z0-9_-]{1,63}$/;
 
-/** A theme's id, as a route's `:id` (`THEME_ID` in `themes/format.ts`). */
-const THEME_ID = /^[a-z0-9][a-z0-9-]{1,47}$/;
 /** A drop-in's module file, as a route's `:file`. */
 const FILE = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,99}\.ts$/;
 /** How often the index is read again while extensions from it are installed, so a revoked one is told soon. */
@@ -112,19 +110,6 @@ export default function createGallery(host: PocketHost, web: ExtensionWeb) {
             }
 
             return gallery.share(file);
-        }),
-    );
-    web.route(
-        "GET",
-        "share-theme/:id",
-        handle((request) => {
-            const id = request.params.id ?? "";
-
-            if (!THEME_ID.test(id)) {
-                throw web.error(400, "That is not a theme's id");
-            }
-
-            return gallery.shareTheme(id);
         }),
     );
     web.route(

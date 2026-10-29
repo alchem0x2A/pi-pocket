@@ -21,9 +21,8 @@ import {
 } from "../auth.ts";
 import type { User } from "../config.ts";
 import { HttpError } from "../errors.ts";
-import { desktopTheme, wallpaperFile } from "../omarchy.ts";
+import { MAX_COMMAND } from "../restart.ts";
 import { runningNow } from "../running.ts";
-import { serveImage } from "./assets.ts";
 import { browserRoutes } from "./browser-routes.ts";
 import { conversationRoutes } from "./conversation-routes.ts";
 import { createEventStreams } from "./events.ts";
@@ -40,6 +39,82 @@ function lanAddresses(): string[] {
 }
 
 /** The `/api` routes. Each HTTP handler makes its own, and its event streams live as long as it does. */
+/**
+ * The owner's restart routes (`restart.ts`): `GET /api/restart` the status; `POST /api/restart` restarts, after a check
+ * that the new code loads (`{ when: "now" | "idle", force }`); `POST /api/restart/cancel` stops a restart that waits
+ * for tool calls; `POST /api/restart/command` sets the restart command; `POST /api/restart/dismiss` drops Pi's request.
+ */
+async function restartRoute(
+    { app, request, response }: ApiRequest,
+    method: string,
+    action?: string,
+) {
+    const restarts = app.restarts;
+
+    if (action === undefined && method === "GET") {
+        restarts.refresh();
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (method !== "POST") {
+        throw new HttpError(404, "Unknown API route");
+    }
+
+    const body = await readJson<{
+        when?: unknown;
+        force?: unknown;
+        command?: unknown;
+        id?: unknown;
+    }>(request);
+
+    if (action === undefined) {
+        // A wait for tool calls answers once it starts: its progress comes as `restart` events.
+        await restarts.restart({
+            when: body.when === "idle" ? "idle" : "now",
+            force: body.force === true,
+        });
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (action === "cancel") {
+        restarts.cancel();
+
+        return json(response, 200, restarts.status());
+    }
+
+    if (action === "command") {
+        if (typeof body.command !== "string" || body.command.length > MAX_COMMAND) {
+            throw new HttpError(
+                400,
+                `The command must be text of ${MAX_COMMAND} characters at most.`,
+            );
+        }
+
+        app.config.restartCommand = body.command;
+        restarts.refresh();
+        const status = restarts.status();
+
+        app.ownerNotice(
+            "info",
+            status.method === "command"
+                ? `Restarts now run: ${status.command}`
+                : "Restarts now go through the launcher.",
+        );
+
+        return json(response, 200, status);
+    }
+
+    if (action === "dismiss" && typeof body.id === "string") {
+        restarts.dismiss(body.id);
+
+        return json(response, 200, restarts.status());
+    }
+
+    throw new HttpError(404, "Unknown API route");
+}
+
 export function createApi(options: HttpOptions, auth: Auth) {
     const { app } = options;
     const { events, poll } = createEventStreams(app);
@@ -336,91 +411,6 @@ export function createApi(options: HttpOptions, auth: Auth) {
 
         if (first === "push") {
             return pushRoutes(route, second);
-        }
-
-        // The Omarchy desktop's theme, for the app's "Follow desktop" look: colors say nothing about the sessions here, so
-        // everyone signed in gets them. The wallpaper may be a personal photo: only the owner gets that.
-        if (first === "theme" && second === undefined && method === "GET") {
-            const theme = await desktopTheme();
-
-            return json(response, 200, {
-                theme:
-                    theme === null
-                        ? null
-                        : { ...theme, wallpaper: theme.wallpaper && user.role === "owner" },
-            });
-        }
-
-        // Theme folders (`themes.ts`): everyone signed in lists them, as everyone chooses one for their own browsers;
-        // only the owner adds, edits, and removes them.
-        if (first === "themes" && second === undefined && method === "GET") {
-            return json(response, 200, { themes: app.themes.list(user.role === "owner") });
-        }
-
-        if (first === "themes" && second === "default" && method === "PUT") {
-            await app.setThemeDefault(
-                user,
-                (await readJson<{ default?: unknown }>(request)).default,
-            );
-
-            return json(response, 200, { ok: true });
-        }
-
-        if (first === "themes" && second === "duplicate" && method === "POST") {
-            requireOwner(user);
-            const body = await readJson<{ from?: unknown; name?: unknown; colors?: unknown }>(
-                request,
-            );
-
-            if (typeof body.from !== "string") {
-                throw new HttpError(400, "Say which theme or colors to copy");
-            }
-
-            return json(response, 200, {
-                id: await app.themes.duplicate(body.from, body.name, body.colors === true),
-            });
-        }
-
-        if (first === "themes" && second !== undefined && third === "fonts" && method === "PUT") {
-            requireOwner(user);
-            app.themes.setFonts(
-                second,
-                await readJson<{ sans?: unknown; mono?: unknown; ligatures?: unknown }>(request),
-            );
-
-            return json(response, 200, { ok: true });
-        }
-
-        if (first === "themes" && second !== undefined && third === "edit" && method === "GET") {
-            requireOwner(user);
-
-            return json(response, 200, app.themes.edit(second));
-        }
-
-        if (
-            first === "themes" &&
-            second !== undefined &&
-            third === undefined &&
-            method === "DELETE"
-        ) {
-            requireOwner(user);
-            app.themes.remove(second);
-
-            return json(response, 200, { ok: true });
-        }
-
-        if (first === "theme" && second === "wallpaper" && method === "GET") {
-            if (user.role !== "owner") {
-                throw new HttpError(403, "Only the owner sees the desktop's wallpaper");
-            }
-
-            const file = await wallpaperFile();
-
-            if (file === undefined) {
-                throw new HttpError(404, "No wallpaper");
-            }
-
-            return serveImage(request, response, file);
         }
 
         if (first === "running" && method === "GET") {
@@ -837,20 +827,10 @@ export function createApi(options: HttpOptions, auth: Auth) {
             });
         }
 
-        if (first === "restart" && method === "POST") {
+        if (first === "restart") {
             requireOwner(user);
 
-            if (!app.supervised) {
-                throw new HttpError(
-                    409,
-                    "Start Pi Pocket with bin/pi-pocket.js to restart from the app.",
-                );
-            }
-
-            json(response, 200, { ok: true });
-            setTimeout(() => options.restart(), 100);
-
-            return;
+            return restartRoute(route, method, second);
         }
 
         throw new HttpError(404, "Unknown API route");

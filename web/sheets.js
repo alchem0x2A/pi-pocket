@@ -23,6 +23,7 @@ import { MessageSheet } from "./sheets/message.js";
 import { ModelPicker } from "./sheets/model.js";
 import { InviteSheet, PeopleSheet } from "./sheets/people.js";
 import { AuthDialog, ProvidersSheet } from "./sheets/providers.js";
+import { RestartSheet } from "./sheets/restart.js";
 import { RunningSheet } from "./sheets/running.js";
 import { HooksSheet } from "./sheets/hooks.js";
 import { SchedulesSheet } from "./sheets/schedules.js";
@@ -191,6 +192,9 @@ function sheetBody(sheet) {
         case "shortcuts":
             body = html`<${ShortcutsSheet} />`;
             break;
+        case "restart":
+            body = html`<${RestartSheet} />`;
+            break;
         case "model":
             body = html`<${ModelPicker} />`;
             break;
@@ -245,7 +249,6 @@ function sheetBody(sheet) {
                 ? html`<${GalleryShareSheet}
                       key=${sheet.id}
                       file=${sheet.id}
-                      theme=${sheet.theme === true}
                   />`
                 : null;
             break;

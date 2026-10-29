@@ -33,7 +33,7 @@ import {
     toggleFoldedLinked,
 } from "./store.js";
 import { finishedUnseen } from "./seen.js";
-import { isPinned, prefs, setPrefs, togglePin } from "./theme.js";
+import { chooseMode, isPinned, modeNow, prefs, setPrefs, togglePin } from "./theme.js";
 import {
     APPLE,
     drawnFor,
@@ -1605,7 +1605,7 @@ function RailTiles() {
         ${order.map(
             (session, index) => html`<button
                 key=${session.id}
-                class=${`ws ${session.id === conversationId ? "active" : ""} ${session.busy ? "busy" : ""} ${session.waiting ? "waiting" : ""}`}
+                class=${`ws ${session.id === conversationId ? "active" : ""} ${session.busy ? "busy" : ""} ${session.waiting ? "waiting" : ""} ${session.background > 0 ? "has-background" : ""}`}
                 style=${`--i:${index}`}
                 title=${`${session.title ?? "New session"}${index < 9 ? ` (Alt+${index + 1})` : ""}`}
                 aria-label=${`${session.title ?? "New session"}${session.waiting ? ", needs you" : session.busy ? ", working" : session.background > 0 ? ", running commands in the background" : ""}`}
@@ -1774,11 +1774,11 @@ function Rail({ foldable = false, folded = false }) {
         <button
             class="rail-button"
             data-part="rail-button"
-            title="Theme, tiling, motion"
-            aria-label="Theme"
-            onClick=${() => openSheet({ type: "appearance" })}
+            title=${modeNow() === "dark" ? "Use light mode" : "Use dark mode"}
+            aria-label=${modeNow() === "dark" ? "Use light mode" : "Use dark mode"}
+            onClick=${(event) => chooseMode(modeNow() === "dark" ? "light" : "dark", event)}
         >
-            <${Icon} name="palette" size=${19} />
+            <${Icon} name=${modeNow() === "dark" ? "sun" : "moon"} size=${19} />
         </button>
         <button
             class="rail-button rail-me"

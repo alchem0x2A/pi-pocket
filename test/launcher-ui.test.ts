@@ -243,13 +243,63 @@ test("Peeks finds the action by its feature name", real, async () => {
 });
 
 test(
+    "the launcher finds Appearance's auto dark mode switch and the light and dark mode",
+    real,
+    async () => {
+        await home();
+        await page.evaluate(`
+        const { setPrefs } = await import("/theme.js");
+
+        setPrefs({ mode: "auto", motion: "reduced" });
+    `);
+        await open();
+        await search("dark mode");
+        assert.equal(
+            await inPage<boolean>(
+                `return JSON.stringify([...document.querySelectorAll('.launcher-item')].some((row) => /Turn auto dark mode off/.test(row.textContent)))`,
+            ),
+            true,
+            "the switch, by its words",
+        );
+        await search("> turn auto dark");
+        await page.press("Enter");
+        await closed();
+
+        const kept = await inPage<{ mode: string; shown: string }>(`
+        const { prefs } = await import("/theme.js");
+
+        return JSON.stringify({ mode: prefs().mode, shown: document.documentElement.dataset.mode });
+    `);
+
+        assert.equal(kept.mode, kept.shown, "auto off keeps the mode that showed");
+        await open();
+        await search(kept.shown === "dark" ? "> use light mode" : "> use dark mode");
+        await page.press("Enter");
+        await closed();
+        await see(
+            `return JSON.stringify(document.documentElement.dataset.mode === ${JSON.stringify(kept.shown === "dark" ? "light" : "dark")})`,
+            "the other mode",
+        );
+        await see(
+            `return JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--o-accent").trim() === (document.documentElement.dataset.mode === "light" ? "#a7576e" : "#f97c9e"))`,
+            "the Rosé Pine accent of the mode",
+        );
+        await page.evaluate(`
+        const { setPrefs } = await import("/theme.js");
+
+        setPrefs({ mode: "auto", motion: "auto" });
+    `);
+    },
+);
+
+test(
     "rapid Fluid layout changes handle skipped transitions and stop the sidebar's own transition",
     real,
     async () => {
         await home(VIEWPORTS.desktop, true);
         const result = await inPage<{ errors: string[]; durations: string[]; active: boolean }>(`
-        const { setPrefs, prefs, chooseTheme } = await import('/theme.js');
-        const originalTheme = prefs().theme;
+        const { setPrefs, prefs, chooseMode } = await import('/theme.js');
+        const originalMode = prefs().mode;
         const errors = [];
         const durations = [];
         const rejected = (event) => errors.push(String(event.reason));
@@ -265,14 +315,14 @@ test(
             setPrefs({ sidebar: prefs().sidebar === 'rail' ? 'open' : 'rail' });
             await new Promise((resolve) => setTimeout(resolve, 25));
         }
-        chooseTheme('nord');
+        chooseMode('light');
         await new Promise((resolve) => setTimeout(resolve, 25));
-        chooseTheme('catppuccin');
+        chooseMode('dark');
         await new Promise((resolve) => setTimeout(resolve, 1500));
         observer.disconnect();
         removeEventListener('unhandledrejection', rejected);
         const active = document.documentElement.matches('.layout-vt, .theme-vt');
-        setPrefs({ motion: 'auto', sidebar: 'open', theme: originalTheme });
+        setPrefs({ motion: 'auto', sidebar: 'open', mode: originalMode });
         return JSON.stringify({ errors, durations, active });
     `);
 
