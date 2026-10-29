@@ -91,7 +91,7 @@ import { type GuardStatus, LancetGuard } from "./lancet.ts";
 import { takeLock } from "./lock.ts";
 import { Memory } from "./memory.ts";
 import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
-import { Updates } from "./updates.ts";
+import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
 import { Restarts, type RestartStatus } from "./restart.ts";
 import { runningToolCount } from "./running.ts";
 import { pocketPackage, pocketVersion } from "./versions.ts";
@@ -427,6 +427,7 @@ export class PocketApp {
             ...(process.env.PI_POCKET_UPDATES_REPO
                 ? { repository: process.env.PI_POCKET_UPDATES_REPO }
                 : {}),
+            migrate: (request) => this.#startMigration(request),
         });
         this.config = new ConfigStore(options.dataDir);
         this.#lockFile = join(options.dataDir, "harness.lock");
@@ -1365,6 +1366,55 @@ export class PocketApp {
                 client.send("notice", { level, message });
             }
         }
+    }
+
+    /**
+     * The owner asked to migrate to a new version (`updates.ts` fetched upstream first): a session for them, in the
+     * checkout, where Pi reads what changed and reports, in plan mode when it is on, so it changes nothing. The owner
+     * merges by hand. The first message goes for the owner, since Pi works for them.
+     */
+    async #startMigration(request: MigrationRequest): Promise<MigrationStarted> {
+        const owner = this.config.users.find((each) => each.role === "owner");
+
+        if (owner === undefined) {
+            throw new Error("There is no owner to start the session for.");
+        }
+
+        const { id } = await this.commands.createSession(owner, {
+            cwd: request.cwd,
+            title: request.title,
+        });
+        let error: string | undefined;
+
+        // Plan mode keeps Pi from changing files or running commands that change things: the merge is the owner's.
+        await this.commands.setPlan(id, owner, true).catch(() => {});
+
+        try {
+            await this.commands.submit(
+                id,
+                owner,
+                {
+                    text: request.prompt,
+                    requestId: `migrate-${request.version.replace(/[^\w-]/g, "-")}`,
+                },
+                "Pi Pocket updates",
+            );
+        } catch (failed) {
+            error = `The migration session started, but its first message did not go: ${describe(failed)}`;
+        }
+
+        this.ownerNotice(
+            error === undefined ? "info" : "warning",
+            error === undefined
+                ? `Pi Pocket ${request.version} is available. Upstream fetched; a migration session started.`
+                : `Pi Pocket ${request.version} is available. ${error}`,
+        );
+
+        return {
+            conversationId: Number(id),
+            title: request.title,
+            ...(error === undefined ? {} : { error }),
+        };
     }
 
     /** The restart status changed: the owner's tabs show it (`restart` events). */

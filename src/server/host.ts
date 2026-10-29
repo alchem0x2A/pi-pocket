@@ -502,8 +502,12 @@ export interface PocketHost {
         | "review"
         | "share"
     >;
-    /** Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. */
-    readonly updates: Pick<Updates, "status" | "check" | "apply" | "subscribe">;
+    /**
+     * Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. A new version is
+     * never installed by itself: the owner starts a migration session (`migrate`), or a fast-forward of the local main to
+     * upstream's (`sync`).
+     */
+    readonly updates: Pick<Updates, "status" | "check" | "migrate" | "sync" | "subscribe">;
     /** Restarting the server (`restart.ts`): Pi's restart tool asks the owner for one. */
     readonly restarts: Pick<Restarts, "status" | "request">;
 }

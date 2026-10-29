@@ -57,6 +57,21 @@ export type UpdateOutcome = {
     at: number;
 };
 
+/** The migration session Pi Pocket started for a new version: the owner merges its branch by hand. */
+export type MigrationRecord = {
+    v: 1;
+    tag: string;
+    version: string;
+    /** The release's commit, as fetched. */
+    commit: string;
+    /** The session Pi works on the migration in; undefined when it could not start. */
+    conversationId?: number;
+    title?: string;
+    /** Why the migration session did not start. */
+    error?: string;
+    at: number;
+};
+
 export function updatePaths(appRoot: string) {
     appRoot = resolve(appRoot);
     const parent = dirname(appRoot);
@@ -74,6 +89,7 @@ export function updatePaths(appRoot: string) {
         dir,
         pending: join(dir, "pending.json"),
         last: join(dir, "last.json"),
+        migration: join(dir, "migration.json"),
         staging: join(dir, "staging"),
         previous: join(dir, "previous"),
         failed: join(dir, "failed"),
@@ -172,6 +188,37 @@ export function readOutcome(appRoot: string): UpdateOutcome | undefined {
         message: text(raw.message) ?? "",
         at: typeof raw.at === "number" ? raw.at : 0,
     };
+}
+
+/** The last migration session Pi Pocket started, or undefined. */
+export function readMigration(appRoot: string): MigrationRecord | undefined {
+    const raw = readJson(updatePaths(appRoot).migration);
+    const version = text(raw?.version);
+
+    if (raw?.v !== 1 || version === undefined) {
+        return undefined;
+    }
+
+    const conversationId = raw.conversationId;
+    const title = text(raw.title);
+    const error = text(raw.error);
+
+    return {
+        v: 1,
+        tag: text(raw.tag) ?? "",
+        version,
+        commit: text(raw.commit) ?? "",
+        ...(typeof conversationId === "number" && Number.isSafeInteger(conversationId)
+            ? { conversationId }
+            : {}),
+        ...(title === undefined ? {} : { title }),
+        ...(error === undefined ? {} : { error }),
+        at: typeof raw.at === "number" ? raw.at : 0,
+    };
+}
+
+export function writeMigration(appRoot: string, record: MigrationRecord): void {
+    writeJson(updatePaths(appRoot).migration, record);
 }
 
 /** Note how an update ended that never got as far as a pending update (its packages did not install, say). */

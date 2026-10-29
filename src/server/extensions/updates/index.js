@@ -1,6 +1,6 @@
 // Updates' browser module, for the owner: a menu row and a launcher action that open the Update Pi Pocket sheet (the running
-// version and how it was installed, the newest release and its notes, what stands in the way, and Update and restart), a notice once for each
-// new version, and one for how an update ended, after its restart. It uses only `pocket`.
+// version, the newest release and its notes, and a button to start its migration session), a notice once for each new
+// version, and one for how an earlier update ended. Nothing starts by itself. It uses only `pocket`.
 export const pocketApi = 1;
 
 /** Lucide's refresh-cw icon. */
@@ -72,32 +72,15 @@ export default function setup(pocket) {
         sheet: "updates",
     });
 
-    /** While the server restarts for an update, its status is read again until the new one answers. */
+    /** After contact is lost, the status is read again until the server answers. */
     let poll = null;
     let gone = false;
-    /** When the restart began, as this tab saw it: one that takes long says so. */
-    let restartingSince = null;
-    let slow = false;
 
     const later = () => {
         if (poll === null && !gone) {
             poll = setTimeout(() => {
                 poll = null;
-                pocket.api("status").then(publish, () => {
-                    if (
-                        !slow &&
-                        restartingSince !== null &&
-                        Date.now() - restartingSince > 120_000
-                    ) {
-                        slow = true;
-
-                        for (const listener of listeners) {
-                            listener();
-                        }
-                    }
-
-                    later();
-                });
+                pocket.api("status").then(publish, later);
             }, 2000);
         }
     };
@@ -115,14 +98,6 @@ export default function setup(pocket) {
         status = next;
         failure = null;
 
-        if (next.step === "Restarting") {
-            restartingSince ??= Date.now();
-            later();
-        } else {
-            restartingSince = null;
-            slow = false;
-        }
-
         const hint =
             next.step ??
             (next.available && next.latest ? `${next.latest.version} is out` : undefined);
@@ -131,17 +106,18 @@ export default function setup(pocket) {
         launcher.update(
             next.available && next.latest
                 ? {
-                      label: `Update Pi Pocket to ${next.latest.version}`,
-                      detail: "See what is new, and update",
+                      label: `Pi Pocket ${next.latest.version} is available`,
+                      detail: "See what is new, and start a migration session",
                   }
                 : { label: "Update Pi Pocket", detail: "Check for a new version of Pi Pocket" },
         );
 
+        // Once for each version: a short line. Nothing is fetched or started until the owner asks in the sheet.
         if (next.available && next.latest && remembered(TOLD) !== next.latest.version) {
             remember(TOLD, next.latest.version);
             pocket.notify(
                 "info",
-                `Pi Pocket ${next.latest.version} is out: Menu → Update Pi Pocket.`,
+                `Pi Pocket ${next.latest.version} is available: Menu → Update Pi Pocket.`,
             );
         }
 
@@ -199,11 +175,7 @@ export default function setup(pocket) {
         const current = useStatus();
         const [working, setWorking] = useState(null);
         const [error, setError] = useState(null);
-        const [confirmed, setConfirmed] = useState(false);
-        const version = current?.latest?.version;
 
-        // A tick for one release's warning is not one for the next.
-        useEffect(() => setConfirmed(false), [version]);
         // Contact lost, then a status came: the server answers again, so the words about it go.
         useEffect(() => setError((shown) => (shown?.lost ? null : shown)), [current]);
 
@@ -218,11 +190,11 @@ export default function setup(pocket) {
                     publish(next);
                 }
             } catch (failed) {
-                // No status: the request got no answer (the phone slept, or the server is restarting).
+                // No status: the request got no answer (the phone slept, or the server restarted).
                 setError(
                     failed.status === undefined
                         ? {
-                              text: "Lost contact with the server. An update may still go on: this sheet follows it.",
+                              text: "Lost contact with the server. This sheet reads the status again when it answers.",
                               lost: true,
                           }
                         : { text: failed.message, lost: false },
@@ -235,21 +207,19 @@ export default function setup(pocket) {
 
         const check = () => run("Checking", () => pocket.api("check", {}));
 
-        const update = () =>
-            run("Updating", async () => {
-                const answer = await pocket.api("apply", {
-                    confirmWarning: confirmed,
-                    allowBusy: true,
-                });
+        const migrate = () => run("Starting a migration session", () => pocket.api("migrate", {}));
 
-                pocket.notify(
-                    "info",
-                    `Updating to ${answer.version}. The app comes back after the restart.`,
-                );
-                // The server restarts in a moment: what comes next is its status event, then a new hello.
-                publish({ ...status, step: "Restarting" });
+        const [synced, setSynced] = useState(null);
 
-                return null;
+        const sync = () =>
+            run("Syncing", async () => {
+                setSynced(null);
+                const answer = await pocket.api("sync", {});
+
+                setSynced(answer);
+                pocket.notify(answer.restart ? "warning" : "info", answer.message);
+
+                return pocket.api("status");
             });
 
         if (current === null) {
@@ -259,8 +229,12 @@ export default function setup(pocket) {
         }
 
         const latest = current.latest;
-        // Notes that warn, or notes Pi Pocket could not read: the owner's word first.
+        // Notes that warn, or notes Pi Pocket could not read: open, so the owner reads them.
         const careful = latest !== undefined && (latest.warning || latest.unread === true);
+        const migration =
+            current.available && current.migration?.version === latest?.version
+                ? current.migration
+                : undefined;
         const step = current.step ?? working;
         // While an update moves the checkout, the server does not read it: no commit then is no word on it.
         // A server older than this field, or one that cannot tell, sends no kind: the checkout words then.
@@ -319,15 +293,6 @@ export default function setup(pocket) {
                 html`<div class=${`updates-card ${current.last.ok ? "" : "updates-warn"}`}>
                     <div class="updates-label">Last update · ${ago(current.last.at)}</div>
                     <div>${current.last.message}</div>
-                    ${
-                        !current.last.ok &&
-                        current.available &&
-                        current.last.toVersion === latest.version &&
-                        html`<div class="muted small">
-                            Pi Pocket does not try this version again by itself. The button below
-                            does.
-                        </div>`
-                    }
                 </div>`
             }
             ${
@@ -363,63 +328,76 @@ export default function setup(pocket) {
                             </div>
                         </details>`
                     }
+                    <div class="updates-label">Migration</div>
                     ${
-                        current.blockers.length > 0 &&
-                        html`<div class="updates-label">Pi Pocket cannot update itself now</div>
-                            <${List} items=${current.blockers} tone="updates-blockers" />`
+                        migration?.conversationId !== undefined
+                            ? html`<div>
+                                      Pi Pocket fetched upstream and started a session where Pi
+                                      reads what ${latest.version} changes and reports. Pi changes
+                                      nothing: you do the merge.
+                                  </div>
+                                  <button
+                                      class="button primary updates-go"
+                                      onClick=${() => {
+                                          pocket.closeSheet();
+                                          pocket.openConversation(migration.conversationId);
+                                      }}
+                                  >
+                                      Open “${migration.title}”
+                                  </button>`
+                            : html`<div class="muted small">
+                                  Nothing is fetched or merged by itself. Start a migration session
+                                  to fetch upstream and have Pi report what changed. You do the
+                                  merge.
+                              </div>`
                     }
-                    ${
-                        current.cautions.length > 0 &&
-                        html`<div class="updates-label">Before you update</div>
-                            <${List} items=${current.cautions} tone="updates-cautions" />`
-                    }
-                    ${
-                        careful &&
-                        current.blockers.length === 0 &&
-                        html`<label class="updates-confirm">
-                            <input
-                                type="checkbox"
-                                checked=${confirmed}
-                                onChange=${(event) => setConfirmed(event.currentTarget.checked)}
-                            />
-                            <span>
-                                ${
-                                    latest.warning
-                                        ? "I read the warning in the release notes."
-                                        : "I read the release notes on GitHub."
-                                }
-                            </span>
-                        </label>`
-                    }
+                    ${migration?.error && html`<div class="error-box">${migration.error}</div>`}
                     ${error && html`<div class="error-box">${error.text}</div>`}
                     ${
                         step
                             ? html`<div class="updates-step">
-                                      <${pocket.Spinner} label=${step} />
-                                      <span>${step}…</span>
-                                  </div>
-                                  ${
-                                      slow &&
-                                      html`<p class="muted small">
-                                          This takes longer than usual. If the new version does not
-                                          start in 5 minutes, the launcher goes back to the version
-                                          before. The server's log says why.
-                                      </p>`
-                                  }`
+                                  <${pocket.Spinner} label=${step} />
+                                  <span>${step}…</span>
+                              </div>`
                             : html`<button
-                                  class="button primary updates-go"
-                                  disabled=${current.blockers.length > 0 || (careful && !confirmed)}
-                                  onClick=${update}
+                                  class=${`button updates-go ${migration?.conversationId === undefined ? "primary" : ""}`}
+                                  onClick=${migrate}
                               >
-                                  Update to ${latest.version} and restart
+                                  ${
+                                      migration?.conversationId === undefined
+                                          ? "Start a migration session"
+                                          : "Start another migration session"
+                                  }
                               </button>`
                     }
                 </div>`
             }
-            ${!current.available && error && html`<div class="error-box">${error}</div>`}
+            ${!current.available && error && html`<div class="error-box">${error.text}</div>`}
+            ${
+                current.commit &&
+                html`<div class="updates-card">
+                    <div class="updates-row">
+                        <div>
+                            <div class="updates-title">Sync to main</div>
+                            <div class="muted small">
+                                Fetch upstream, and move your main forward to upstream's main.
+                                Fast-forward only: it never merges, and never pushes.
+                            </div>
+                        </div>
+                        <button
+                            class="button"
+                            disabled=${step !== null && step !== undefined}
+                            onClick=${sync}
+                        >
+                            Sync
+                        </button>
+                    </div>
+                    ${synced && html`<div class="small">${synced.message}</div>`}
+                </div>`
+            }
             <p class="muted small">
-                To look for new versions, or install them by themselves, open Menu → Extensions →
-                Installed → Pi Pocket updates.
+                To stop looking for new versions, open Menu → Extensions → Installed → Pi Pocket
+                updates.
             </p>
         </div>`;
     }
