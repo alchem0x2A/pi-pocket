@@ -37,6 +37,7 @@ import { takeShare } from "./share.js";
 import { Sheets } from "./sheets.js";
 import { defineItem, slotItems } from "./slots.js";
 import { branchAvailable, headLabel } from "./sheets/branch.js";
+import { restartWanted } from "./sheets/restart.js";
 import { SignIn } from "./signin.js";
 import { openSubagents } from "./subagents.js";
 import { SubagentsBoard } from "./subagents-board.js";
@@ -188,6 +189,7 @@ defineItem("topbar", {
             onClick=${() => openSheet({ type: "menu" })}
         >
             <${Icon} name="more" />
+            ${restartWanted() && html`<span class="rail-news" aria-hidden="true"></span>`}
         </button>`,
 });
 

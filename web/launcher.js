@@ -22,6 +22,7 @@ import { recentLabels } from "./sheets/folder.js";
 import { galleryAvailable } from "./sheets/gallery.js";
 import { memoryAvailable } from "./sheets/memory.js";
 import { piSessionsAvailable } from "./sheets/pi-sessions.js";
+import { restartAvailable, restartHint } from "./sheets/restart.js";
 import {
     actions,
     attempt,
@@ -496,17 +497,12 @@ function actionItems() {
             icon: "users",
             run: () => openSheet({ type: "name" }),
         },
-        me?.role === "owner" &&
-            server?.supervised && {
-                label: "Restart server",
-                detail: "running work resumes",
-                icon: "reload",
-                run: () =>
-                    attempt(async () => {
-                        await api("restart", {});
-                        notify("info", "Restarting. Running work continues after the restart.");
-                    }),
-            },
+        restartAvailable() && {
+            label: "Restart server",
+            detail: restartHint(),
+            icon: "reload",
+            run: () => openSheet({ type: "restart" }),
+        },
         { label: "Sign out", detail: "this browser", icon: "logout", run: signOut },
         // What extensions' browser modules added (`extension-ui.js`).
         ...extensionLauncherItems(),

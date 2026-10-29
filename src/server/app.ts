@@ -92,6 +92,8 @@ import { takeLock } from "./lock.ts";
 import { Memory } from "./memory.ts";
 import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
 import { Updates } from "./updates.ts";
+import { Restarts, type RestartStatus } from "./restart.ts";
+import { runningToolCount } from "./running.ts";
 import { pocketPackage, pocketVersion } from "./versions.ts";
 import { compactionReader } from "./compaction.ts";
 import { configureHttp } from "./net.ts";
@@ -347,6 +349,8 @@ export class PocketApp {
     readonly gallery = new Gallery(this);
     /** Updates of Pi Pocket itself: the newest release, and updating to it (`updates.ts`). */
     readonly updates: Updates;
+    /** Restarting the server: whether it is needed, the check before, and Pi's requests (`restart.ts`). */
+    readonly restarts: Restarts;
     /** Each conversation's browser page, which Pi and the people in the conversation share. */
     readonly browsers: Browsers;
     /** What extension modules add to the app: their routes, browser modules, and events (`extension-web.ts`). */
@@ -427,6 +431,17 @@ export class PocketApp {
         this.config = new ConfigStore(options.dataDir);
         this.#lockFile = join(options.dataDir, "harness.lock");
         this.#log = options.log ?? ((line) => console.log(line));
+        this.restarts = new Restarts({
+            appRoot: options.appRoot ?? APP_ROOT,
+            ...(options.restart === undefined ? {} : { restart: options.restart }),
+            command: () => this.config.restartCommand,
+            runningTools: () => runningToolCount(this),
+            changed: (status) => this.#restartChanged(status),
+            notice: (level, message) => this.ownerNotice(level, message),
+            log: (line) => this.#log(line),
+            // Only a server that can restart watches its code: tests open many apps.
+            watch: options.restart !== undefined,
+        });
         this.cacheKeeper = new CacheKeeper({
             log: (line) => this.#log(line),
             conversationOf: (sessionId) => this.#conversationOfSession(sessionId),
@@ -785,6 +800,7 @@ export class PocketApp {
             memory: this.memory,
             gallery: this.gallery,
             updates: this.updates,
+            restarts: this.restarts,
             text: Object.freeze({ quoted, defang }),
             thinkingLevels: THINKING_LEVELS,
         };
@@ -1347,6 +1363,15 @@ export class PocketApp {
 
             if (reaches) {
                 client.send("notice", { level, message });
+            }
+        }
+    }
+
+    /** The restart status changed: the owner's tabs show it (`restart` events). */
+    #restartChanged(status: RestartStatus): void {
+        for (const client of this.#clients) {
+            if (client.user.role === "owner") {
+                client.send("restart", status);
             }
         }
     }
@@ -2163,6 +2188,8 @@ export class PocketApp {
                 pocketVersion: pocketVersion(),
                 supervised: this.supervised,
                 startedAt: this.startedAt,
+                // Whether a restart is needed, how one is done, and Pi's requests: the owner's alone (`restart.ts`).
+                ...(user.role === "owner" ? { restart: this.restarts.status() } : {}),
                 home: homedir(),
                 defaultCwd: this.defaultCwd,
                 extensions: this.loader.extensionNames(),
@@ -3401,6 +3428,7 @@ export class PocketApp {
         this.#closing ??= (async () => {
             clearTimeout(this.#sessionsTimer);
             this.alerts.close();
+            this.restarts.close();
             await this.cacheKeeper.close();
             this.spend.close();
             this.limits.close();

@@ -17185,3 +17185,55 @@ pre.gallery-code {
         margin-left: 0;
     }
 }
+
+/* Restart server (`sheets/restart.js`): whether a restart is needed, Pi's requests, and the restart command. */
+.restart-state {
+    margin: 0;
+    font-size: 14px;
+}
+
+.restart-state.needed {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.restart-files summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.restart-files pre {
+    margin-top: 6px;
+}
+
+.restart-request {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.75rem;
+    padding: 10px 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--r-control);
+    font-size: 13.5px;
+}
+
+.restart-request > .grow {
+    flex: 1 1 14rem;
+}
+
+.restart-actions {
+    flex-wrap: wrap;
+}
+
+.menu-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    vertical-align: middle;
+}
