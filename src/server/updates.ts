@@ -760,9 +760,19 @@ export class Updates {
         };
     }
 
-    /** Read the newest release again, and download its commit. One check at a time: a second waits for the first. */
-    async check(signal?: AbortSignal): Promise<UpdateStatus> {
-        this.#checking ??= this.#check(signal).finally(() => {
+    /**
+     * Read the newest release again. It fetches nothing into the checkout unless `download` (only the owner's manual
+     * migration, and the update core keeps for an earlier one, ask that). One check at a time: a second waits.
+     */
+    async check(
+        signal?: AbortSignal,
+        { download = false }: { download?: boolean } = {},
+    ): Promise<UpdateStatus> {
+        if (download && this.#checking !== undefined) {
+            await this.#checking.catch(() => {});
+        }
+
+        this.#checking ??= this.#check(signal, download).finally(() => {
             this.#checking = undefined;
         });
         await this.#checking;
@@ -771,41 +781,34 @@ export class Updates {
         return this.status();
     }
 
-    async #check(signal?: AbortSignal): Promise<void> {
-        let release: Release | undefined;
-
+    async #check(signal: AbortSignal | undefined, download: boolean): Promise<void> {
         try {
-            release = await this.#findRelease(signal);
+            const release = await this.#findRelease(signal);
 
             this.#latest = release;
             this.#error = undefined;
 
-            if (release !== undefined && newer(release.version, this.#options.version)) {
+            // A new version is only shown: nothing is fetched, merged, or started until the owner asks (`migrate`).
+            if (
+                download &&
+                release !== undefined &&
+                newer(release.version, this.#options.version)
+            ) {
                 await this.#prepare(release);
             }
         } catch (error) {
             this.#error = describe(error);
-            release = undefined;
         } finally {
             this.#checkedAt = this.#now;
-        }
-
-        // A new version: never installed by itself. A Pi session migrates to it, once for each version.
-        if (
-            release !== undefined &&
-            newer(release.version, this.#options.version) &&
-            readMigration(this.#root)?.version !== release.version
-        ) {
-            await this.#migrate(release);
         }
     }
 
     /**
-     * Start a migration session for the newest version again, as the owner asks (the first one failed, or they closed
-     * it). It checks first; 409 when there is no new version.
+     * The owner asks for it: fetch the `upstream` remote, then start a Pi session that reports what the newest version
+     * changes. Nothing else starts one. It checks first; 409 when there is no new version.
      */
     async migrate(): Promise<UpdateStatus> {
-        await this.check();
+        await this.check(undefined, { download: true });
         const latest = this.#latest;
 
         if (latest === undefined || !newer(latest.version, this.#options.version)) {
@@ -1105,7 +1108,7 @@ export class Updates {
         this.#setStep("Checking");
 
         try {
-            const status = await this.check();
+            const status = await this.check(undefined, { download: true });
             const latest = this.#latest;
             const target = this.#target;
 

@@ -173,7 +173,7 @@ test("an update moves a clean checkout to the release, restarts, and the start a
     const next = release(upstream, "1.1.0");
     const { updates, restarts } = updater(app, upstream, () => releaseOf("1.1.0"));
 
-    const status = await updates.check();
+    const status = await updates.check(undefined, { download: true });
 
     assert.equal(status.available, true);
     assert.deepEqual(status.blockers, []);
@@ -210,7 +210,7 @@ test("changes not committed, commits the release lacks, and no launcher each sto
     // Changes of the owner's own, as Pi Pocket editing itself makes.
     writeFileSync(join(app, "code.txt"), "my own change\n");
     const dirty = updater(app, upstream, () => releaseOf("1.1.0")).updates;
-    const status = await dirty.check();
+    const status = await dirty.check(undefined, { download: true });
 
     assert.equal(status.available, true);
     assert.match(
@@ -222,7 +222,9 @@ test("changes not committed, commits the release lacks, and no launcher each sto
 
     // Committed, they are commits the release does not have.
     run(app, ["commit", "--quiet", "-am", "mine"]);
-    const ahead = await updater(app, upstream, () => releaseOf("1.1.0")).updates.check();
+    const ahead = await updater(app, upstream, () => releaseOf("1.1.0")).updates.check(undefined, {
+        download: true,
+    });
 
     assert.match(ahead.blockers.join("\n"), /commits that v1\.1\.0 does not have \(on main\)/);
 
@@ -232,7 +234,7 @@ test("changes not committed, commits the release lacks, and no launcher each sto
     release(plain.upstream, "1.1.0");
     const alone = await updater(plain.app, plain.upstream, () => releaseOf("1.1.0"), {
         supervised: false,
-    }).updates.check();
+    }).updates.check(undefined, { download: true });
 
     assert.match(alone.blockers.join("\n"), /without its launcher/);
 });
@@ -242,7 +244,9 @@ test("a tag whose version is not the release's, and a checkout ahead of the rele
 
     release(upstream, "1.1.0", undefined, false);
     run(upstream, ["tag", "v1.2.0"]);
-    const wrong = await updater(app, upstream, () => releaseOf("1.2.0")).updates.check();
+    const wrong = await updater(app, upstream, () => releaseOf("1.2.0")).updates.check(undefined, {
+        download: true,
+    });
 
     assert.match(wrong.blockers.join("\n"), /v1\.2\.0 holds version 1\.1\.0/);
 
@@ -254,7 +258,7 @@ test("a tag whose version is not the release's, and a checkout ahead of the rele
     run(later.app, ["pull", "--quiet"]);
     const ahead = await updater(later.app, later.upstream, () => releaseOf("1.1.0"), {
         version: "1.0.0",
-    }).updates.check();
+    }).updates.check(undefined, { download: true });
 
     assert.equal(ahead.available, false);
     assert.deepEqual(ahead.blockers, []);
@@ -267,7 +271,7 @@ test("a release whose notes warn needs the owner's word, and the launcher does n
         notes: "> [!WARNING]\n> This upgrades the database one way.",
     });
     const { updates } = updater(app, upstream, () => warned);
-    const status = await updates.check();
+    const status = await updates.check(undefined, { download: true });
 
     assert.equal(status.latest?.warning, true);
     assert.match(status.cautions.join("\n"), /warning/);
@@ -292,7 +296,7 @@ test("a release whose notes GitHub did not give is treated as one that warns", a
     const next = release(upstream, "1.1.0");
     const unread: Release = { ...releaseOf("1.1.0"), notes: undefined, unread: true };
     const { updates } = updater(app, upstream, () => unread);
-    const status = await updates.check();
+    const status = await updates.check(undefined, { download: true });
 
     assert.match(status.cautions.join("\n"), /could not read this version's release notes/);
     await assert.rejects(updates.apply(), /read them on GitHub/);
@@ -308,7 +312,7 @@ test("new packages install beside the checkout, and the launcher puts the old on
     const { upstream, app, first } = setUp();
     const next = release(upstream, "1.1.0", { license: "MIT" });
     const { updates } = updater(app, upstream, () => releaseOf("1.1.0"));
-    const status = await updates.check();
+    const status = await updates.check(undefined, { download: true });
 
     assert.equal(status.packages, true);
     assert.match(status.cautions.join("\n"), /npm ci/);
@@ -351,7 +355,7 @@ test("a detached checkout of a tag updates to the next tag, and goes back detach
     const next = release(upstream, "1.1.0");
     const { updates } = updater(app, upstream, () => releaseOf("1.1.0"));
 
-    assert.equal((await updates.check()).branch, null);
+    assert.equal((await updates.check(undefined, { download: true })).branch, null);
     await updates.apply();
     assert.equal(run(app, ["rev-parse", "HEAD"]), next);
     rollBackUpdate(app);
@@ -363,7 +367,7 @@ test("busy sessions wait unless the owner accepts them, and one update runs at a
 
     release(upstream, "1.1.0");
     const { updates } = updater(app, upstream, () => releaseOf("1.1.0"), { busy: () => 2 });
-    const status = await updates.check();
+    const status = await updates.check(undefined, { download: true });
 
     assert.match(status.cautions.join("\n"), /Pi works in 2 sessions/);
     await assert.rejects(updates.apply(), /Pi works in a session/);
@@ -411,7 +415,10 @@ test("an ignored file of the owner's where the release has a file stops the upda
         quiesce: (on) => paused.push(on),
     });
 
-    assert.match((await updates.check()).blockers.join("\n"), /A file of yours .*notes\.local/);
+    assert.match(
+        (await updates.check(undefined, { download: true })).blockers.join("\n"),
+        /A file of yours .*notes\.local/,
+    );
     await assert.rejects(updates.apply(), /A file of yours/);
     assert.equal(readFileSync(join(app, "notes.local"), "utf8"), "my own notes\n");
     assert.equal(run(app, ["rev-parse", "HEAD"]), first);
@@ -539,7 +546,7 @@ test("git refusing to move the checkout ends the update cleanly, packages back a
         log: () => {},
     });
 
-    await updates.check();
+    await updates.check(undefined, { download: true });
     const lock = join(app, ".git", "index.lock");
 
     await assert.rejects(
@@ -604,7 +611,7 @@ test("a release that puts a file where a folder of tracked files was is not bloc
     const next = release(upstream, "1.1.0");
     const { updates } = updater(app, upstream, () => releaseOf("1.1.0"));
 
-    assert.deepEqual((await updates.check()).blockers, []);
+    assert.deepEqual((await updates.check(undefined, { download: true })).blockers, []);
     await updates.apply();
     assert.equal(run(app, ["rev-parse", "HEAD"]), next);
     assert.equal(readFileSync(join(app, "thing"), "utf8"), "a file now\n");
@@ -623,7 +630,7 @@ test("a release that puts a file where a folder of tracked files was is not bloc
     release(other.upstream, "1.1.0");
     const blocked = await updater(other.app, other.upstream, () =>
         releaseOf("1.1.0"),
-    ).updates.check();
+    ).updates.check(undefined, { download: true });
 
     assert.match(blocked.blockers.join("\n"), /A file of yours .*thing/);
 });
@@ -754,7 +761,7 @@ test("a repository address that git could read as an option or a command is refu
             repository,
             releases: undefined,
         });
-        const status = await updates.check();
+        const status = await updates.check(undefined, { download: true });
 
         assert.match(status.error ?? "", /Updates do not fetch from/);
         assert.equal(existsSync(marker), false);
@@ -889,7 +896,7 @@ test("a failed npm says its cause, not its help for the command", () => {
     assert.equal(failureLines("one\ntwo\n"), "one\ntwo");
 });
 
-test("a new version is never installed: Pi Pocket fetches upstream and starts one migration session for it", async () => {
+test("a new version is only shown: nothing is fetched or started until the owner asks", async () => {
     const { upstream, app, first } = setUp();
     const next = release(upstream, "1.1.0");
 
@@ -902,37 +909,40 @@ test("a new version is never installed: Pi Pocket fetches upstream and starts on
             return { conversationId: 7, title: request.title };
         },
     });
+    const fetched = () =>
+        run(app, [
+            "for-each-ref",
+            "--format=%(refname)",
+            "refs/remotes/upstream",
+            "refs/pocket-update",
+        ]);
 
     const status = await updates.check();
 
-    assert.equal(status.available, true);
-    assert.equal(asked.length, 1, "one migration session");
+    assert.equal(status.available, true, "the new version shows");
+    assert.equal(asked.length, 0, "no session by itself");
+    assert.equal(fetched(), "", "no fetch by itself");
+    assert.equal(status.migration, undefined);
+
+    // The owner asks: upstream is fetched first, then one session starts.
+    const asks = await updates.migrate();
+
+    assert.equal(asked.length, 1);
     assert.equal(asked[0]!.cwd, app);
     assert.equal(asked[0]!.version, "1.1.0");
     assert.match(asked[0]!.prompt, /upstream\/main/);
     assert.match(asked[0]!.prompt, /The owner merges by hand/);
-    assert.match(asked[0]!.prompt, /Do not merge, rebase/);
-    assert.equal(
-        run(app, ["rev-parse", "refs/remotes/upstream/main"]),
-        next,
-        "upstream is fetched first",
-    );
+    assert.equal(run(app, ["rev-parse", "refs/remotes/upstream/main"]), next);
     assert.equal(run(app, ["rev-parse", "HEAD"]), first, "the checkout does not move");
     assert.equal(readFileSync(join(app, "code.txt"), "utf8"), "code of 1.0.0\n");
     assert.equal(readPending(app), undefined);
     assert.deepEqual(restarts, [], "no restart");
-    assert.equal(status.migration?.conversationId, 7);
+    assert.equal(asks.migration?.conversationId, 7);
     assert.equal(readMigration(app)?.version, "1.1.0");
 
-    // The next look finds the same version: no second session.
+    // A later look starts nothing more.
     await updates.check();
     assert.equal(asked.length, 1);
-
-    // The owner asks for another.
-    const again = await updates.migrate();
-
-    assert.equal(asked.length, 2);
-    assert.equal(again.migration?.conversationId, 7);
 });
 
 test("a checkout without the upstream remote starts no migration session, and says how to add it", async () => {
@@ -940,27 +950,22 @@ test("a checkout without the upstream remote starts no migration session, and sa
 
     release(upstream, "1.1.0");
     let started = 0;
-    const { updates } = updater(app, upstream, () => releaseOf("1.1.0"), {
-        migrate: async () => {
-            started++;
 
-            return { conversationId: 1, title: "x" };
-        },
-    });
-    const status = await updates.check();
+    const migrate = async () => {
+        started++;
+
+        return { conversationId: 1, title: "x" };
+    };
+
+    const { updates } = updater(app, upstream, () => releaseOf("1.1.0"), { migrate });
+    const status = await updates.migrate();
 
     assert.equal(started, 0);
     assert.match(status.migration?.error ?? "", /no remote named `upstream`/);
     assert.match(status.migration?.error ?? "", /git remote add upstream/);
 
     // Up to date: nothing to migrate.
-    const current = updater(app, upstream, () => releaseOf("1.0.0"), {
-        migrate: async () => {
-            started++;
-
-            return { conversationId: 1, title: "x" };
-        },
-    }).updates;
+    const current = updater(app, upstream, () => releaseOf("1.0.0"), { migrate }).updates;
 
     await assert.rejects(current.migrate(), /up to date/);
     assert.equal(started, 0);

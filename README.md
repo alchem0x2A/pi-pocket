@@ -37,7 +37,7 @@ npm install -g pi-pocket
 pi-pocket
 ```
 
-Or try it with `npx pi-pocket`. To change Pi Pocket's code, or to have it start migration sessions for new versions, run a git checkout instead:
+Or try it with `npx pi-pocket`. To change Pi Pocket's code, or to start migration sessions for new versions, run a git checkout instead:
 
 ```bash
 git clone https://github.com/TannerMidd/pi-pocket.git
@@ -50,7 +50,7 @@ The launcher asks how your devices should connect, then prints a sign-in link an
 
 While it runs: **q** quit · **r** restart server · **a** change access · **o** open in browser · **s** show QR code.
 
-**Updating:** Pi Pocket does not update itself. When a new version is out, it fetches the `upstream` remote, starts a Pi session that reports what changed, and a notice says so ([features](docs/features.md)). You do the merge by hand. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
+**Updating:** Pi Pocket does not update itself. When a new version is out, a notice says so. Menu → **Update Pi Pocket** → **Start a migration session** fetches the `upstream` remote and starts a Pi session that reports what changed ([features](docs/features.md)). You do the merge by hand. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
 
 ### Other ways to run it
 

@@ -1,7 +1,7 @@
 /**
- * Updates of Pi Pocket itself: it looks for a new release every 6 hours, fetches the upstream remote, and starts a Pi
- * session that reports what it changes, with a notice to the owner. The owner merges by hand: nothing merges or installs
- * a version by itself. Its routes and screens are the owner's alone (`updates.ts` does the work).
+ * Updates of Pi Pocket itself: it looks for a new release every 6 hours and tells the owner. Only when the owner asks
+ * (Start a migration session) does it fetch the upstream remote and start a Pi session that reports what changed. The
+ * owner merges by hand: nothing fetches, merges, or installs a version by itself. Its routes and screens are the owner's alone (`updates.ts` does the work).
  */
 import { defineExtension } from "@earendil-works/pi-durable";
 import type { ExtensionWeb, PocketHost, WebHandler, WebRequest } from "../host.ts";
@@ -29,7 +29,7 @@ export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
             name: "check",
             label: "Look for new versions",
             description:
-                "Ask GitHub for the newest release every 6 hours. When there is one, fetch the upstream remote and start a Pi session that reports what changed. You do the merge.",
+                "Ask GitHub for the newest release every 6 hours. When there is one, say so. Nothing is fetched or merged by itself.",
             type: "boolean",
             default: true,
         },
@@ -81,7 +81,7 @@ export default function createUpdates(host: PocketHost, web: ExtensionWeb) {
             return;
         }
 
-        // A new version starts its migration session in `check`: nothing installs by itself.
+        // A new version is only shown: the owner starts its migration session (`migrate`).
         void updates.check().catch(() => {});
     };
 

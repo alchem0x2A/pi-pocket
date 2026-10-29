@@ -1324,9 +1324,9 @@ export class PocketApp {
     }
 
     /**
-     * A new version of Pi Pocket: a session for the owner, in the checkout, where Pi reads what changed and reports, in
-     * plan mode when it is on, so it changes nothing (`updates.ts`). The owner merges by hand. The owner's tabs hear of it.
-     * The first message goes for the owner, since Pi works for them.
+     * The owner asked to migrate to a new version (`updates.ts` fetched upstream first): a session for them, in the
+     * checkout, where Pi reads what changed and reports, in plan mode when it is on, so it changes nothing. The owner
+     * merges by hand. The first message goes for the owner, since Pi works for them.
      */
     async #startMigration(request: MigrationRequest): Promise<MigrationStarted> {
         const owner = this.config.users.find((each) => each.role === "owner");

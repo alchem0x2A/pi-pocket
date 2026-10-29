@@ -1,6 +1,6 @@
 // Updates' browser module, for the owner: a menu row and a launcher action that open the Update Pi Pocket sheet (the running
-// version, the newest release and its notes, and the migration session Pi Pocket started for it), a notice once for
-// each new version, and one for how an earlier update ended. It never installs a version. It uses only `pocket`.
+// version, the newest release and its notes, and a button to start its migration session), a notice once for each new
+// version, and one for how an earlier update ended. Nothing starts by itself. It uses only `pocket`.
 export const pocketApi = 1;
 
 /** Lucide's refresh-cw icon. */
@@ -100,22 +100,17 @@ export default function setup(pocket) {
             next.available && next.latest
                 ? {
                       label: `Pi Pocket ${next.latest.version} is available`,
-                      detail: "See what is new, and its migration session",
+                      detail: "See what is new, and start a migration session",
                   }
                 : { label: "Update Pi Pocket", detail: "Check for a new version of Pi Pocket" },
         );
 
-        // The server tells the open tabs when it starts a migration session; this tells a tab that was closed then.
+        // Once for each version: a short line. Nothing is fetched or started until the owner asks in the sheet.
         if (next.available && next.latest && remembered(TOLD) !== next.latest.version) {
             remember(TOLD, next.latest.version);
-            const migration =
-                next.migration?.version === next.latest.version ? next.migration : undefined;
-
             pocket.notify(
-                migration?.error ? "warning" : "info",
-                migration?.conversationId !== undefined
-                    ? `Pi Pocket ${next.latest.version} is available. Upstream fetched; a migration session started.`
-                    : `Pi Pocket ${next.latest.version} is available: Menu → Update Pi Pocket.`,
+                "info",
+                `Pi Pocket ${next.latest.version} is available: Menu → Update Pi Pocket.`,
             );
         }
 
@@ -328,9 +323,9 @@ export default function setup(pocket) {
                                       Open “${migration.title}”
                                   </button>`
                             : html`<div class="muted small">
-                                  Pi Pocket does not install new versions by itself. It fetches
-                                  upstream, and starts a Pi session that reports what changed. You
-                                  do the merge.
+                                  Nothing is fetched or merged by itself. Start a migration session
+                                  to fetch upstream and have Pi report what changed. You do the
+                                  merge.
                               </div>`
                     }
                     ${migration?.error && html`<div class="error-box">${migration.error}</div>`}
