@@ -910,7 +910,8 @@ test("a new version is never installed: Pi Pocket fetches upstream and starts on
     assert.equal(asked[0]!.cwd, app);
     assert.equal(asked[0]!.version, "1.1.0");
     assert.match(asked[0]!.prompt, /upstream\/main/);
-    assert.match(asked[0]!.prompt, /Merge `upstream\/main` into this branch, or rebase/);
+    assert.match(asked[0]!.prompt, /The owner merges by hand/);
+    assert.match(asked[0]!.prompt, /Do not merge, rebase/);
     assert.equal(
         run(app, ["rev-parse", "refs/remotes/upstream/main"]),
         next,
@@ -965,7 +966,7 @@ test("a checkout without the upstream remote starts no migration session, and sa
     assert.equal(started, 0);
 });
 
-test("the migration prompt asks for a merge or rebase on a branch of its own, and no push or restart", () => {
+test("the migration prompt asks Pi to read and report only: the owner merges by hand", () => {
     const prompt = migrationPrompt({
         release: { tag: "v1.1.0", version: "1.1.0", url: "https://example.com/r" },
         remote: "upstream",
@@ -979,6 +980,7 @@ test("the migration prompt asks for a merge or rebase on a branch of its own, an
     assert.match(prompt, /Pi Pocket 1\.1\.0 \(tag v1\.1\.0\) is available/);
     assert.match(prompt, /did not update itself/);
     assert.match(prompt, /git log --oneline HEAD\.\.upstream\/main/);
-    assert.match(prompt, /Do not push/);
+    assert.match(prompt, /Do not merge, rebase, pull, check out, commit, stash, reset, or push/);
     assert.match(prompt, /do not restart the server/);
+    assert.doesNotMatch(prompt, /^\d\. Merge/m);
 });

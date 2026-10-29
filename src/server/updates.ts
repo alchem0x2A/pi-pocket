@@ -368,16 +368,13 @@ export function migrationPrompt(facts: {
         `Pi Pocket ${release.version} (tag ${release.tag}) is available. This server runs ${facts.version}, from ${facts.root} on ${local.branch ?? "a detached HEAD"} at ${local.commit.slice(0, 12)}.`,
         "",
         `Pi Pocket did not update itself. It fetched the remote \`${remote}\` (newest: \`${fetched}\`)${commit === "" ? "" : `, and the release's commit is ${commit.slice(0, 12)}`}.`,
-        "This session works in a git worktree of its own, on a new branch: the running checkout does not change.",
+        "The owner merges by hand. Your work is to read and report only.",
         "",
-        "Migrate this branch to the new version:",
-        `1. Read what changed: \`git log --oneline HEAD..${fetched}\`, and the release notes${release.url === undefined ? "" : ` (${release.url})`}. Look for a \`[!WARNING]\` alert or steps to do by hand.`,
-        `2. Merge \`${fetched}\` into this branch, or rebase this branch onto it when it has only a few local commits. Say which one you chose, and why.`,
-        "3. Resolve every conflict. Keep the local changes unless the new version replaces them.",
-        "4. Run `npm install`, then `npm run check`, `npm run lint`, and `npm test`. Fix what fails.",
-        "5. Report: the new commits, the conflicts and how you resolved them, the test results, and the steps for the owner to adopt this branch in the running checkout and restart.",
+        `1. Read what changed: \`git log --oneline HEAD..${fetched}\`, \`git diff --stat HEAD...${fetched}\`, and the release notes${release.url === undefined ? "" : ` (${release.url})`}. Look for a \`[!WARNING]\` alert or steps to do by hand.`,
+        `2. Find the files that both this checkout and \`${fetched}\` changed since they split (\`git merge-base HEAD ${fetched}\`): these can conflict.`,
+        "3. Report in short: the new commits, the likely conflicts, new packages (`package-lock.json`), and the commands for the owner to merge or rebase, install, test, and restart.",
         "",
-        "Do not push, do not change the running checkout, and do not restart the server. The owner does those.",
+        "Do not merge, rebase, pull, check out, commit, stash, reset, or push. Do not edit files, and do not restart the server. Change nothing: the owner does the merge.",
     ].join("\n");
 }
 

@@ -1324,8 +1324,9 @@ export class PocketApp {
     }
 
     /**
-     * A new version of Pi Pocket: a session for the owner, in a worktree of the checkout, where Pi merges or rebases it
-     * (`updates.ts`). The owner's tabs hear of it. The first message goes as the owner's, since Pi works for them.
+     * A new version of Pi Pocket: a session for the owner, in the checkout, where Pi reads what changed and reports, in
+     * plan mode when it is on, so it changes nothing (`updates.ts`). The owner merges by hand. The owner's tabs hear of it.
+     * The first message goes for the owner, since Pi works for them.
      */
     async #startMigration(request: MigrationRequest): Promise<MigrationStarted> {
         const owner = this.config.users.find((each) => each.role === "owner");
@@ -1337,9 +1338,11 @@ export class PocketApp {
         const { id } = await this.commands.createSession(owner, {
             cwd: request.cwd,
             title: request.title,
-            worktree: true,
         });
         let error: string | undefined;
+
+        // Plan mode keeps Pi from changing files or running commands that change things: the merge is the owner's.
+        await this.commands.setPlan(id, owner, true).catch(() => {});
 
         try {
             await this.commands.submit(
@@ -1358,7 +1361,7 @@ export class PocketApp {
         this.ownerNotice(
             error === undefined ? "info" : "warning",
             error === undefined
-                ? `Pi Pocket ${request.version} is available. A migration session started: "${request.title}".`
+                ? `Pi Pocket ${request.version} is available. Upstream fetched; a migration session started.`
                 : `Pi Pocket ${request.version} is available. ${error}`,
         );
 

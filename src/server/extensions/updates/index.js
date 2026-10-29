@@ -114,7 +114,7 @@ export default function setup(pocket) {
             pocket.notify(
                 migration?.error ? "warning" : "info",
                 migration?.conversationId !== undefined
-                    ? `Pi Pocket ${next.latest.version} is available. A migration session started: "${migration.title}".`
+                    ? `Pi Pocket ${next.latest.version} is available. Upstream fetched; a migration session started.`
                     : `Pi Pocket ${next.latest.version} is available: Menu → Update Pi Pocket.`,
             );
         }
@@ -314,9 +314,9 @@ export default function setup(pocket) {
                     ${
                         migration?.conversationId !== undefined
                             ? html`<div>
-                                      Pi Pocket fetched upstream and started a session that merges
-                                      or rebases ${latest.version} in a worktree of its own. The
-                                      running checkout does not change until you adopt its branch.
+                                      Pi Pocket fetched upstream and started a session where Pi
+                                      reads what ${latest.version} changes and reports. Pi changes
+                                      nothing: you do the merge.
                                   </div>
                                   <button
                                       class="button primary updates-go"
@@ -329,8 +329,8 @@ export default function setup(pocket) {
                                   </button>`
                             : html`<div class="muted small">
                                   Pi Pocket does not install new versions by itself. It fetches
-                                  upstream, and starts a Pi session that merges or rebases the new
-                                  version.
+                                  upstream, and starts a Pi session that reports what changed. You
+                                  do the merge.
                               </div>`
                     }
                     ${migration?.error && html`<div class="error-box">${migration.error}</div>`}
