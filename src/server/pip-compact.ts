@@ -342,6 +342,12 @@ export class PipCompaction {
             return undefined;
         }
 
+        // The Pia profile (`pia.ts`): a normal Pi agent, with files and commands, compacts as sessions do, so the
+        // results of its own work stay in its summary. Classic keeps its own summary, without outside text.
+        if (this.#app.pip.profile().mode === "pia") {
+            return undefined;
+        }
+
         try {
             return { summary: await this.#write(compaction, api, hookContext) };
         } catch (error) {

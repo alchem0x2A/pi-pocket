@@ -469,6 +469,8 @@ export interface PocketHost {
         | "addRepoWatch"
         | "repoWatches"
         | "removeRepoWatch"
+        | "profile"
+        | "sharedContext"
     >;
     /** PiP's compactions: its extension's hook has PiP write its own summaries. */
     readonly pipCompaction: Pick<PipCompaction, "summarize">;

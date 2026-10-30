@@ -35,7 +35,7 @@ import {
     LiveDoc,
     type LiveState,
     ProviderDoc,
-    type Registry,
+    type RegistryReader,
     type Storage,
     UsageDoc,
     type UsageState,
@@ -89,6 +89,7 @@ import {
 } from "./host.ts";
 import { type GuardStatus, LancetGuard } from "./lancet.ts";
 import { takeLock } from "./lock.ts";
+import { hasRipgrep, localToolRegistry } from "./local-tools.ts";
 import { Memory } from "./memory.ts";
 import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
 import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
@@ -101,6 +102,7 @@ import { createPublicFetch } from "./public-fetch.ts";
 import { PiSessions } from "./pi-sessions.ts";
 import { Hooks } from "./hooks.ts";
 import { Pip, PIP_EXTENSION } from "./pip.ts";
+import { cleanName, type AssistantProfile, profileDefault, profileOf } from "./pia.ts";
 import { PIP_COMPACT_CHOICES, PipCompaction } from "./pip-compact.ts";
 import { RepoWatches } from "./repo-watches.ts";
 import { snippet } from "./projection.ts";
@@ -384,7 +386,11 @@ export class PocketApp {
     #sessions: Record<string, SessionMeta> = {};
     #sessionsTimer: NodeJS.Timeout | undefined;
     /** The extensions installed now: every conversation runs with them, except PiP's own, which PiP alone selects. */
-    #registry: Registry | undefined;
+    #registry: RegistryReader | undefined;
+    /** Profile switches, one after another (`setAssistantProfile`). */
+    #profileSwitch: Promise<void> = Promise.resolve();
+    /** The local tool view: told when the profile changes, so discovery turns on or off at once. */
+    #localTools: { changed(): void } | undefined;
     #unsubscribeCommits: (() => void) | undefined;
     #unsubscribeApprovals: (() => void) | undefined;
     #unsubscribeBrowsers: (() => void) | undefined;
@@ -806,7 +812,16 @@ export class PocketApp {
             thinkingLevels: THINKING_LEVELS,
         };
 
-        this.#registry = registry;
+        // Keep local tool exposure policy separate from the loader and upstream execution environment.
+        // Discovery is the Pia profile's: Classic keeps upstream's registry as it is (`pia.ts`).
+        const localRegistry = localToolRegistry(
+            registry,
+            await hasRipgrep(),
+            () => profileOf(this.config.assistantProfile) === "pia",
+        );
+
+        this.#registry = localRegistry;
+        this.#localTools = localRegistry;
         const dropIn = join(this.dataDir, "extensions");
 
         try {
@@ -834,7 +849,11 @@ export class PocketApp {
             registry,
             host,
             { builtIn: join(APP_ROOT, "src", "server", "extensions"), dropIn },
-            (file) => this.config.extensionChoice(file),
+            // The owner's choice first; with none, the profile's default (Pia: subagents and background off), then the
+            // module's own.
+            (file) =>
+                this.config.extensionChoice(file) ??
+                profileDefault(profileOf(this.config.assistantProfile), file),
             // What a module's load says can name the server's folders, or quote a provider: the owner's to read.
             { webs: this.webs, notify: (level, message) => this.ownerNotice(level, message) },
         );
@@ -851,7 +870,7 @@ export class PocketApp {
             storage,
             {
                 models: this.models,
-                registry,
+                registry: localRegistry,
                 settings: this.#harnessSettings(),
                 now: this.now,
                 env: ({ conversationId, cwd }) =>
@@ -2276,6 +2295,8 @@ export class PocketApp {
                 pip: this.pip.available(user),
                 // Tokens of context above which PiP compacts itself once idle; 0: only as sessions do.
                 pipCompactAt: this.pipCompaction.compactAt,
+                // The assistant profile and the name the panel shows (`pia.ts`); Classic is PiP as upstream.
+                assistant: { profile: this.pip.profile().mode, name: this.pip.profile().name },
                 // The most hours a run waits for a provider's limit to clear; 0: it does not wait (`limit-gate.ts`).
                 limitWaitHours: this.config.limitWaitHours,
             },
@@ -3244,6 +3265,142 @@ export class PocketApp {
         }
 
         this.config.pipCompactAt = tokens;
+        await this.#refreshClients();
+    }
+
+    /**
+     * The owner picks the assistant profile (`pia.ts`). Each PiP keeps its conversation, history, and follows; it gets
+     * the other profile's tools and folder before its next run. Modules whose default differs between the profiles
+     * load or unload, unless the owner chose for them: that choice stays as it is.
+     */
+    async setAssistantProfile(user: User, value: unknown): Promise<void> {
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner can do that");
+        }
+
+        if (value !== "classic" && value !== "pia") {
+            throw new HttpError(400, "assistantProfile must be classic or pia");
+        }
+
+        // One switch at a time, each reading the profile as the one before left it: two tabs switching at once cannot
+        // leave modules or a PiP of the profile that lost.
+        const run = this.#profileSwitch.then(() => this.#switchProfile(value));
+
+        this.#profileSwitch = run.catch(() => {});
+
+        return run;
+    }
+
+    async #switchProfile(value: AssistantProfile): Promise<void> {
+        const before: AssistantProfile = profileOf(this.config.assistantProfile);
+
+        if (value === before) {
+            return;
+        }
+
+        // A PiP at work, or compacting, keeps the tools and folder it started with: switch once it is idle.
+        for (const [id, meta] of Object.entries(this.#sessions)) {
+            if (meta.pip === undefined) {
+                continue;
+            }
+
+            const conversationId = Number(id) as unknown as ConversationId;
+            const live = await this.harness.snapshot(LiveDoc, conversationId, context);
+
+            if (
+                this.isBusy(conversationId) ||
+                live?.run !== undefined ||
+                (live?.compactions?.length ?? 0) > 0
+            ) {
+                throw new HttpError(
+                    409,
+                    "The assistant is working. Switch the profile when it is idle.",
+                );
+            }
+        }
+
+        // Modules the switch would turn off: refused while any session has live work of theirs (a subagent, its
+        // report, a background watch), which would stall without its task definition until the module came back.
+        const unloading = this.loader
+            .files()
+            .filter(
+                (file) =>
+                    this.config.extensionChoice(file) === undefined &&
+                    this.loader.enabled(file) &&
+                    profileDefault(value, file) === false,
+            );
+        const names = new Set(
+            this.loader
+                .list()
+                .filter((module) => unloading.includes(module.file))
+                .flatMap((module) => module.extensions.map((extension) => extension.name)),
+        );
+        const kinds = new Set(
+            (this.#registry?.snapshot().installed() ?? [])
+                .filter((extension) => names.has(extension.name))
+                .flatMap((extension) =>
+                    (extension.tasks ?? []).map((task) => task.definition.name),
+                ),
+        );
+
+        if (kinds.size > 0) {
+            const graph = await this.harness.taskGraph(context);
+
+            try {
+                const live = Object.values(graph.value.tasks).filter((task) =>
+                    kinds.has(task.kind),
+                );
+
+                if (live.length > 0) {
+                    throw new HttpError(
+                        409,
+                        `${String(live.length)} subagent or background task${live.length === 1 ? " runs" : "s run"} in sessions. Switch the profile once they end, or turn those modules on in Extensions to keep them.`,
+                    );
+                }
+            } finally {
+                graph.dispose();
+            }
+        }
+
+        this.config.assistantProfile = value;
+        this.#localTools?.changed();
+
+        // Every module whose default differs between the profiles follows the profile now in force, unless the owner
+        // chose for it; `apply` reads the choice as it is, so a module ends as the final config says.
+        for (const file of this.loader.files()) {
+            if (
+                this.config.extensionChoice(file) === undefined &&
+                profileDefault(before, file) !== profileDefault(value, file)
+            ) {
+                try {
+                    await this.loader.apply(file);
+                } catch (error) {
+                    this.#log(`${file} did not follow the profile: ${describe(error)}`);
+                }
+            }
+        }
+
+        await this.pip.tuneAll((line) => this.#log(line));
+        await this.#refreshClients();
+    }
+
+    /** The name the Pia profile shows; empty or null goes back to "Pia". */
+    async setAssistantName(user: User, value: unknown): Promise<void> {
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner can do that");
+        }
+
+        if (value !== null && typeof value !== "string") {
+            throw new HttpError(400, "assistantName must be text");
+        }
+
+        const name = cleanName(value);
+
+        if (name === cleanName(this.config.assistantName)) {
+            return;
+        }
+
+        this.config.assistantName = name;
         await this.#refreshClients();
     }
 

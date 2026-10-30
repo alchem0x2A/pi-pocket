@@ -5,7 +5,7 @@
  *
  * Edit freely: saving this file reloads it into the running server.
  */
-import { statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { join, resolve, sep } from "node:path";
 import {
     formatSkillsForPrompt,
@@ -48,7 +48,7 @@ const STALE_MS = 30_000;
 type Resources = {
     at: number;
     trust: number;
-    context: string | undefined;
+    files: { path: string; content: string }[];
     skills: string | undefined;
 };
 
@@ -75,17 +75,11 @@ export default function createPrompt(host: PocketHost) {
             return cached;
         }
 
-        let context: string | undefined;
+        let files: { path: string; content: string }[] = [];
         let skills: string | undefined;
 
         try {
-            const files = loadProjectContextFiles({ cwd, agentDir: host.agentDir });
-
-            if (files.length > 0) {
-                context = files
-                    .map((file) => `<file path="${file.path}">\n${file.content.trim()}\n</file>`)
-                    .join("\n\n");
-            }
+            files = loadProjectContextFiles({ cwd, agentDir: host.agentDir });
         } catch (error) {
             host.notice("warning", `Could not load AGENTS.md files for ${cwd}: ${String(error)}`);
         }
@@ -98,7 +92,7 @@ export default function createPrompt(host: PocketHost) {
             host.notice("warning", `Could not load skills for ${cwd}: ${String(error)}`);
         }
 
-        const fresh = { at: Date.now(), trust, context, skills };
+        const fresh = { at: Date.now(), trust, files, skills };
 
         resources.set(cwd, fresh);
 
@@ -107,13 +101,55 @@ export default function createPrompt(host: PocketHost) {
 
     const cwdOf = (input: PromptInput) => input.env?.cwd ?? input.agent.cwd ?? process.cwd();
 
+    // The Pia profile (`pia.ts`): its chat has a prompt of its own from PiP's extension, and reads the shared AGENTS.md
+    // there, once, whatever its folder. A server from before the profile has no `profile`: Classic, as before.
+    const piaFile = (input: PromptInput): string | undefined => {
+        const pip = host.pip as Partial<PocketHost["pip"]>;
+
+        if (
+            typeof pip.profile !== "function" ||
+            pip.ownerOf?.(input.conversationId) === undefined
+        ) {
+            return undefined;
+        }
+
+        const profile = pip.profile();
+
+        return profile.mode === "pia" ? profile.agentsFile : undefined;
+    };
+
+    const projectContext = (input: PromptInput): string | undefined => {
+        const shared = piaFile(input);
+        const { files } = load(cwdOf(input));
+
+        const real = (path: string) => {
+            try {
+                return realpathSync(path);
+            } catch {
+                return resolve(path);
+            }
+        };
+
+        const skip = shared === undefined ? undefined : real(shared);
+        // PiP's extension gives the shared file once (`pia_shared`): left out here, whatever path reached it.
+        const kept = skip === undefined ? files : files.filter((file) => real(file.path) !== skip);
+
+        return kept.length === 0
+            ? undefined
+            : kept
+                  .map((file) => `<file path="${file.path}">\n${file.content.trim()}\n</file>`)
+                  .join("\n\n");
+    };
+
     return defineExtension({
         name: "pocket-prompt",
         sections: [
-            section("preamble", () => PREAMBLE, { tag: false }),
+            section("preamble", (input) => (piaFile(input) === undefined ? PREAMBLE : undefined), {
+                tag: false,
+            }),
             section("guidelines", () => GUIDELINES),
             section("pocket_docs", () => docs(host.dataDir)),
-            section("project_context", (input) => load(cwdOf(input)).context),
+            section("project_context", projectContext),
             section("skills", (input) => load(cwdOf(input)).skills, { tag: false }),
             section("environment", (input) => {
                 const base = `Working directory: ${cwdOf(input)}\nPlatform: ${process.platform}`;

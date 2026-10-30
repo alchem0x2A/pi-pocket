@@ -4,7 +4,7 @@ import { filesAvailable, toggleFiles } from "./files-panel.js";
 import { branchAvailable } from "./sheets/branch.js";
 import { memoryAvailable, remember } from "./sheets/memory.js";
 import { togglePeeks } from "./peeks.js";
-import { askPip, openPip, pipAvailable } from "./pip.js";
+import { askPip, assistantName, openPip, pipAvailable } from "./pip.js";
 import { actions, collab, navigate, notify, openSheet, scoped, store } from "./store.js";
 import { chooseMode } from "./theme.js";
 import { trustAvailable } from "./trust.js";
@@ -398,7 +398,9 @@ const COMMANDS = [
     {
         name: "pip",
         args: "[message]",
-        description: "Open PiP, your assistant over every session, or ask it something",
+        get description() {
+            return `Open ${assistantName()}, your assistant over every session, or ask it something`;
+        },
         available: pipAvailable,
         run: (arg) => (arg === "" ? openPip() : askPip(arg)),
     },

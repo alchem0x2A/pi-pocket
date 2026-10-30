@@ -40,6 +40,14 @@ A module split into parts keeps its name for the part others import, with the re
 
 `extension-request.ts` owns extension routes' request-lifetime document/context capabilities and fresh person/source authorization. `http/extension-routes.ts` binds named source parameters and supplies human linked-session capabilities. `linked-sessions.ts` keeps the short final-admission lease; its child context watches policy publications and checks current config when Durable enters admission. `models.ts` supplies exact local `host.modelInfo` metadata. `versions.ts` supplies `host.pocketVersion` and `hello.server.pocketVersion`, read by browser `pocket.pocketVersion`; `pocket.openConversation` delegates to normal `store.navigate`.
 
+### Local tool exposure
+
+`src/server/local-tools.ts` owns the local small-tool-set policy: a read-only registry view, deferred tools, a compact live `available_tools` catalog and its summary metadata, lazy tool guides, discovery-only `tool_search`, explicit `tool_load`, `ls`, and optional `rg`. `app.ts` supplies that view to the harness, while the extension loader keeps the original registry. Classic PiP's explicit selection stays unchanged. Discovery is active under the Pia profile. `test/local-tools.test.ts` tests discovery, isolation, hooks, persistence, reloads, and schema-size reduction.
+
+### Assistant profiles (local fork)
+
+`src/server/pia.ts` owns the Classic/Pia profile's defaults, configurable display name, shared workspace, and shared `AGENTS.md` helpers. Additive config fields are handled by `config.ts`; `app.ts` applies profile changes through the existing settings API and sends `hello.server.assistant`. `pip.ts` adapts the existing private helper conversation without replacing its history or follow tasks. `extensions/pip.ts` supplies the Pia persona and shared instructions while retaining Classic behavior. The existing Extensions sheet selects the mode and name; `web/pip.js` keeps the same chat panel and Start fresh control. `test/pia-reset.test.ts` checks panel persistence and reset retention in both profiles.
+
 ### People
 
 | File                   | Owns                                                                                                                    |

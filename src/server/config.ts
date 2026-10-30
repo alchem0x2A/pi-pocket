@@ -108,6 +108,10 @@ interface PocketConfig {
      * `systemctl --user reload pi-pocket`. Absent: the launcher restarts it (exit code 75).
      */
     restartCommand?: string;
+    /** The owner's assistant profile (`pia.ts`): absent or "classic" is PiP as upstream; "pia" is the Pia profile. */
+    assistantProfile?: string;
+    /** The name the Pia profile shows; absent: "Pia". Classic stays "PiP". */
+    assistantName?: string;
 }
 
 /** The hours a run waits for a model's limit to clear, until the owner says otherwise. */
@@ -236,6 +240,35 @@ export class ConfigStore {
             delete this.#config.restartCommand;
         } else {
             this.#config.restartCommand = trimmed;
+        }
+
+        this.save();
+    }
+
+    /** The assistant profile as stored: a value an older or newer Pi Pocket wrote is checked by `pia.ts`. */
+    get assistantProfile(): unknown {
+        return this.#config.assistantProfile;
+    }
+
+    set assistantProfile(profile: "classic" | "pia") {
+        if (profile === "classic") {
+            delete this.#config.assistantProfile;
+        } else {
+            this.#config.assistantProfile = profile;
+        }
+
+        this.save();
+    }
+
+    get assistantName(): unknown {
+        return this.#config.assistantName;
+    }
+
+    set assistantName(name: string | undefined) {
+        if (name === undefined) {
+            delete this.#config.assistantName;
+        } else {
+            this.#config.assistantName = name;
         }
 
         this.save();

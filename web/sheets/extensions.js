@@ -384,6 +384,80 @@ function PipCompactAt({ owner }) {
     </div>`;
 }
 
+/**
+ * The assistant profile (`src/server/pia.ts`): Classic is PiP as upstream; Pia has the normal tools too, a shared
+ * workspace, and a name the owner picks. The same conversation and panel serve both.
+ */
+function AssistantProfile({ owner }) {
+    const assistant = store.state.server?.assistant;
+    const [name, setName] = useState(null);
+
+    // A server from before the profile sends nothing: no control.
+    if (assistant === undefined) {
+        return null;
+    }
+
+    const profile = assistant.profile === "pia" ? "pia" : "classic";
+    const change = (value) => attempt(() => api("settings", { assistantProfile: value }));
+    const shown = name ?? (profile === "pia" ? assistant.name : "");
+
+    const saveName = () => {
+        if (name === null) {
+            return;
+        }
+
+        const next = name.trim();
+
+        setName(null);
+
+        if (next !== assistant.name) {
+            void attempt(() => api("settings", { assistantName: next === "" ? null : next }));
+        }
+    };
+
+    return html`<div class="setting wrap">
+            <div class="grow">
+                <div class="small">Assistant profile</div>
+                <div class="muted small">
+                    Classic: PiP manages sessions and hands work to them. Pia: the same panel and
+                    chat, with the normal tools too, a shared workspace, and one AGENTS.md for every
+                    chat.
+                </div>
+            </div>
+            <div class="segmented" role="group" aria-label="Assistant profile">
+                ${[
+                    ["classic", "Classic"],
+                    ["pia", "Pia"],
+                ].map(
+                    ([value, label]) => html`<button
+                        class=${profile === value ? "on" : ""}
+                        aria-pressed=${profile === value}
+                        disabled=${!owner}
+                        onClick=${() => change(value)}
+                    >
+                        ${label}
+                    </button>`,
+                )}
+            </div>
+        </div>
+        ${
+            profile === "pia" &&
+            html`<label class="setting wrap">
+                <span class="grow small">Name</span>
+                <input
+                    type="text"
+                    maxlength="40"
+                    placeholder="Pia"
+                    value=${shown}
+                    disabled=${!owner}
+                    onInput=${(event) => setName(event.currentTarget.value)}
+                    onBlur=${saveName}
+                    onKeyDown=${(event) => event.key === "Enter" && event.currentTarget.blur()}
+                />
+            </label>`
+        }`;
+}
+
 export function ExtensionsSheet() {
     return html`<${Sheet} title="Extensions" onClose=${closeSheet} wide=${true}>
         <${ExtensionsContent} />
@@ -662,6 +736,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                 html`<div class="ext-row-more ext-row-under" id=${id}>
                     ${note && !note.warn && html`<div class="small ok">${note.text}</div>`}
                     ${guard && module.enabled && html`<${ApprovalRule} owner=${owner} />`}
+                    ${module.file === "pip.ts" && module.enabled && html`<${AssistantProfile} owner=${owner} />`}
                     ${module.file === "pip.ts" && module.enabled && html`<${PipCompactAt} owner=${owner} />`}
                     <${WebPart} module=${module} />
                     ${
