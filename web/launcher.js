@@ -15,7 +15,7 @@ import { filesAvailable, toggleFiles } from "./files-panel.js";
 import { useDragToClose } from "./gestures.js";
 import { togglePeeks } from "./peeks.js";
 import { modelRefreshAvailable, refreshModels } from "./model-refresh.js";
-import { openPip, pipAvailable } from "./pip.js";
+import { assistantName, openPip, pipAvailable } from "./pip.js";
 import { setArchived, toggleBoard } from "./sessions.js";
 import { branchAvailable, headLabel } from "./sheets/branch.js";
 import { recentLabels } from "./sheets/folder.js";
@@ -419,7 +419,7 @@ function actionItems() {
                 run: () => setArchived([conversation.id], !conversation.archived),
             },
         pipAvailable() && {
-            label: "Ask PiP",
+            label: `Ask ${assistantName()}`,
             detail: "your assistant, over any screen",
             icon: "pip",
             keys: "Alt A",

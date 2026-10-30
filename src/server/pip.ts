@@ -48,6 +48,17 @@ import { type ClientEntry, projectEntry, snippet } from "./projection.ts";
 import type { RepoWatchRequest, RepoWatchView } from "./repo-watches.ts";
 import { clientKey, requestFor } from "./requests.ts";
 import { describeMoment, describeRepeat } from "./when.ts";
+import {
+    type AssistantProfile,
+    cleanName,
+    ensurePiaWorkspace,
+    PIA_DEFAULT_NAME,
+    piaExtensions,
+    piaAgentsFile,
+    piaWorkspace,
+    profileOf,
+    readShared,
+} from "./pia.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -223,6 +234,41 @@ export class Pip {
         });
     }
 
+    // ─── Profile ────────────────────────────────────────────────────────────
+
+    /** The assistant profile in force (`pia.ts`): Classic unless the owner chose Pia. */
+    profile(): {
+        mode: AssistantProfile;
+        name: string;
+        workspace: string;
+        agentsFile: string;
+        defaultFolder: string;
+    } {
+        const app = this.#app;
+        const mode = profileOf(app.config.assistantProfile);
+
+        return {
+            mode,
+            name:
+                mode === "pia"
+                    ? (cleanName(app.config.assistantName) ?? PIA_DEFAULT_NAME)
+                    : PIP_NAME,
+            workspace: piaWorkspace(app.dataDir),
+            agentsFile: piaAgentsFile(app.dataDir),
+            defaultFolder: app.defaultCwd,
+        };
+    }
+
+    /** The shared AGENTS.md every Pia chat reads; undefined in Classic, or when there is none. */
+    sharedContext(): string | undefined {
+        return this.profile().mode === "pia" ? readShared(this.#app.dataDir) : undefined;
+    }
+
+    /** Whether this conversation is a PiP that runs commands: a Pia chat while the profile is Pia. */
+    runsCommands(conversationId: ConversationId): boolean {
+        return this.ownerOf(conversationId) !== undefined && this.profile().mode === "pia";
+    }
+
     // ─── Whose PiP ──────────────────────────────────────────────────────────
 
     /** Whether this person may have a PiP: the owner, while its extension is on. */
@@ -331,7 +377,8 @@ export class Pip {
         const app = this.#app;
         const initial = app.commands.defaultModel();
         const now = Date.now();
-        const cwd = app.defaultCwd;
+        const pia = this.profile().mode === "pia";
+        const cwd = pia ? ensurePiaWorkspace(app.dataDir) : app.defaultCwd;
         const conversation = await app.harness.createConversation(
             {
                 ownership: { kind: "ownerless" },
@@ -345,8 +392,13 @@ export class Pip {
                 init: async (tx, id) => {
                     const agent = await tx.doc(AgentDoc, id);
 
-                    agent.extensions = [...PIP_EXTENSIONS];
-                    agent.tools = { remove: [...PIP_WITHOUT] };
+                    if (pia) {
+                        agent.extensions = piaExtensions(PIP_EXTENSION);
+                    } else {
+                        agent.extensions = [...PIP_EXTENSIONS];
+                        agent.tools = { remove: [...PIP_WITHOUT] };
+                    }
+
                     (await tx.doc(SessionsDoc)).items[String(id)] = {
                         title: PIP_NAME,
                         cwd,
@@ -384,20 +436,67 @@ export class Pip {
         }
     }
 
-    /** Give PiP the extensions and tools this version runs it with, when it has others (made by an older one). */
+    /**
+     * Give PiP the extensions and tools this version and profile run it with, when it has others (made by an older
+     * version, or under the other profile). The conversation, its history, and its follows stay as they are.
+     *
+     * The folder changes only as the profile changes: a PiP that enters Pia (its selection is still Classic's list)
+     * starts in the shared workspace, and one that goes back to Classic leaves the workspace for the default folder. A
+     * folder chosen after that stays: the workspace is a default, not a rule.
+     */
     async #tune(id: ConversationId): Promise<void> {
-        const agent = await this.#app.agentState(id);
-        const want = JSON.stringify({ extensions: PIP_EXTENSIONS, tools: { remove: PIP_WITHOUT } });
+        const app = this.#app;
+        const agent = await app.agentState(id);
+        const pia = this.profile().mode === "pia";
+        const wasPia = agent?.extensions !== undefined && !Array.isArray(agent.extensions);
+        const extensions = pia ? piaExtensions(PIP_EXTENSION) : PIP_EXTENSIONS;
+        const tools = pia ? undefined : { remove: PIP_WITHOUT };
+        let cwd: string | undefined;
 
-        if (JSON.stringify({ extensions: agent?.extensions, tools: agent?.tools }) === want) {
+        if (pia && !wasPia) {
+            cwd = ensurePiaWorkspace(app.dataDir);
+        } else if (pia) {
+            // The workspace and its AGENTS.md come back if someone removed them; the folder stays as it is.
+            ensurePiaWorkspace(app.dataDir);
+        } else if (wasPia && agent?.cwd === piaWorkspace(app.dataDir)) {
+            cwd = app.defaultCwd;
+        }
+
+        if (
+            JSON.stringify({ extensions: agent?.extensions, tools: agent?.tools }) ===
+                JSON.stringify({ extensions, tools }) &&
+            cwd === undefined
+        ) {
             return;
         }
 
-        await this.#app.harness.commit(async (tx) => {
+        await app.harness.commit(async (tx) => {
+            const live = await tx.doc(LiveDoc, id);
+
+            // A run or compaction that started meanwhile keeps what it started with; the next open or start tunes it.
+            if (live.run !== undefined || (live.compactions?.length ?? 0) > 0) {
+                return;
+            }
+
             const state = await tx.doc(AgentDoc, id);
 
-            state.extensions = [...PIP_EXTENSIONS];
-            state.tools = { remove: [...PIP_WITHOUT] };
+            if (pia) {
+                state.extensions = piaExtensions(PIP_EXTENSION);
+                delete state.tools;
+            } else {
+                state.extensions = [...PIP_EXTENSIONS];
+                state.tools = { remove: [...PIP_WITHOUT] };
+            }
+
+            if (cwd !== undefined) {
+                state.cwd = cwd;
+
+                const meta = (await tx.doc(SessionsDoc)).items[String(id)];
+
+                if (meta !== undefined) {
+                    meta.cwd = cwd;
+                }
+            }
         }, context);
     }
 

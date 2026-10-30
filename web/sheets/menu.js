@@ -8,7 +8,7 @@ import { useChanges } from "../diff.js";
 import { filesAvailable, setFilesOpen } from "../files-panel.js";
 import { peeksOn, togglePeeks } from "../peeks.js";
 import { modelRefreshAvailable, refreshModels } from "../model-refresh.js";
-import { openPip, pipAvailable, pipUnread } from "../pip.js";
+import { assistantName, openPip, pipAvailable, pipUnread } from "../pip.js";
 import { setArchived } from "../sessions.js";
 import { openSubagent } from "../subagents.js";
 import {
@@ -173,7 +173,10 @@ const PLACES = [
     },
     {
         id: "core:pip",
-        label: "PiP",
+        // The assistant's name as the server gives it (Classic "PiP"; the owner's name for Pia), read as it draws.
+        get label() {
+            return assistantName();
+        },
         place: () =>
             pipAvailable() && {
                 icon: "pip",

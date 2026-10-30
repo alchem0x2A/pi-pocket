@@ -103,6 +103,9 @@ const SUGGESTIONS = [
 /** The server lets this person have a PiP: the owner, while its extension is on. */
 export const pipAvailable = () => store.state.server?.pip === true;
 
+/** What the assistant is called: "PiP" in the Classic profile, the owner's name for it (default "Pia") in Pia's. */
+export const assistantName = () => store.state.server?.assistant?.name || "PiP";
+
 let seq = 0;
 /** The connection the panel's last "open" went to: a new one (a reconnect) is told again. */
 let toldConnection = null;
@@ -232,7 +235,7 @@ function draftPip(text) {
 /** Send PiP a message from anywhere (`/pip …`), and open the panel to show what it says; true when it went. */
 export async function askPip(text) {
     if (!pipAvailable()) {
-        notify("error", "PiP is not on here.");
+        notify("error", `${assistantName()} is not on here.`);
 
         return false;
     }
@@ -247,7 +250,7 @@ export async function askPip(text) {
     }
 
     if (!pip) {
-        notify("error", "PiP is not ready yet: your message waits in its box.");
+        notify("error", `${assistantName()} is not ready yet: your message waits in its box.`);
     }
 
     // Not sent: the words wait in PiP's box rather than be lost (`send` said why), after what was there already.
@@ -300,7 +303,7 @@ async function send(id, text, busy, attachments = []) {
     }
 
     if (target === undefined) {
-        notify("error", "PiP is not ready yet. Try again in a moment.");
+        notify("error", `${assistantName()} is not ready yet. Try again in a moment.`);
 
         return false;
     }
@@ -340,12 +343,12 @@ function PipContext({ stats, window }) {
     const limit = at > 0 ? Math.min(at, window) : window;
     const percent = Math.min(100, Math.round((used / limit) * 100));
     const about = stats.contextEstimated ? "~" : "";
-    const tokens = `${about}${formatTokens(used)} of ${formatTokens(limit)} tokens in PiP's context.`;
+    const tokens = `${about}${formatTokens(used)} of ${formatTokens(limit)} tokens in ${assistantName()}'s context.`;
     const when =
         at > window
-            ? `PiP's idle compaction limit is ${formatTokens(at)} tokens.`
+            ? `${assistantName()}'s idle compaction limit is ${formatTokens(at)} tokens.`
             : at > 0
-              ? `PiP compacts itself above ${formatTokens(at)} once idle.`
+              ? `${assistantName()} compacts itself above ${formatTokens(at)} once idle.`
               : "Compact it when it grows.";
     const cap = at > window ? " The meter is capped at the model's context window." : "";
     const title = `${tokens} ${when}${cap}`;
@@ -586,7 +589,7 @@ function Welcome({ id, name, hasModel }) {
     const first = (name ?? "").split(/\s+/)[0];
 
     return html`<div class="pip-welcome">
-        <p class="pip-hello">Hi${first ? ` ${first}` : ""}. I’m PiP.</p>
+        <p class="pip-hello">Hi${first ? ` ${first}` : ""}. I’m ${assistantName()}.</p>
         <p class="pip-intro">${INTRO}</p>
         ${
             !hasModel &&
@@ -683,7 +686,7 @@ function Composer({ id, busy }) {
         }
 
         if (compact && id === undefined) {
-            notify("error", "PiP is not ready yet. Try again in a moment.");
+            notify("error", `${assistantName()} is not ready yet. Try again in a moment.`);
 
             return;
         }
@@ -755,7 +758,7 @@ function Composer({ id, busy }) {
     >
         ${
             files.length > 0 &&
-            html`<div class="pip-attachments" aria-label="Files attached to PiP">
+            html`<div class="pip-attachments" aria-label=${`Files attached to ${assistantName()}`}>
                 ${files.map(
                     (file) => html`<div class="pip-attachment" key=${file.key}>
                         ${file.preview && html`<${Thumb} src=${file.preview} alt=${file.name} />`}
@@ -793,7 +796,7 @@ function Composer({ id, busy }) {
             <button
                 type="button"
                 class="icon-button pip-attach"
-                aria-label="Attach files to PiP"
+                aria-label=${`Attach files to ${assistantName()}`}
                 title="Attach files. Images need an image-capable model to be read inline."
                 disabled=${id === undefined}
                 onClick=${() => picker.current?.click()}
@@ -804,8 +807,8 @@ function Composer({ id, busy }) {
                 ref=${ref}
                 rows="1"
                 value=${text}
-                placeholder=${dictation.listening ? "Listening…" : busy ? "Tell PiP more…" : "Ask PiP…"}
-                aria-label="Message to PiP"
+                placeholder=${dictation.listening ? "Listening…" : busy ? `Tell ${assistantName()} more…` : `Ask ${assistantName()}…`}
+                aria-label=${`Message to ${assistantName()}`}
                 enterkeyhint="send"
                 onInput=${(event) => change(event.currentTarget.value)}
                 onPaste=${onPaste}
@@ -838,7 +841,7 @@ function Composer({ id, busy }) {
                     ? html`<button
                           type="button"
                           class="icon-button pip-send"
-                          aria-label="Stop PiP"
+                          aria-label=${`Stop ${assistantName()}`}
                           title="Stop"
                           onClick=${() => attempt(() => api(`c/${id}/abort`, {}))}
                       >
@@ -847,7 +850,7 @@ function Composer({ id, busy }) {
                     : html`<button
                           type="submit"
                           class="icon-button pip-send"
-                          aria-label="Send to PiP"
+                          aria-label=${`Send to ${assistantName()}`}
                           disabled=${sendDisabled}
                       >
                           <${Icon} name="send" size=${18} />
@@ -894,10 +897,10 @@ function PendingMemories({ id }) {
 /** When PiP takes a message that waits: a steer at its next pause, a queued one when it finishes its work. */
 const pendingWhen = (item, busy) =>
     !busy
-        ? "Waiting for PiP"
+        ? `Waiting for ${assistantName()}`
         : item.mode === "steer"
-          ? "PiP reads this at its next pause"
-          : "PiP reads this when it finishes";
+          ? `${assistantName()} reads this at its next pause`
+          : `${assistantName()} reads this when it finishes`;
 
 /** Who sent a message, as the server writes it at the start when several people use Pi (`FROM_PREFIX`). */
 const FROM = /^\[from: [^\]\n]{1,60}\] /;
@@ -989,7 +992,7 @@ function PipPanel({ leaving, scrim }) {
         ref=${ref}
         role="dialog"
         aria-modal=${NARROW.matches ? "true" : undefined}
-        aria-label="PiP, your assistant"
+        aria-label=${`${assistantName()}, your assistant`}
     >
         <div class="pip-resize pip-resize-left" data-pip-resize="left" aria-hidden="true"></div>
         <div class="pip-resize pip-resize-top" data-pip-resize="top" aria-hidden="true"></div>
@@ -1001,14 +1004,14 @@ function PipPanel({ leaving, scrim }) {
             </span>
             <div class="pip-heading">
                 <div class="pip-title-line">
-                    <h2>PiP</h2>
+                    <h2>${assistantName()}</h2>
                     <span class="pip-status" aria-live="polite">${status}</span>
                 </div>
                 <button
                     class="model-chip pip-model"
                     disabled=${!ready || busy || compacting}
-                    aria-label=${`PiP model: ${model}${thinking ? ` · ${thinking}` : ""}`}
-                    title="Change PiP's model and thinking level"
+                    aria-label=${`${assistantName()} model: ${model}${thinking ? ` · ${thinking}` : ""}`}
+                    title=${`Change ${assistantName()}'s model and thinking level`}
                     onClick=${() => openSheet({ type: "model", pipId: id })}
                 >
                     <span class="model-name">
@@ -1024,7 +1027,7 @@ function PipPanel({ leaving, scrim }) {
             <button
                 class="icon-button"
                 aria-label="Compact"
-                title="Compact: PiP keeps a summary of older messages, and reads less each time"
+                title=${`Compact: ${assistantName()} keeps a summary of older messages, and reads less each time`}
                 disabled=${!ready || busy || compacting || rows.length === 0}
                 onClick=${() => compactPip(id)}
             >
@@ -1033,11 +1036,12 @@ function PipPanel({ leaving, scrim }) {
             <button
                 class="icon-button"
                 aria-label="Start fresh"
-                title="Start fresh: PiP forgets this conversation"
+                title=${`Start fresh: ${assistantName()} forgets this conversation`}
                 disabled=${!ready || busy || rows.length === 0}
                 onClick=${() =>
-                    confirm("Start fresh? PiP forgets this conversation; you can still read it.") &&
-                    attempt(() => api(`c/${id}/reset`, {}))}
+                    confirm(
+                        `Start fresh? ${assistantName()} forgets this conversation; you can still read it.`,
+                    ) && attempt(() => api(`c/${id}/reset`, {}))}
             >
                 <${Icon} name="reload" size=${18} />
             </button>
@@ -1053,7 +1057,7 @@ function PipPanel({ leaving, scrim }) {
             >
                 <${Icon} name="external" size=${18} />
             </button>
-            <button class="icon-button" aria-label="Close PiP" title="Close (Esc)" onClick=${closePip}>
+            <button class="icon-button" aria-label=${`Close ${assistantName()}`} title="Close (Esc)" onClick=${closePip}>
                 <${Icon} name="close" size=${18} />
             </button>
         </header>
@@ -1069,7 +1073,7 @@ function PipPanel({ leaving, scrim }) {
         >
             ${
                 !ready
-                    ? html`<div class="pip-loading"><${Spinner} label="Waking PiP" /></div>`
+                    ? html`<div class="pip-loading"><${Spinner} label=${`Waking ${assistantName()}`} /></div>`
                     : rows.length === 0 && !busy
                       ? html`<${Welcome}
                             id=${id}
@@ -1118,7 +1122,7 @@ function PipPanel({ leaving, scrim }) {
             waiting.length > 0 &&
             html`<div class="pip-approval" role="status">
                 <${Icon} name="shield" size=${14} />
-                <span class="grow">PiP waits for your approval: ${waiting[0].tool}</span>
+                <span class="grow">${assistantName()} waits for your approval: ${waiting[0].tool}</span>
                 <button
                     type="button"
                     class="button small"
@@ -1156,8 +1160,12 @@ function PipBubble() {
 
     return html`<button
         class=${`pip-bubble ${kept} ${leaving ? "leaving" : ""}`}
-        aria-label=${kept === "busy" ? "PiP is working: open PiP" : "PiP has something new: open PiP"}
-        title="PiP (Alt+A)"
+        aria-label=${
+            kept === "busy"
+                ? `${assistantName()} is working: open ${assistantName()}`
+                : `${assistantName()} has something new: open ${assistantName()}`
+        }
+        title=${`${assistantName()} (Alt+A)`}
         onClick=${() => openPip()}
     >
         <${Icon} name="pip" size=${22} />
@@ -1206,8 +1214,8 @@ export function PipRailButton() {
         class=${`rail-button rail-pip ${pip?.busy ? "lit" : ""} ${pipOpen ? "open" : ""}`}
         data-part="rail-button"
         data-state=${railState(pipOpen, Boolean(pip?.busy))}
-        title="PiP, your assistant (Alt+A)"
-        aria-label=${["PiP", pip?.busy && "working", unread && "something new"].filter(Boolean).join(", ")}
+        title=${`${assistantName()}, your assistant (Alt+A)`}
+        aria-label=${[assistantName(), pip?.busy && "working", unread && "something new"].filter(Boolean).join(", ")}
         aria-pressed=${pipOpen}
         onClick=${togglePip}
     >

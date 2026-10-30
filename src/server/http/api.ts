@@ -584,6 +584,8 @@ export function createApi(options: HttpOptions, auth: Auth) {
                 pipCompactAt?: unknown;
                 subagentModels?: unknown;
                 limitWaitHours?: unknown;
+                assistantProfile?: unknown;
+                assistantName?: unknown;
             }>(request);
 
             // One at a time: a second that fails must not leave the first changed.
@@ -594,6 +596,8 @@ export function createApi(options: HttpOptions, auth: Auth) {
                     body.pipCompactAt,
                     body.subagentModels,
                     body.limitWaitHours,
+                    body.assistantProfile,
+                    body.assistantName,
                 ].filter((value) => value !== undefined).length > 1
             ) {
                 throw new HttpError(400, "Change one setting at a time.");
@@ -611,6 +615,15 @@ export function createApi(options: HttpOptions, auth: Auth) {
             // How long a run waits for a provider's limit to clear: the owner's (checked in `app.ts`).
             if (body.limitWaitHours !== undefined) {
                 await app.setLimitWaitHours(user, body.limitWaitHours);
+            }
+
+            // The assistant profile and Pia's name: the owner's (checked in `app.ts`).
+            if (body.assistantProfile !== undefined) {
+                await app.setAssistantProfile(user, body.assistantProfile);
+            }
+
+            if (body.assistantName !== undefined) {
+                await app.setAssistantName(user, body.assistantName);
             }
 
             if (body.approvalRule !== undefined) {

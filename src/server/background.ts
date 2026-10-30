@@ -1143,7 +1143,8 @@ export class BackgroundTasks {
             throw new HttpError(400, "Only sessions can run background tasks, not subagents.");
         }
 
-        if (meta.pip !== undefined) {
+        // A Pia chat runs commands as sessions do (`pia.ts`); a Classic PiP does not.
+        if (meta.pip !== undefined && this.#app.pip.runsCommands?.(conversationId) !== true) {
             throw new HttpError(400, "PiP does not run commands.");
         }
     }

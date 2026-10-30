@@ -30,6 +30,20 @@ export default function createMyWords() {
 - `parameters` is a TypeBox schema (`Type` from `@earendil-works/pi-ai`). Pi Durable checks the arguments against it before `execute` runs.
 - `execute(args, api, context)` does the work.
 
+## Local tool catalog summaries
+
+The local tool-discovery policy adds an `available_tools` prompt section. It lists enabled, model-callable tools, including tools not yet loaded. The catalog refreshes before each request and reflects extension reloads and conversation exclusions. It does not load schemas or guides.
+
+There is no standard 5-word summary field in the current Pi Durable tool API. This fork accepts optional `shortDescription` metadata on a registration:
+
+```typescript
+const lookup = Object.assign(defineTool({/* normal tool definition */}), {
+    shortDescription: "Look up project records",
+});
+```
+
+This is local catalog metadata, not an upstream or MCP field. Keep it at most 5 words and 80 characters. Whitespace becomes a single space. Empty or overlong summaries use the local built-in summary, or `Search for tool details` for an unknown tool. Existing built-ins use a separate curated map in `src/server/local-tools.ts`, so upstream tool modules need no edits. New local tools can provide the metadata at registration instead of changing that map. Search still uses the full description; loading supplies the authoritative schema and guide.
+
 ## Return a result
 
 - Return `{ output: [{ type: "text", text }] }`. The model reads the text.
