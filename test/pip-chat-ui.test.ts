@@ -453,6 +453,88 @@ test("a typed PiP text draft survives reload while open and while closed", real,
     await close();
 });
 
+test("Pia's display name replaces PiP in assistant-facing UI", real, async () => {
+    await fresh(VIEWPORTS.desktop);
+    const person = owner(app);
+
+    try {
+        await app.setAssistantProfile(person, "pia");
+        await see(
+            `(await import('/store.js')).store.state.server?.assistant?.name === 'Pia'`,
+            "Pia profile reached the browser",
+        );
+        await open();
+        assert.equal(
+            await inPage<string>(
+                `return JSON.stringify(document.querySelector('.pip-head h2')?.textContent.trim())`,
+            ),
+            "Pia",
+        );
+
+        await page.evaluate(`(await import('/store.js')).openSheet({ type: 'menu' })`);
+        await see(
+            `document.querySelector('[data-place="pip"] .place-label') !== null`,
+            "assistant place tile",
+        );
+        assert.equal(
+            await inPage<string>(
+                `return JSON.stringify(document.querySelector('[data-place="pip"] .place-label')?.textContent)`,
+            ),
+            "Pia",
+        );
+
+        await page.evaluate(
+            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'extensions' })`,
+        );
+        await see(
+            `document.querySelector('[aria-controls="ext-more-pip-ts"]') !== null`,
+            "the assistant extension row",
+        );
+        const extension = await inPage<string>(
+            `return JSON.stringify(document.querySelector('[aria-controls="ext-more-pip-ts"]')?.textContent)`,
+        );
+
+        assert.match(extension, /Pia/);
+        assert.doesNotMatch(extension, /PiP/);
+
+        await page.evaluate(
+            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'shortcuts' })`,
+        );
+        await see(`document.querySelector('.shortcuts') !== null`, "keyboard shortcuts sheet");
+        const shortcuts = await inPage<string>(
+            `return JSON.stringify(document.querySelector('.shortcuts')?.textContent)`,
+        );
+
+        assert.match(shortcuts, /Pia, your assistant/);
+        assert.doesNotMatch(shortcuts, /PiP/);
+
+        await page.evaluate(
+            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'hooks' })`,
+        );
+        await see(
+            `document.querySelector('.sheet')?.textContent.includes('Webhooks and watches')`,
+            "webhooks sheet",
+        );
+        const hooks = await inPage<string>(
+            `return JSON.stringify(document.querySelector('.sheet-body')?.textContent)`,
+        );
+
+        assert.match(hooks, /Pia/);
+        assert.doesNotMatch(hooks, /PiP/);
+    } finally {
+        await page.evaluate(
+            `(await import('/store.js')).closeSheet(); (await import('/pip.js')).closePip()`,
+        );
+        await app.setAssistantProfile(person, "classic");
+        await see(
+            `(await import('/store.js')).store.state.server?.assistant?.name === 'PiP'`,
+            "Classic profile restored",
+        );
+    }
+
+    await close();
+});
+
 test("your messages that wait while PiP works show at once, as waiting", real, async () => {
     await fresh(VIEWPORTS.mobile);
     const me = owner(app).id;

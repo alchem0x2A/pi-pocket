@@ -286,7 +286,11 @@ function sheetBody(sheet) {
             body = html`<${TextSheet}
                 title="Rename"
                 label="Session title"
-                initial=${view.conversation?.title ?? ""}
+                initial=${
+                    view.conversation?.pip
+                        ? (store.state.server?.assistant?.name ?? "PiP")
+                        : (view.conversation?.title ?? "")
+                }
                 submit=${(value) => actions.updateSession(view.conversation.id, { title: value })}
             />`;
             break;

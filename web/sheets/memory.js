@@ -164,9 +164,10 @@ function Source({ lesson }) {
 }
 
 /** Where a lesson applies, said where it waits: everywhere's reach every session and PiP. */
+const assistantName = () => store.state.server?.assistant?.name || "PiP";
 const reach = (lesson) =>
     lesson.scope === "everywhere"
-        ? "everywhere: every session, and PiP"
+        ? `everywhere: every session, and ${assistantName()}`
         : (lesson.projectName ?? "this project");
 
 /** One lesson: its text, where it came from, and what this person may do with it. */
@@ -379,7 +380,7 @@ export function MemorySheet({ draft: initial = "", conversationId, pendingOnly =
 
     return html`<${Sheet} title=${title} onClose=${closeSheet}>
         <p class="muted small">
-            Short lessons Pi keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : "PiP keeps lessons for everywhere."} Pi proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
+            Short lessons Pi keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : `${assistantName()} keeps lessons for everywhere.`} Pi proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
         </p>
         ${
             data.canWrite &&

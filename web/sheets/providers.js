@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { api, attempt, closeSheet, closeSignIn, signInAnswered, store } from "../store.js";
 import { html, Icon, Loader, Sheet } from "../ui.js";
 import { RefreshModels } from "../model-refresh.js";
+import { assistantName } from "../pip.js";
 
 /** Models past this many get a box to find them by. */
 const MODEL_SEARCH_AT = 8;
@@ -246,7 +247,7 @@ export function ProvidersSheet() {
                 }
             </div>
             <div class="muted small">
-                ${provider.needsSignIn ? "the sign-in expired and could not be renewed: sign in again. Until then, sessions on its models fail, and PiP and subagents on other models do not use them" : provider.configured ? `signed in${provider.label ? ` · ${provider.label}` : provider.source ? ` · ${provider.source}` : ""}` : "not configured"} · ${provider.models} models
+                ${provider.needsSignIn ? `the sign-in expired and could not be renewed: sign in again. Until then, sessions on its models fail, and ${assistantName()} and subagents on other models do not use them` : provider.configured ? `signed in${provider.label ? ` · ${provider.label}` : provider.source ? ` · ${provider.source}` : ""}` : "not configured"} · ${provider.models} models
             </div>
             ${
                 provider.needsSignIn &&

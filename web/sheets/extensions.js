@@ -2,6 +2,7 @@
 // its context.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { browserModuleState, leaveSafeMode, safeMode } from "../extension-ui.js";
+import { assistantName } from "../pip.js";
 import { api, attempt, closeSheet, openSheet, store } from "../store.js";
 import { html, Icon, Loader, Sheet, shortPath, Switch } from "../ui.js";
 import { ACCESS_WORDS, galleryApi, galleryAvailable, Tile } from "./gallery.js";
@@ -363,13 +364,12 @@ function PipCompactAt({ owner }) {
 
     return html`<div class="setting wrap">
         <div class="grow">
-            <div class="small">Compact PiP's context</div>
+            <div class="small">Compact ${assistantName()}'s context</div>
             <div class="muted small">
-                When PiP's older messages become a short summary: as a session's do, or sooner,
-                once PiP is idle above a limit, which keeps each reply cheaper.
+                When ${assistantName()}'s older messages become a short summary: as a session's do, or sooner, once ${assistantName()} is idle above a limit, which keeps each reply cheaper.
             </div>
         </div>
-        <div class="segmented" role="group" aria-label="Compact PiP's context">
+        <div class="segmented" role="group" aria-label=${`Compact ${assistantName()}'s context`}>
             ${PIP_COMPACT.map(
                 ([value, label]) => html`<button
                     class=${at === value ? "on" : ""}
@@ -419,9 +419,7 @@ function AssistantProfile({ owner }) {
             <div class="grow">
                 <div class="small">Assistant profile</div>
                 <div class="muted small">
-                    Classic: PiP manages sessions and hands work to them. Pia: the same panel and
-                    chat, with the normal tools too, a shared workspace, and one AGENTS.md for every
-                    chat.
+                    Classic: manages sessions and hands work to them. Pia: the same panel and chat, with the normal tools too, a shared workspace, and one AGENTS.md for every chat.
                 </div>
             </div>
             <div class="segmented" role="group" aria-label="Assistant profile">
@@ -486,7 +484,11 @@ const ICONS = {
 /** A module's summary without the name it starts with ("Browser: Pi opens…" → "Pi opens…"), as its row shows the name. */
 function summaryOf(module) {
     const name = module.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const rest = (module.summary ?? "").replace(new RegExp(`^(the )?${name}: `, "i"), "");
+    const summary =
+        module.file === "pip.ts"
+            ? (module.summary ?? "").replace(/^PiP, /, "")
+            : (module.summary ?? "");
+    const rest = summary.replace(new RegExp(`^(the )?${name}: `, "i"), "");
 
     return rest.charAt(0).toUpperCase() + rest.slice(1);
 }
@@ -602,6 +604,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
             ? fromGallery
             : new Map(galleryInstalled.map((item) => [item.file, item]));
     const needle = query.trim().toLowerCase();
+    const displayTitle = (module) => (module.file === "pip.ts" ? assistantName() : module.title);
     const managed = (data?.modules ?? []).filter(
         (module) =>
             (galleryInstalled === undefined ||
@@ -611,7 +614,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                 browserModuleState(module.file.replace(/\.ts$/, ""))?.status === "failed") &&
             (!needle ||
                 [
-                    module.title,
+                    displayTitle(module),
                     module.file,
                     module.summary ?? "",
                     ...module.extensions.flatMap((extension) => extension.tools),
@@ -625,6 +628,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
         const installed = installedByFile.get(module.file);
         const isOpen = open.has(module.file);
         const id = `ext-more-${module.file.replace(/[^a-z0-9]/gi, "-")}`;
+        const title = displayTitle(module);
 
         return html`<div
             key=${module.file}
@@ -636,10 +640,10 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                 aria-controls=${id}
                 onClick=${() => flip(module.file)}
             >
-                <${Tile} name=${module.file} title=${module.title} icon=${ICONS[module.file] ?? null} />
+                <${Tile} name=${module.file} title=${title} icon=${ICONS[module.file] ?? null} />
                 <span class="ext-row-text">
                     <span class="ext-row-title">
-                        ${module.title}
+                        ${title}
                         <${Icon} name="down" size=${14} class="ext-row-chevron" />
                     </span>
                     ${module.summary && html`<span class="ext-row-desc">${summaryOf(module)}</span>`}
@@ -655,7 +659,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                         : html`<${Switch}
                               on=${module.enabled}
                               disabled=${!owner || busy !== null}
-                              label=${`${module.title}: ${module.enabled ? "on" : "off"}`}
+                              label=${`${title}: ${module.enabled ? "on" : "off"}`}
                               onChange=${(event) => toggle(module, event.currentTarget)}
                           />`
                 }
@@ -713,7 +717,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
             ${
                 confirmOn === module.file &&
                 !module.enabled &&
-                html`<div class="ext-confirm ext-row-under" role="group" aria-label=${`Turn on ${module.title}?`}>
+                html`<div class="ext-confirm ext-row-under" role="group" aria-label=${`Turn on ${title}?`}>
                     <span>It runs inside the server with your rights, in every session. Turn it on only if you trust its code.</span>
                     <div class="sheet-actions">
                         <button class="button small" onClick=${() => setConfirmOn(null)}>Not now</button>

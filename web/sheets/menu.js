@@ -203,18 +203,22 @@ const PLACES = [
     },
 ];
 
-PLACES.forEach(({ id, label, place }, index) =>
+PLACES.forEach((entry, index) =>
     defineItem("places", {
-        id,
-        label,
+        id: entry.id,
+        get label() {
+            return entry.label;
+        },
         order: (index + 1) * 100,
         render(context) {
-            const shown = place(context);
+            const shown = entry.place(context);
 
             // As before slots: `data-place="files"`, which tests and themes may select.
             return (
                 shown &&
-                html`<${PlaceTile} place=${{ id: id.replace(/^core:/, ""), label, ...shown }} />`
+                html`<${PlaceTile}
+                    place=${{ id: entry.id.replace(/^core:/, ""), label: entry.label, ...shown }}
+                />`
             );
         },
     }),
@@ -234,7 +238,7 @@ export function PlacesSheet() {
     const conversation = store.state.view.conversation;
 
     return html`<${Sheet}
-        title=${conversation?.title ?? "Open"}
+        title=${conversation?.pip ? assistantName() : (conversation?.title ?? "Open")}
         onClose=${closeSheet}
         className="places-sheet"
     >
@@ -409,7 +413,7 @@ export function MenuSheet({ places = true }) {
     const instructions = view.agent?.instructions;
     const memory = useMemory();
 
-    return html`<${MenuFrame} title=${conversation?.title ?? "Menu"}>
+    return html`<${MenuFrame} title=${conversation?.pip ? assistantName() : (conversation?.title ?? "Menu")}>
         ${places && html`<${Places} />`}
         <div class="menu-session">
             ${

@@ -1,5 +1,6 @@
 // Spend: what each session and person cost, and their limits.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { assistantName } from "../pip.js";
 import { api, attempt, closeSheet, store } from "../store.js";
 import { html, Icon, Loader, Sheet } from "../ui.js";
 
@@ -133,7 +134,7 @@ export function SpendSheet() {
                 <div class="sheet-list">
                     ${data.sessions.map(
                         (session) => html`<div class="spend-row" key=${session.id}>
-                            <span class="grow">${session.title}</span>
+                            <span class="grow">${session.id === store.state.pip?.id ? assistantName() : session.title}</span>
                             <${Usage} row=${session} max=${sessionsMax} />
                             <span class="mono">${money(session.spent)}</span>
                             <${SpendLimit}

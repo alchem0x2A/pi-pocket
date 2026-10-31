@@ -1,4 +1,5 @@
 // The keyboard shortcuts, as a list. The keys themselves are handled in app.js.
+import { assistantName } from "../pip.js";
 import { boxKeyRows } from "../box-keys.js";
 import { closeSheet } from "../store.js";
 import { html, Keys, Sheet } from "../ui.js";
@@ -89,7 +90,7 @@ export function ShortcutsSheet() {
                 <dl class="shortcuts">
                     ${rows.map(
                         ([keys, text]) => html`<dt><${Chords} keys=${keys} /></dt>
-                        <dd>${text}</dd>`,
+                        <dd>${text.replaceAll("PiP", assistantName())}</dd>`,
                     )}
                 </dl>
             </div>`,

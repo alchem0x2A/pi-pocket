@@ -29,7 +29,7 @@ import {
     peeksWanted,
     togglePeeks,
 } from "./peeks.js";
-import { closePip, openPip, PipHost, pipAvailable, togglePip } from "./pip.js";
+import { assistantName, closePip, openPip, PipHost, pipAvailable, togglePip } from "./pip.js";
 import { Drawer, RailNav, ResizeHandle, SessionList, toSessions } from "./sessions.js";
 // Loaded for what it does: it gives replies' Markdown the component for pages, images, and diffs in code blocks.
 import "./rich.js";
@@ -215,7 +215,9 @@ function Topbar() {
         }),
         [sessions, conversationId],
     );
-    const title = conversation?.title ?? listed ?? (store.state.missing ? "Not found" : "Loading…");
+    const title = conversation?.pip
+        ? assistantName()
+        : (conversation?.title ?? listed ?? (store.state.missing ? "Not found" : "Loading…"));
     // How far down it reaches: PiP's window on a short wide screen stops below its buttons.
     const edge = useEdge("--topbar-h", (rect) => rect.bottom);
 
@@ -472,10 +474,16 @@ function App() {
     const state = store.state;
 
     useEffect(() => {
-        document.title = state.view.conversation?.title
-            ? `${state.view.conversation.title} · Pi Pocket`
-            : "Pi Pocket";
-    }, [state.view.conversation?.title]);
+        const title = state.view.conversation?.pip
+            ? assistantName()
+            : state.view.conversation?.title;
+
+        document.title = title ? `${title} · Pi Pocket` : "Pi Pocket";
+    }, [
+        state.view.conversation?.pip,
+        state.view.conversation?.title,
+        state.server?.assistant?.name,
+    ]);
 
     if (state.me === undefined) {
         return html`<${Boot}

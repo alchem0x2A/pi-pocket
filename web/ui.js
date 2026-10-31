@@ -1015,8 +1015,8 @@ export function shortPath(path, home) {
 
 const ICONS = {
     menu: "M3 6h18M3 12h18M3 18h18",
-    // PiP: a small orb with a glint.
-    pip: "M12 20a8 8 0 100-16 8 8 0 000 16zM8.5 11a3.5 3.5 0 013.5-3.5",
+    // Customer helper: a full-width bow with splayed tails and an open center below the knot.
+    pip: "M10.5 8C8 4.5 5 3 2 3l1 9c3 0 5.5-1 7.5-2m3-2C16 4.5 19 3 22 3l-1 9c-3 0-5.5-1-7.5-2M8 12l-5 8 4-1 2 3 2-9m5-1 5 8-4-1-2 3-2-9M11.5 7h1a1 1 0 011 1v2a1 1 0 01-1 1h-1a1 1 0 01-1-1V8a1 1 0 011-1z",
     more: "M5 12h.01M12 12h.01M19 12h.01",
     close: "M6 6l12 12M18 6L6 18",
     send: "M12 19V5M5 12l7-7 7 7",

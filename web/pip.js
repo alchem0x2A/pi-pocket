@@ -46,7 +46,7 @@ const composerDraft = createPipDraft({
         }
     },
     upload: (id, file) => api(`c/${id}/upload?name=${encodeURIComponent(file.name)}`, file),
-    onError: (message) => notify("error", message),
+    onError: (message) => notify("error", message.replaceAll("PiP", assistantName())),
 });
 const syncDraftScope = (state) =>
     composerDraft.scope(
@@ -265,7 +265,7 @@ export async function askPip(text) {
     return false;
 }
 
-const PIP_UNAVAILABLE = "PiP is not available";
+const pipUnavailable = () => `${assistantName()} is not available`;
 
 /**
  * What `pocket.pip.ask` does for the browser module `source` names: put its text in PiP's box for the person to read,
@@ -275,7 +275,7 @@ const PIP_UNAVAILABLE = "PiP is not available";
  */
 export async function askPipFrom(source, text, send) {
     if (!pipAvailable()) {
-        return { ok: false, reason: PIP_UNAVAILABLE };
+        return { ok: false, reason: pipUnavailable() };
     }
 
     const words = followUpText(text.trim(), undefined, source);
