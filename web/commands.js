@@ -224,9 +224,16 @@ function showSession() {
 const COMMANDS = [
     {
         name: "compact",
-        args: "[what to keep]",
+        args: "[--model provider/modelId] [what to keep]",
         description: "Summarize older messages to free up context",
-        run: (arg) => actions.compact(arg || undefined),
+        run: (arg) => {
+            const model = /^--model\s+(?:"([^"]+)"|'([^']+)'|(\S+))(?:\s+([\s\S]*))?$/i.exec(arg);
+            const spec = model?.[1] ?? model?.[2] ?? model?.[3];
+
+            return spec
+                ? actions.compact(model[4]?.trim() || undefined, spec)
+                : actions.compact(arg || undefined);
+        },
     },
     {
         name: "reset",

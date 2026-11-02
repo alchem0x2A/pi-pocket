@@ -581,6 +581,7 @@ export function createApi(options: HttpOptions, auth: Auth) {
             const body = await readJson<{
                 approvalRule?: unknown;
                 defaultModel?: unknown;
+                compactionModel?: unknown;
                 pipCompactAt?: unknown;
                 subagentModels?: unknown;
                 limitWaitHours?: unknown;
@@ -593,6 +594,7 @@ export function createApi(options: HttpOptions, auth: Auth) {
                 [
                     body.approvalRule,
                     body.defaultModel,
+                    body.compactionModel,
                     body.pipCompactAt,
                     body.subagentModels,
                     body.limitWaitHours,
@@ -633,6 +635,11 @@ export function createApi(options: HttpOptions, auth: Auth) {
             // Null clears it: new sessions start with the last model picked again.
             if (body.defaultModel !== undefined) {
                 await app.setDefaultModel(user, body.defaultModel);
+            }
+
+            // Null clears it: summaries use each conversation's own model again.
+            if (body.compactionModel !== undefined) {
+                await app.setCompactionModel(user, body.compactionModel);
             }
 
             return json(response, 200, { ok: true });

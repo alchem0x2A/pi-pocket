@@ -1383,7 +1383,11 @@ export const actions = {
     configure: (change) => api(`c/${current()}/configure`, change),
     /** The owner's model and thinking level for new sessions, `{ provider, modelId, thinkingLevel }`; null clears it. */
     setDefaultModel: (choice) => api("settings", { defaultModel: choice }),
-    compact: (instructions) => api(`c/${current()}/compact`, { instructions }),
+    compact: (instructions, model, id = current()) =>
+        api(`c/${id}/compact`, {
+            instructions,
+            ...(model === undefined ? {} : { model }),
+        }),
     reset: (note) => api(`c/${current()}/reset`, { note }),
     setInstructions: (text) => api(`c/${current()}/instructions`, { text }),
     /** A new session with this one's history through `entryId`. */

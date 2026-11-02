@@ -325,12 +325,18 @@ async function send(id, text, busy, attachments = []) {
  * Compact PiP's context: older messages become a summary PiP writes without what came from outside (`pip-compact.ts`).
  * `focus`, the person's words, is what the summary should keep in mind. A notice says when it is done.
  */
-function compactPip(id, focus) {
-    return attempt(() => api(`c/${id}/compact`, focus ? { instructions: focus } : {}));
+function compactPip(id, focus, model) {
+    return attempt(() =>
+        api(`c/${id}/compact`, {
+            ...(focus ? { instructions: focus } : {}),
+            ...(model === undefined ? {} : { model }),
+        }),
+    );
 }
 
-/** `/compact`, or `/compact what to keep in mind`, typed in PiP's box. */
+/** `/compact`, or `/compact --model provider/modelId [what to keep]`, typed in PiP's box. */
 const COMPACT = /^\/compact(?:\s+([\s\S]*))?$/;
+const COMPACT_MODEL = /^--model\s+(?:"([^"]+)"|'([^']+)'|(\S+))(?:\s+([\s\S]*))?$/i;
 
 /** How close PiP is to its own compaction limit, never beyond the model's context window. */
 function PipContext({ stats, window }) {
@@ -691,6 +697,10 @@ function Composer({ id, busy }) {
             return;
         }
 
+        const compactArgs = compact?.[1]?.trim() ?? "";
+        const compactModel = COMPACT_MODEL.exec(compactArgs);
+        const compactSpec = compactModel?.[1] ?? compactModel?.[2] ?? compactModel?.[3];
+        const compactFocus = compactModel ? compactModel[4]?.trim() : compactArgs;
         const token = composerDraft.begin(Boolean(compact));
 
         if (!token) {
@@ -704,7 +714,7 @@ function Composer({ id, busy }) {
         try {
             // Compact never sends or removes the attachments waiting in the box.
             success = compact
-                ? (await compactPip(id, compact[1]?.trim())) !== undefined
+                ? (await compactPip(id, compactFocus || undefined, compactSpec)) !== undefined
                 : await send(
                       id,
                       message,
@@ -1029,7 +1039,7 @@ function PipPanel({ leaving, scrim }) {
                 aria-label="Compact"
                 title=${`Compact: ${assistantName()} keeps a summary of older messages, and reads less each time`}
                 disabled=${!ready || busy || compacting || rows.length === 0}
-                onClick=${() => compactPip(id)}
+                onClick=${() => openSheet({ type: "compact", pipId: id })}
             >
                 <${Icon} name="compact" size=${18} />
             </button>

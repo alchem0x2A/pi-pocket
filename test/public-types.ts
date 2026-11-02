@@ -63,6 +63,7 @@ import type {
 type Internal =
     | "pip"
     | "pipCompaction"
+    | "compactionReview"
     | "gallery"
     | "updates"
     | "restarts"

@@ -83,6 +83,8 @@ interface PocketConfig {
     lastModel?: ModelChoice;
     /** The model and thinking level new sessions start with, as the owner chose; absent: the last one picked. */
     defaultModel?: ModelChoice;
+    /** A compaction-model override; absent: the owner's default model, then each conversation's model. */
+    compactionModel?: ModelChoice;
     /** Extension modules (file names in `src/server/extensions/`) the owner turned off. */
     disabledExtensions?: string[];
     /** Extension modules the owner turned on. Matters for modules that are off by default, like Lancet Guard. */
@@ -197,6 +199,20 @@ export class ConfigStore {
             delete this.#config.defaultModel;
         } else {
             this.#config.defaultModel = choice;
+        }
+
+        this.save();
+    }
+
+    get compactionModel(): ModelChoice | undefined {
+        return this.#config.compactionModel;
+    }
+
+    set compactionModel(choice: ModelChoice | undefined) {
+        if (choice === undefined) {
+            delete this.#config.compactionModel;
+        } else {
+            this.#config.compactionModel = choice;
         }
 
         this.save();

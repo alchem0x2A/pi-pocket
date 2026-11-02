@@ -350,7 +350,7 @@ export async function conversationRoutes(
     }
 
     if (third === "compact" && method === "POST") {
-        const body = await readJson<{ instructions?: unknown }>(request);
+        const body = await readJson<{ instructions?: unknown; model?: unknown }>(request);
 
         if (
             body.instructions !== undefined &&
@@ -364,6 +364,7 @@ export async function conversationRoutes(
             id,
             user,
             (body.instructions as string | null | undefined)?.trim() || undefined,
+            body.model,
         );
 
         return json(response, 200, { ok: true });

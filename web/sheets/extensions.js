@@ -88,6 +88,106 @@ function ApprovalRule({ owner }) {
     </div>`;
 }
 
+/** The owner can choose a separate model for automatic and manual summaries. */
+function CompactionModel({ owner }) {
+    const { models, server } = store.state;
+    const choice = server?.compactionModel ?? null;
+    const defaultChoice = server?.defaultModel ?? null;
+    const selected = choice
+        ? models.find((model) => model.provider === choice.provider && model.id === choice.modelId)
+        : undefined;
+    const defaultModel = defaultChoice
+        ? models.find(
+              (model) =>
+                  model.provider === defaultChoice.provider && model.id === defaultChoice.modelId,
+          )
+        : undefined;
+    const inheritedLabel = defaultChoice
+        ? `${defaultModel?.name ?? defaultChoice.modelId}${defaultModel?.reasoning ? ` · ${defaultChoice.thinkingLevel ?? "off"}` : ""}`
+        : "each conversation's model";
+
+    const chooseModel = (event) => {
+        const value = event.currentTarget.value;
+
+        if (value === "") {
+            return attempt(() => api("settings", { compactionModel: null }));
+        }
+
+        const model = models.find((each) => `${each.provider}/${each.id}` === value);
+
+        if (model) {
+            const thinkingLevel = model.reasoning
+                ? model.levels.includes("high")
+                    ? "high"
+                    : model.levels.at(-1)
+                : "off";
+
+            attempt(() =>
+                api("settings", {
+                    compactionModel: {
+                        provider: model.provider,
+                        modelId: model.id,
+                        thinkingLevel,
+                    },
+                }),
+            );
+        }
+    };
+
+    const chooseThinking = (event) =>
+        attempt(() =>
+            api("settings", {
+                compactionModel: {
+                    ...choice,
+                    thinkingLevel: event.currentTarget.value,
+                },
+            }),
+        );
+
+    return html`<div class="setting wrap">
+        <div class="grow">
+            <div class="small">Compaction review model</div>
+            <div class="muted small">
+                Choose a model for summaries. Without an override, compaction follows your default model${server?.defaultModel ? "" : ", or each conversation's model when you have no default"}. A choice in the Compact sheet overrides both.
+            </div>
+        </div>
+        <select
+            aria-label="Compaction review model"
+            value=${choice ? `${choice.provider}/${choice.modelId}` : ""}
+            disabled=${!owner}
+            onChange=${chooseModel}
+        >
+            <option value="">Follow your default · ${inheritedLabel}</option>
+            ${models.map(
+                (model) => html`<option
+                    value=${`${model.provider}/${model.id}`}
+                    disabled=${model.signIn}
+                >
+                    ${model.name} · ${model.provider}/${model.id}${model.signIn ? " (needs sign-in)" : ""}
+                </option>`,
+            )}
+            ${
+                choice &&
+                !selected &&
+                html`<option value=${`${choice.provider}/${choice.modelId}`} disabled>
+                ${choice.modelId} (not available)
+            </option>`
+            }
+        </select>
+        ${
+            selected?.reasoning &&
+            html`<select
+                aria-label="Compaction review thinking level"
+                value=${choice.thinkingLevel ?? "off"}
+                disabled=${!owner}
+                onChange=${chooseThinking}
+            >
+                ${selected.levels.map((level) => html`<option value=${level}>${level}</option>`)}
+            </select>`
+        }
+    </div>`;
+}
+
 /**
  * A module's settings (`web.settings`), for the owner: each field as the module declared it, saved together. A secret
  * shows only whether it is set; typing a new one replaces it, and Clear puts its default back.
@@ -474,6 +574,7 @@ const ICONS = {
     "codemode.ts": "terminal",
     "memory.ts": "pin",
     "pip.ts": "pip",
+    "compaction-review.ts": "chat",
     "triggers.ts": "pulse",
     "gallery.ts": "grid",
     "agent-teams.ts": "fork",
@@ -782,6 +883,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
             Tools, checks, and app features. A change reaches every session at once and stays after restarts.${owner ? "" : " Only the owner can change them."}
         </p>
         <${SafeMode} />
+        <${CompactionModel} owner=${owner} />
         ${problem && html`<div class="error-box">${problem}</div>`}
         ${!data && !problem && html`<${Loader} label="Loading extensions" />`}
         ${

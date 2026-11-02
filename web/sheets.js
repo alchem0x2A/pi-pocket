@@ -30,7 +30,7 @@ import { SchedulesSheet } from "./sheets/schedules.js";
 import { SessionSheet } from "./sheets/session.js";
 import { ShortcutsSheet } from "./sheets/shortcuts.js";
 import { SpendSheet } from "./sheets/spend.js";
-import { TextSheet } from "./sheets/text.js";
+import { CompactSheet, TextSheet } from "./sheets/text.js";
 import {
     ArtifactsSheet,
     ArtifactShareSheet,
@@ -371,14 +371,7 @@ function sheetBody(sheet) {
             />`;
             break;
         case "compact":
-            body = html`<${TextSheet}
-                title="Compact context"
-                label="What should the summary keep? (optional)"
-                placeholder="e.g. the failing test names"
-                multiline=${true}
-                button="Compact"
-                submit=${(value) => actions.compact(value)}
-            />`;
+            body = html`<${CompactSheet} pipId=${sheet.pipId} />`;
             break;
         case "name":
             body = html`<${TextSheet}

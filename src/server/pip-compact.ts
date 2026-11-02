@@ -12,7 +12,12 @@
  */
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { AssistantMessage, Message, Usage } from "@earendil-works/pi-ai";
+import {
+    clampThinkingLevel,
+    type AssistantMessage,
+    type Message,
+    type Usage,
+} from "@earendil-works/pi-ai";
 import {
     calculateContextTokens,
     estimateMessageTokens,
@@ -30,7 +35,9 @@ import type { PocketApp } from "./app.ts";
 import { PipCompactionDoc } from "./docs.ts";
 import { describe } from "./errors.ts";
 import { noWait } from "./limit-gate.ts";
+import { readCompactionRequest } from "./compaction-review.ts";
 import { clip, defang } from "./fence.ts";
+import { isThinkingLevel } from "./models.ts";
 
 const context = BACKGROUND_CONTEXT;
 
@@ -390,7 +397,10 @@ export class PipCompaction {
 
         if (made === undefined) {
             const agent = await this.#app.agentState(id);
-            const ref = agent?.model;
+            const request = readCompactionRequest(compaction.instructions);
+            const choice =
+                request.model ?? this.#app.config.compactionModel ?? this.#app.config.defaultModel;
+            const ref = choice ?? agent?.model;
             const model =
                 ref === undefined ? undefined : api.models.getModel(ref.provider, ref.modelId);
 
@@ -398,6 +408,12 @@ export class PipCompaction {
                 throw new Error("PiP has no model to write its summary with.");
             }
 
+            const thinkingLevel = clampThinkingLevel(
+                model,
+                isThinkingLevel(choice?.thinkingLevel)
+                    ? choice.thinkingLevel
+                    : (agent?.thinkingLevel ?? "off"),
+            );
             const name = this.#app.pip.ownerName(id) ?? "its person";
             // The conversation's own identity with the provider, as Pi Durable sends with its summaries: some providers
             // (OpenCode Go) refuse a request without one.
@@ -407,7 +423,7 @@ export class PipCompaction {
                     async (tx) => (await tx.doc(ProviderDoc, id)).sessionId,
                     context,
                 ));
-            const focus = compaction.instructions?.trim() || undefined;
+            const focus = request.instructions?.trim() || undefined;
             const now = this.#app.now();
             const message = await api.models.completeSimple(
                 model,
@@ -442,6 +458,7 @@ export class PipCompaction {
                         model.maxTokens > 0 ? model.maxTokens : SUMMARY_TOKENS,
                     ),
                     cacheRetention: "none",
+                    ...(thinkingLevel === "off" ? {} : { reasoning: thinkingLevel }),
                     ...(hookContext.abortSignal === undefined
                         ? {}
                         : { signal: hookContext.abortSignal }),

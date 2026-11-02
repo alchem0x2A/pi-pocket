@@ -125,6 +125,11 @@ export class Spend {
         this.#people = { ...stored.people };
     }
 
+    /** Enforce budgets after another part atomically records model usage and the matching spend documents. */
+    auxiliaryUsageRecorded(): void {
+        this.#stopOverLimit();
+    }
+
     /** Record an auxiliary model request with its captured payer, even if another run has started since. */
     async recordModelUsage(
         id: ConversationId,
@@ -176,7 +181,7 @@ export class Spend {
             spend.counted[String(id)] = (spend.counted[String(id)] ?? 0) + usage.cost.total;
             spend.people[payer] = (spend.people[payer] ?? 0) + usage.cost.total;
         }, context);
-        this.#stopOverLimit();
+        this.auxiliaryUsageRecorded();
     }
 
     /** Who pays for a conversation's work: whoever asked for it, else whoever started the session, else the owner. */

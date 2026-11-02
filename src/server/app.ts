@@ -51,7 +51,7 @@ import type { BrowserState } from "./browser/page.ts";
 import { Collab, REACTIONS } from "./collab.ts";
 import { Commands } from "./commands.ts";
 import { LinkedSessions } from "./linked-sessions.ts";
-import { APP_ROOT, ConfigStore, modulesWith, type User } from "./config.ts";
+import { APP_ROOT, ConfigStore, modulesWith, type ModelChoice, type User } from "./config.ts";
 import {
     ArtifactAssetDoc,
     ArtifactBodyDoc,
@@ -104,6 +104,7 @@ import { Hooks } from "./hooks.ts";
 import { Pip, PIP_EXTENSION } from "./pip.ts";
 import { cleanName, type AssistantProfile, profileDefault, profileOf } from "./pia.ts";
 import { PIP_COMPACT_CHOICES, PipCompaction } from "./pip-compact.ts";
+import { CompactionReview } from "./compaction-review.ts";
 import { RepoWatches } from "./repo-watches.ts";
 import { snippet } from "./projection.ts";
 import { loadPromptTemplates, type PromptTemplate, type SkillCommand } from "./prompts.ts";
@@ -325,6 +326,8 @@ export class PocketApp {
     readonly pip = new Pip(this);
     /** PiP's context kept small: compacted sooner than a session's, with summaries of its own (`pip-compact.ts`). */
     readonly pipCompaction = new PipCompaction(this);
+    /** Writes session summaries with the owner's chosen review model, when set. */
+    readonly compactionReview = new CompactionReview(this);
     /** Sessions' watches of their pull requests (`watches.ts`). */
     readonly watches = new Watches(this);
     /** PiP's standing orders on GitHub repositories: what happens there goes to PiP or a session (`repo-watches.ts`). */
@@ -802,6 +805,7 @@ export class PocketApp {
             browsers: this.browsers,
             pip: this.pip,
             pipCompaction: this.pipCompaction,
+            compactionReview: this.compactionReview,
             watches: this.watches,
             repoWatches: this.repoWatches,
             memory: this.memory,
@@ -2287,6 +2291,8 @@ export class PocketApp {
                 approvalRule: this.config.approvalRule,
                 // The model and thinking level new sessions start with, or null for the last one picked.
                 defaultModel: this.config.defaultModel ?? null,
+                // The optional model and thinking level that writes context summaries.
+                compactionModel: this.config.compactionModel ?? null,
                 // The models Pi may start subagents on: the owner's to see and change.
                 ...(user.role === "owner"
                     ? { subagentModels: [...this.config.subagentModels] }
@@ -3465,6 +3471,43 @@ export class PocketApp {
         }
 
         this.config.defaultModel = { provider: model.provider, modelId: model.id, thinkingLevel };
+        await this.#refreshClients();
+    }
+
+    /** The owner chooses a compaction-model override; null follows the owner's default model, then each session. */
+    async setCompactionModel(user: User, choice: unknown): Promise<void> {
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner can do that");
+        }
+
+        if (choice === null) {
+            if (this.config.compactionModel !== undefined) {
+                this.config.compactionModel = undefined;
+                await this.#refreshClients();
+            }
+
+            return;
+        }
+
+        let selected: ModelChoice;
+
+        try {
+            selected = this.compactionReview.resolveChoice(choice);
+        } catch (error) {
+            throw new HttpError(400, describe(error));
+        }
+
+        const before = this.config.compactionModel;
+
+        if (
+            before?.provider === selected.provider &&
+            before.modelId === selected.modelId &&
+            before.thinkingLevel === selected.thinkingLevel
+        ) {
+            return;
+        }
+
+        this.config.compactionModel = selected;
         await this.#refreshClients();
     }
 

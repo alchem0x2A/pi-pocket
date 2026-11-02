@@ -710,6 +710,20 @@ export const PipAskedDoc = defineDoc<{
 });
 
 /**
+ * Compaction reviews written by another model (`compaction-review.ts`), by task id: their cost is in `pi.usage`, added
+ * once. The newest few are kept.
+ */
+export const CompactionReviewDoc = defineDoc<{ counted: number[] }>({
+    kind: "pocket.compaction-review",
+    version: 1,
+    ...rebased,
+    scope: "conversation",
+    history: "latest",
+    fork: "initial",
+    initial: () => ({ counted: [] }),
+});
+
+/**
  * PiP's compactions whose summary PiP wrote itself (`pip-compact.ts`), by task id: their cost is in `pi.usage`, added
  * once. The newest few are kept.
  */

@@ -59,6 +59,7 @@ import { describe, HttpError, optionalText } from "./errors.ts";
 import { homePath } from "./paths.ts";
 import { mentionedPaths, viewFile } from "./files.ts";
 import { isThinkingLevel, THINKING_LEVELS } from "./models.ts";
+import { compactionInstructions } from "./compaction-review.ts";
 import { writePiSession } from "./pi-sessions.ts";
 import { snippet } from "./projection.ts";
 import { globalModelSettings, projectModelDefault } from "./project-model.ts";
@@ -2267,7 +2268,12 @@ export class Commands {
         return forked.id;
     }
 
-    async compact(id: ConversationId, user: User, instructions: string | undefined): Promise<void> {
+    async compact(
+        id: ConversationId,
+        user: User,
+        instructions: string | undefined,
+        requestedModel?: unknown,
+    ): Promise<void> {
         const app = this.#app;
 
         app.requireSee(user, id);
@@ -2283,7 +2289,15 @@ export class Commands {
         // Compacting asks the model for a summary, which costs like any other request.
         app.spend.check(user, id);
         const conversation = await app.conversation(id);
-        const taskId = await conversation.compact(instructions, context);
+        const agent = await conversation.agent(context);
+        const model =
+            requestedModel === undefined || requestedModel === null
+                ? (app.config.compactionModel ?? app.config.defaultModel)
+                : app.compactionReview.resolveChoice(requestedModel, agent.thinkingLevel ?? "high");
+        const taskId = await conversation.compact(
+            compactionInstructions(instructions, model, user.id),
+            context,
+        );
         const done = pip ? "PiP's context compacted." : "Compacted.";
 
         app.notice("info", pip ? "Compacting PiP's context…" : "Compacting…", id);
@@ -2295,10 +2309,18 @@ export class Commands {
                 if (outcome.status === "completed") {
                     const { entryId, submissionId } = outcome.result;
                     // PiP's own summary could not be written: it declined, rather than let Pi Durable write one.
-                    const failed = pip ? app.pipCompaction.failure(Number(taskId)) : undefined;
+                    const failed =
+                        app.compactionReview.failure(Number(taskId)) ??
+                        (pip ? app.pipCompaction.failure(Number(taskId)) : undefined);
 
                     if (failed !== undefined) {
-                        app.notice("error", `PiP's context was not compacted: ${failed}`, id);
+                        app.notice(
+                            "error",
+                            pip
+                                ? `PiP's context was not compacted: ${failed}`
+                                : `Context was not compacted: ${failed}`,
+                            id,
+                        );
                     } else {
                         app.notice(
                             "info",
