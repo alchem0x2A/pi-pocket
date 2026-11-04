@@ -4,7 +4,10 @@ Optional drop-in extensions for Pi Pocket. Pi Pocket does not load anything from
 files into the drop-in folder (`~/.pi-pocket/extensions/`), then turn it on in Menu → Extensions. A new drop-in always
 starts off, and only the owner turns it on. Read a file before you turn it on: a drop-in runs with the owner's rights.
 
-These are one person's own setup. Paths, account names, and model names are examples to change.
+> **Works for me, not for you.** These are one person's own setup, shared as they are. They are not tested on other
+> machines, they need that person's logins and folders, and they can break when a provider changes something. Paths,
+> account names, and model names are examples to change. Nobody maintains them for you. Read the code, then change it
+> to fit your machine, or leave it.
 
 ## `tt-providers/`
 
