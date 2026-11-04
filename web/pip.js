@@ -225,6 +225,44 @@ export function closePip() {
 
 export const togglePip = () => (store.state.pipOpen ? closePip() : openPip());
 
+/** Get PiP's conversation id without showing its panel; the server creates it the first time if needed. */
+export async function ensurePipId() {
+    if (!pipAvailable()) {
+        return null;
+    }
+
+    if (store.state.pip?.id !== undefined) {
+        return store.state.pip.id;
+    }
+
+    const connection = store.state.streamId;
+
+    if (!connection) {
+        return null;
+    }
+
+    const opened = await api("pip", { connection, on: true, seq: ++seq });
+
+    if (opened.pip) {
+        store.set({ pip: opened.pip });
+    }
+
+    // This brief server-side view makes the existing PiP API return its id, but does not open the local panel.
+    if (!store.state.pipOpen) {
+        try {
+            const closed = await api("pip", { connection, on: false, seq: ++seq });
+
+            if (closed.pip) {
+                store.set({ pip: closed.pip });
+            }
+        } catch {
+            // A disconnect removes the server-side view; the accepted id still lets the inbox retry safely.
+        }
+    }
+
+    return store.state.pip?.id ?? opened.pip?.id ?? null;
+}
+
 /** Put `text` in PiP's box, after what is there, and open the panel. */
 function draftPip(text) {
     const draft = localStorage.getItem(DRAFT_KEY)?.trim();

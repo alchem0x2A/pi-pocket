@@ -14,6 +14,7 @@ import {
 import { useDragToClose } from "./gestures.js";
 import { PeeksRailButton } from "./peeks.js";
 import { PipRailButton } from "./pip.js";
+import { QuickNotesButton } from "./quick-notes-ui.js";
 import { sessionForest, unfolded } from "./session-tree.js";
 import { sessionSearchCommands } from "./settings-commands.js";
 import {
@@ -1736,6 +1737,7 @@ function Rail({ foldable = false, folded = false }) {
         ${folded && html`<${RailTiles} />`}
         ${foldable && html`<${PeeksRailButton} />`}
         <${PipRailButton} />
+        <${QuickNotesButton} />
         <button
             class=${`rail-button rail-running ${busy > 0 ? "lit" : ""}`}
             data-part="rail-button"
