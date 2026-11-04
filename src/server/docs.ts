@@ -68,6 +68,28 @@ export const FolderFavoritesDoc = defineDoc<{ users: Record<string, string[]> }>
     initial: () => ({ users: {} }),
 });
 
+/** An owner's captured idea. Text is data, not a message or standing instructions. */
+export type InboxNote = {
+    id: string;
+    text: string;
+    createdAt: number;
+    state: "synced" | "archived";
+    archivedAt?: number;
+    conversationId?: number;
+};
+
+/**
+ * Private idea inboxes, keyed by person then client id (both hashed by inbox.ts). Receipts stay with the notes:
+ * Continue creates the conversation and stores its id in the same transaction. Capture never starts agent work.
+ */
+export const OwnerInboxDoc = defineDoc<{ users: Record<string, Record<string, InboxNote>> }>({
+    kind: "pocket.owner-inbox",
+    version: 1,
+    ...rebased,
+    scope: "session",
+    initial: () => ({ users: {} }),
+});
+
 /**
  * The addresses this session knows its linked sessions by, so no session id goes into its transcript. A fork starts with
  * none, so it leaves the team: the addresses in the history it inherited do not resolve there.

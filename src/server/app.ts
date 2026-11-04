@@ -78,6 +78,7 @@ import { ExtensionCommands } from "./extension-commands.ts";
 import { ExtensionWebs, mayUse } from "./extension-web.ts";
 import { defang, quoted } from "./fence.ts";
 import { FolderFavorites } from "./folder-favorites.ts";
+import { OwnerInbox } from "./inbox.ts";
 import { Gallery } from "./gallery.ts";
 import { Goals } from "./goals.ts";
 import {
@@ -338,6 +339,8 @@ export class PocketApp {
     readonly memory = new Memory(this);
     /** Each person's favorite working folders, shared by their devices. */
     readonly folderFavorites = new FolderFavorites(this);
+    /** The owner's captured ideas: stored as data, never automatically sent to an agent. */
+    readonly inbox = new OwnerInbox(this);
     /** Artifacts published to anyone with their address (`share.ts`), which needs no sign-in. */
     readonly shares = new Shares(this);
     /** Extension modules' pages for anyone with the address (`public-links.ts`), which need no sign-in. */
@@ -803,7 +806,12 @@ export class PocketApp {
             background: this.background,
             goals: this.goals,
             browsers: this.browsers,
-            pip: this.pip,
+            pip: Object.assign(this.pip, {
+                inbox: {
+                    forAssistant: this.inbox.forAssistant.bind(this.inbox),
+                    pendingCountForAssistant: this.inbox.pendingCountForAssistant.bind(this.inbox),
+                },
+            }),
             pipCompaction: this.pipCompaction,
             compactionReview: this.compactionReview,
             watches: this.watches,
@@ -2281,6 +2289,8 @@ export class PocketApp {
                 chat: true,
                 // Manual refresh reloads shared model configuration and catalogs; only the owner may start it.
                 refreshModels: user.role === "owner",
+                // Count-only private Pia prompt support comes from this running server, not an extension reload.
+                inboxPendingCount: user.role === "owner",
                 // Tells the web app this server sends peek tiles (`POST /api/peeks`, `peek` events).
                 peeks: true,
                 // This server's clock: peek tiles compare the browser's looks with when runs ended here.
@@ -3384,6 +3394,11 @@ export class PocketApp {
                     this.#log(`${file} did not follow the profile: ${describe(error)}`);
                 }
             }
+        }
+
+        // PiP's inbox tool is Pia-only. Rebuild its registrations when the profile changes, not only after restart.
+        if (this.loader.enabled("pip.ts")) {
+            await this.loader.reload("pip.ts");
         }
 
         await this.pip.tuneAll((line) => this.#log(line));

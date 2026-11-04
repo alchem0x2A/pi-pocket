@@ -16,6 +16,7 @@ import type { Role, User } from "./config.ts";
 import type { Goals } from "./goals.ts";
 import type { LancetGuard } from "./lancet.ts";
 import type { Memory } from "./memory.ts";
+import type { OwnerInbox } from "./inbox.ts";
 import type { Pip } from "./pip.ts";
 import type { PipCompaction } from "./pip-compact.ts";
 import type { CompactionReview } from "./compaction-review.ts";
@@ -472,7 +473,11 @@ export interface PocketHost {
         | "removeRepoWatch"
         | "profile"
         | "sharedContext"
-    >;
+    > & {
+        /** Internal Pia-only inbox capability. Absent until a server with inbox support starts. */
+        inbox?: Pick<OwnerInbox, "forAssistant"> &
+            Partial<Pick<OwnerInbox, "pendingCountForAssistant">>;
+    };
     /** PiP's compactions: its extension's hook has PiP write its own summaries. */
     readonly pipCompaction: Pick<PipCompaction, "summarize">;
     /** Session compactions: a selected review model can write their summaries without changing the session model. */

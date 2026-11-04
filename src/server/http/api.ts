@@ -21,13 +21,15 @@ import {
 } from "../auth.ts";
 import type { User } from "../config.ts";
 import { HttpError } from "../errors.ts";
-import { instructionFiles, saveInstructionFile } from "../instruction-files.ts";
+import { networkServices } from "../network-links.ts";
 import { MAX_COMMAND } from "../restart.ts";
+import { instructionFiles, saveInstructionFile } from "../instruction-files.ts";
 import { runningNow } from "../running.ts";
 import { browserRoutes } from "./browser-routes.ts";
 import { conversationRoutes } from "./conversation-routes.ts";
 import { createEventStreams } from "./events.ts";
 import { extensionRoute } from "./extension-routes.ts";
+import { inboxRoutes } from "./inbox-routes.ts";
 import { type ApiRequest, conversationId, type HttpOptions, json, readJson } from "./io.ts";
 import { pushRoutes } from "./push-routes.ts";
 
@@ -215,6 +217,10 @@ export function createApi(options: HttpOptions, auth: Auth) {
 
         const [first, second, third, fourth] = parts;
         const route: ApiRequest = { app, request, response, url, user };
+
+        if (first === "inbox") {
+            return inboxRoutes(route, parts.slice(1));
+        }
 
         if (first === "events" && method === "GET") {
             return events(request, response, url, user);
@@ -744,6 +750,13 @@ export function createApi(options: HttpOptions, auth: Auth) {
             requireOwner(user);
 
             return json(response, 200, await app.providers.modelRefresh.refresh());
+        }
+
+        // Network service addresses can expose private applications, so only the owner can discover them.
+        if (first === "links" && second === undefined && method === "GET") {
+            requireOwner(user);
+
+            return json(response, 200, { services: await networkServices([options.listen.port]) });
         }
 
         // For the owner, each subscription's sign-in is asked afresh first (three seconds at most; a mark found later
