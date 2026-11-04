@@ -15,6 +15,7 @@ import { useDragToClose } from "./gestures.js";
 import { PeeksRailButton } from "./peeks.js";
 import { PipRailButton } from "./pip.js";
 import { sessionForest, unfolded } from "./session-tree.js";
+import { sessionSearchCommands } from "./settings-commands.js";
 import {
     actions,
     canSteer,
@@ -763,6 +764,7 @@ function AllSessions({ compact = false }) {
     const list = useRef(null);
     const tabs = useRef(null);
     const needle = query.trim().toLowerCase();
+    const commands = useMemo(() => sessionSearchCommands(query), [query, store.state.me]);
     const archived = tab === "archived";
 
     const setQuery = (next) => {
@@ -1337,11 +1339,25 @@ function AllSessions({ compact = false }) {
         <label class=${`search ${query ? "filled" : ""}`} data-part="session-search">
             <${Icon} name="search" size=${14} />
             <input
-                placeholder="Search sessions"
-                aria-label="Search sessions"
+                placeholder="Search sessions or commands"
+                aria-label="Search sessions and commands"
                 value=${query}
                 onInput=${(event) => setQuery(event.currentTarget.value)}
+                title="Search sessions and commands. Type > to search commands."
                 onKeyDown=${(event) => {
+                    const commandMode = /^>/i.test(query.trim());
+
+                    if (
+                        event.key === "Enter" &&
+                        commands.length === 1 &&
+                        (commandMode || shown.length === 0)
+                    ) {
+                        event.preventDefault();
+                        commands[0].run();
+
+                        return;
+                    }
+
                     if (event.key !== "Escape" || query === "") {
                         return;
                     }
@@ -1401,6 +1417,23 @@ function AllSessions({ compact = false }) {
                 </button>`,
             )}
         </label>
+        ${
+            commands.length > 0 &&
+            html`<div class="session-command-results" role="group" aria-label="Matching commands">
+                ${commands.map(
+                    (command) => html`<button
+                        class="session-command"
+                        data-command=${command.id}
+                        aria-label=${`${command.searchLabel}, ${command.detail}`}
+                        onClick=${command.run}
+                    >
+                        <${Icon} name=${command.icon} size=${14} />
+                        <span class="session-command-name">${command.searchLabel}</span>
+                        <span class="session-command-detail">${command.detail}</span>
+                    </button>`,
+                )}
+            </div>`
+        }
         <div class="session-tabs" data-part="session-tabs" role="tablist" ref=${tabs}>
             ${TABS.map(
                 ([key, label]) => html`<button

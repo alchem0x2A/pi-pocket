@@ -7,11 +7,13 @@ import { test } from "node:test";
 const read = (path: string) => readFileSync(new URL(`../web/${path}`, import.meta.url), "utf8");
 const menu = read("sheets/menu.js");
 const launcher = read("launcher.js");
+const settingsCommands = read("settings-commands.js");
+const launcherSources = `${launcher}\n${settingsCommands}`;
 const sheets = (source: string) =>
     new Set([...source.matchAll(/openSheet\(\{ type: "([a-z-]+)"/g)].map((match) => match[1]));
 
 test("the launcher opens every sheet the menu opens", () => {
-    const missing = [...sheets(menu)].filter((type) => !sheets(launcher).has(type));
+    const missing = [...sheets(menu)].filter((type) => !sheets(launcherSources).has(type));
 
     assert.deepEqual(missing, [], `the launcher has no action for: ${missing.join(", ")}`);
 });
@@ -24,7 +26,7 @@ test("the launcher has every row of the menu, by name", () => {
             (match) => [match[1], match[2]],
         ),
     ];
-    const missing = names.filter((name) => !launcher.includes(`"${name}`));
+    const missing = names.filter((name) => !launcherSources.includes(`"${name}`));
 
     assert.ok(names.includes("Webhooks and watches") && names.includes("Take turns"));
     assert.deepEqual(missing, [], `the launcher has no action named: ${missing.join(", ")}`);

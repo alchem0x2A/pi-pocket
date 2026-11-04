@@ -22,6 +22,7 @@ import { recentLabels } from "./sheets/folder.js";
 import { galleryAvailable } from "./sheets/gallery.js";
 import { memoryAvailable } from "./sheets/memory.js";
 import { piSessionsAvailable } from "./sheets/pi-sessions.js";
+import { settingsCommands } from "./settings-commands.js";
 import { restartAvailable, restartHint } from "./sheets/restart.js";
 import {
     actions,
@@ -169,6 +170,7 @@ function actionItems() {
             keywords: "settings theme colors",
             run: () => openSheet({ type: "appearance" }),
         },
+        ...settingsCommands(),
         {
             label: prefs().mode === "auto" ? "Turn auto dark mode off" : "Turn auto dark mode on",
             detail:

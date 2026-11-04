@@ -43,7 +43,7 @@ function fetchLessons(id, rev, key, pendingOnly) {
  * The lessons that apply in conversation `id` (the one open when absent), fetched when it shows and again whenever
  * they change on the server.
  */
-export function useMemory(conversationId, pendingOnly = false) {
+export function useMemory(conversationId, pendingOnly = false, force = false) {
     const id = conversationId ?? store.state.conversationId;
     const { me } = store.state;
     const key = `${me?.id}:${me?.role}:${id}:${pendingOnly ? "pending" : "applying"}`;
@@ -52,7 +52,7 @@ export function useMemory(conversationId, pendingOnly = false) {
     const [rev, setRev] = useState(() => revision(store.state));
 
     useEffect(() => store.subscribe((state) => setRev(revision(state))), []);
-    const on = memoryAvailable(id) && (!pendingOnly || me?.role === "owner");
+    const on = (force || memoryAvailable(id)) && (!pendingOnly || me?.role === "owner");
     const [data, setData] = useState(last?.key === key ? last : null);
     // Asked again a few times when a fetch fails (a dropped connection, a restart), rather than loading for ever.
     const [retry, setRetry] = useState(0);
@@ -306,9 +306,14 @@ function Group({ title, lessons, data, empty, conversationId, pendingOnly = fals
 }
 
 /** The lessons Pi keeps: what waits for approval, this project's, and everywhere's; and one added by hand. */
-export function MemorySheet({ draft: initial = "", conversationId, pendingOnly = false }) {
+export function MemorySheet({
+    draft: initial = "",
+    conversationId,
+    pendingOnly = false,
+    settings = false,
+}) {
     const id = conversationId ?? store.state.conversationId;
-    const data = useMemory(id, pendingOnly);
+    const data = useMemory(id, pendingOnly, settings);
     const [text, setText] = useState(initial);
     const [scope, setScope] = useState("project");
     const [busy, setBusy] = useState(false);
@@ -379,6 +384,11 @@ export function MemorySheet({ draft: initial = "", conversationId, pendingOnly =
     }
 
     return html`<${Sheet} title=${title} onClose=${closeSheet}>
+        ${
+            settings &&
+            store.state.server?.extensions?.includes("pocket-memory") !== true &&
+            html`<p class="muted small">Memory is off in Extensions. You can still edit its saved lessons here.</p>`
+        }
         <p class="muted small">
             Short lessons Pi keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : `${assistantName()} keeps lessons for everywhere.`} Pi proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
         </p>

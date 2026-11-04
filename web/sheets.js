@@ -18,6 +18,7 @@ import {
 } from "./sheets/gallery.js";
 import { CwdSheet } from "./sheets/folder.js";
 import { MemorySheet } from "./sheets/memory.js";
+import { InstructionFilesSheet, MemorySettingsSheet } from "./sheets/instruction-files.js";
 import { MenuSheet, PlacesSheet } from "./sheets/menu.js";
 import { MessageSheet } from "./sheets/message.js";
 import { ModelPicker } from "./sheets/model.js";
@@ -330,6 +331,12 @@ function sheetBody(sheet) {
         case "hooks":
             body = html`<${HooksSheet} />`;
             break;
+        case "memory-settings":
+            body = me?.role === "owner" ? html`<${MemorySettingsSheet} />` : null;
+            break;
+        case "instruction-files":
+            body = me?.role === "owner" ? html`<${InstructionFilesSheet} />` : null;
+            break;
         case "memory":
             body =
                 sheet.conversationId !== undefined || view.conversation
@@ -337,6 +344,7 @@ function sheetBody(sheet) {
                           draft=${sheet.draft ?? ""}
                           conversationId=${sheet.conversationId}
                           pendingOnly=${sheet.pendingOnly === true}
+                          settings=${sheet.settings === true}
                       />`
                     : null;
             break;

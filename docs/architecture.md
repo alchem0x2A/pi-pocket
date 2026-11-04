@@ -142,6 +142,10 @@ Lessons Pi keeps across sessions are one document for the whole app, `MemoryDoc`
 - Pi's adds carry the tool call's key, so a replayed call finds its lesson. A subagent's lesson comes from its session (`rootOf`).
 - Every write adds an activity line to the session's chat in the same commit. `#committed` tells `Memory` when the document changed; it sends tabs a `memory` event, and the Memory sheet and menu fetch the lessons again (`GET /api/c/:id/memory`).
 
+The App menu exposes the storage path `<dataDir>/pocket.sqlite`; the Memory settings sheet opens the existing lesson editor for a selected session. Lessons stay in the durable `pocket.memory` document and must not be edited in SQLite directly.
+
+**Instruction files.** `/api/instruction-files` is owner-only. It lists the global and currently loaded Pi context files from the session folder chains, plus the standard global `AGENTS.md`, each with its absolute path and on-disk text. `PUT /api/instruction-files` saves only a path in that fresh allow-list, without following a file symlink. The Settings sheet lists and edits each file. The route also reports the Memory database path.
+
 **PiP's pending queue.** `GET /api/c/:id/memory?pending=all` lists new lessons and proposed edits or forgetting across every project and everywhere. It requires the human owner and their private PiP root as its anchor; queue approvals and discards use the same query on the existing mutation routes. Pi writers, other people, shared-session anchors, and queue add/edit/remove requests are refused before cross-project lookup. Approval retains the existing compare-with-what-was-shown check, limits, and transaction. Activity stays in the private PiP chat, not a shared session. The queue response has `pendingAll: true`, no project or add/edit controls, and project labels on lessons; an older running server's scoped response has no marker, so the new UI asks for a restart rather than claiming to show all projects. Browser memory fetches are keyed by person, role, conversation, and view, and refresh on memory events or a new connection.
 
 ## Startup

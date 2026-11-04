@@ -21,6 +21,7 @@ import {
 } from "../auth.ts";
 import type { User } from "../config.ts";
 import { HttpError } from "../errors.ts";
+import { instructionFiles, saveInstructionFile } from "../instruction-files.ts";
 import { MAX_COMMAND } from "../restart.ts";
 import { runningNow } from "../running.ts";
 import { browserRoutes } from "./browser-routes.ts";
@@ -251,6 +252,23 @@ export function createApi(options: HttpOptions, auth: Auth) {
             await app.folderFavorites.set(user, await readJson(request));
 
             return json(response, 200, { ok: true });
+        }
+
+        // The owner's Memory database path and Pi context files, with writes limited to listed files.
+        if (first === "instruction-files" && second === undefined) {
+            requireOwner(user);
+
+            if (method === "GET") {
+                return json(response, 200, instructionFiles(app, user));
+            }
+
+            if (method === "PUT") {
+                const body = await readJson<{ path?: unknown; content?: unknown }>(request);
+
+                saveInstructionFile(app, user, body.path, body.content);
+
+                return json(response, 200, { ok: true });
+            }
         }
 
         if (first === "logout" && method === "POST") {

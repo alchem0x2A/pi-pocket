@@ -153,6 +153,68 @@ after(async () => {
     cleanUp();
 });
 
+test("mobile session search finds and opens Memory and AGENTS instructions", real, async () => {
+    await home(VIEWPORTS.mobile);
+
+    const searchSessions = async (text: string) => {
+        await page.evaluate(`
+            const input = document.querySelector('.sessions .search input');
+
+            input.focus();
+            input.value = ${JSON.stringify(text)};
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        `);
+    };
+
+    await searchSessions("memory");
+    await see(
+        `return JSON.stringify(document.querySelector('[data-command="memory"]')?.textContent.includes("Memory") === true)`,
+        "the mobile session search Memory command",
+    );
+    await page.click({ selector: '.session-command[data-command="memory"]' });
+    await see(
+        `return JSON.stringify((await import('/store.js')).store.state.sheet?.type === 'memory-settings')`,
+        "Memory manager opened from the mobile session search",
+    );
+    await page.press("Escape");
+    await see(
+        `return JSON.stringify((await import('/store.js')).store.state.sheet === null)`,
+        "Memory manager closed",
+    );
+
+    await searchSessions("Instructions");
+    await see(
+        `return JSON.stringify(document.querySelector('[data-command="instructions"]') !== null)`,
+        "the Instructions command search",
+    );
+    await searchSessions("AGENTS.md");
+    await see(
+        `return JSON.stringify(document.querySelector('[data-command="instructions"]')?.textContent.includes("AGENTS.md") === true)`,
+        "the AGENTS.md command search",
+    );
+    await searchSessions("> AGENTS.md");
+    await see(
+        `return JSON.stringify(document.querySelector('[data-command="instructions"]') !== null)`,
+        "the > AGENTS.md command search",
+    );
+    await page.press("Enter");
+    await see(
+        `return JSON.stringify((await import('/store.js')).store.state.sheet?.type === 'instruction-files')`,
+        "Instructions opened with Enter from the > command search",
+    );
+    await page.press("Escape");
+    await see(
+        `return JSON.stringify((await import('/store.js')).store.state.sheet === null)`,
+        "Instructions editor closed",
+    );
+
+    await searchSessions("Alpha");
+    await see(
+        `return JSON.stringify(document.querySelectorAll('.session-row').length > 0 && document.querySelector('[data-command="memory"]') === null)`,
+        "session search still filters sessions without a command match",
+    );
+});
+
 test("open resets query and focus", real, async () => {
     await home(VIEWPORTS.desktop, true);
     await page.evaluate(`document.querySelector('.composer textarea').focus()`);

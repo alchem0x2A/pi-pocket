@@ -547,6 +547,8 @@ export function MenuSheet({ places = true }) {
         <div class="group">
             <div class="group-title">App</div>
             ${item("Appearance", () => openSheet({ type: "appearance" }), modeLabel())}
+            ${me?.role === "owner" && item("Memory", () => openSheet({ type: "memory-settings" }), "lesson storage and editor")}
+            ${me?.role === "owner" && item("Instructions (AGENTS.md)", () => openSheet({ type: "instruction-files" }), "global and folder files")}
             ${!touch && item("Keyboard shortcuts", () => openSheet({ type: "shortcuts" }), "?")}
             ${
                 me?.role === "owner" &&

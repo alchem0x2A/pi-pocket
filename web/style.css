@@ -4487,6 +4487,55 @@ pre.diff .del {
     color: var(--text);
 }
 
+.session-command-results {
+    display: grid;
+    gap: 3px;
+    padding: 5px 2px 0;
+}
+
+.session-command {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 9px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-row);
+    background: var(--card);
+    color: var(--text);
+    text-align: left;
+}
+
+.session-command .icon {
+    flex: none;
+    color: var(--accent);
+}
+
+.session-command-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    font-weight: 550;
+}
+
+.session-command-detail {
+    overflow: hidden;
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+    .session-command {
+        min-height: 42px;
+    }
+}
+
 /* "Ctrl K": a small tag at the field's end. */
 .sessions .search-keys {
     padding: 4px 6px;
@@ -6528,6 +6577,32 @@ button.session-chip {
 .field textarea {
     font-size: 14.5px;
     border-radius: calc(var(--r-control) + 1px);
+}
+
+.instruction-path {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    font-family: var(--mono);
+    font-size: 12px;
+}
+
+.instruction-choice {
+    align-items: flex-start;
+}
+
+.instruction-choice > .instruction-path {
+    flex: 1;
+}
+
+.instruction-editor {
+    min-height: 48vh;
+    resize: vertical;
+    font-family: var(--mono);
+    font-size: 13px;
+}
+
+.instruction-back {
+    align-self: flex-start;
 }
 
 @media (pointer: coarse) {
