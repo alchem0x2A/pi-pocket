@@ -583,9 +583,9 @@ export class Commands {
         );
     }
 
-    /** The model and thinking level a new session starts with now. */
-    defaultModel(): { model?: ModelRef; thinkingLevel?: ModelThinkingLevel } {
-        return this.#defaultModel();
+    /** The model and thinking level a new session starts with now; cwd includes trusted project defaults. */
+    defaultModel(cwd?: string): { model?: ModelRef; thinkingLevel?: ModelThinkingLevel } {
+        return this.#defaultModel(undefined, cwd);
     }
 
     /**
