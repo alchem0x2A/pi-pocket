@@ -7,3 +7,4 @@ flake.lock
 
 *.png
 *.woff2
+extras/
