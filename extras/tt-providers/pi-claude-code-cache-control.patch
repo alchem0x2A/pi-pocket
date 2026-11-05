@@ -1,0 +1,250 @@
+--- a/src/claude-cli.ts
++++ b/src/claude-cli.ts
+@@ -530 +530,13 @@
+-function setCacheBreakpoint(message: NativeRequestMessage): void {
++type CacheControlBlock = Record<string, unknown>;
++
++function clearContentCacheBreakpoints(content: unknown): void {
++  if (!Array.isArray(content)) return;
++  for (const block of content) {
++    if (!block || typeof block !== "object") continue;
++    const record = block as Record<string, unknown>;
++    delete record.cache_control;
++    clearContentCacheBreakpoints(record.content);
++  }
++}
++
++function setCacheBreakpoint(message: NativeRequestMessage): CacheControlBlock | undefined {
+@@ -532,4 +544,7 @@
+-    message.content = [
+-      { type: "text", text: message.content, cache_control: { type: "ephemeral", ttl: "1h" } },
+-    ];
+-    return;
++    const block = {
++      type: "text",
++      text: message.content,
++      cache_control: { type: "ephemeral", ttl: "1h" },
++    };
++    message.content = [block];
++    return block;
+@@ -537 +552,2 @@
+-  if (!Array.isArray(message.content) || message.content.length === 0) return;
++  if (!Array.isArray(message.content) || message.content.length === 0) return undefined;
++  clearContentCacheBreakpoints(message.content);
+@@ -539,2 +555,4 @@
+-  if (!last || typeof last !== "object") return;
+-  (last as Record<string, unknown>).cache_control = { type: "ephemeral", ttl: "1h" };
++  if (!last || typeof last !== "object") return undefined;
++  const block = last as CacheControlBlock;
++  block.cache_control = { type: "ephemeral", ttl: "1h" };
++  return block;
+@@ -543 +561,4 @@
+-function setReplayCacheBreakpoints(messages: NativeRequestMessage[]): void {
++function setReplayCacheBreakpoints(messages: NativeRequestMessage[]): {
++  previousUser?: CacheControlBlock;
++  finalMessage?: CacheControlBlock;
++} {
+@@ -546,0 +568 @@
++  let previousUser: CacheControlBlock | undefined;
+@@ -555 +577 @@
+-    setCacheBreakpoint(messages[userIndexes.at(-2)!]!);
++    previousUser = setCacheBreakpoint(messages[userIndexes.at(-2)!]!);
+@@ -558 +580,74 @@
+-  if (final) setCacheBreakpoint(final);
++  const finalMessage = final ? setCacheBreakpoint(final) : undefined;
++  return { previousUser, finalMessage };
++}
++
++function cacheControlBlock(value: unknown): CacheControlBlock | undefined {
++  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
++  const block = value as CacheControlBlock;
++  return Object.hasOwn(block, "cache_control") ? block : undefined;
++}
++
++function contentCacheControlBlocks(content: unknown, output: CacheControlBlock[] = []): CacheControlBlock[] {
++  if (!Array.isArray(content)) return output;
++  for (const value of content) {
++    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
++    const record = value as Record<string, unknown>;
++    const block = cacheControlBlock(record);
++    if (block) output.push(block);
++    contentCacheControlBlocks(record.content, output);
++  }
++  return output;
++}
++
++function requestCacheControlBlocks(payload: {
++  messages?: NativeRequestMessage[];
++  system?: unknown;
++  tools?: unknown;
++}): CacheControlBlock[] {
++  const output: CacheControlBlock[] = [];
++  if (Array.isArray(payload.system)) {
++    for (const value of payload.system) {
++      const block = cacheControlBlock(value);
++      if (block) output.push(block);
++    }
++  }
++  if (Array.isArray(payload.tools)) {
++    for (const value of payload.tools) {
++      const block = cacheControlBlock(value);
++      if (block) output.push(block);
++    }
++  }
++  for (const message of payload.messages ?? []) {
++    contentCacheControlBlocks(message.content, output);
++  }
++  return output;
++}
++
++function lastCacheControlBlock(value: unknown): CacheControlBlock | undefined {
++  if (!Array.isArray(value)) return undefined;
++  for (let index = value.length - 1; index >= 0; index--) {
++    const block = cacheControlBlock(value[index]);
++    if (block) return block;
++  }
++  return undefined;
++}
++
++function trimCacheControlBlocks(
++  payload: { messages?: NativeRequestMessage[]; system?: unknown; tools?: unknown },
++  preferred: Array<CacheControlBlock | undefined>,
++): void {
++  const blocks = requestCacheControlBlocks(payload);
++  const available = new Set(blocks);
++  const keep = new Set<CacheControlBlock>();
++  // Prefer replay boundaries, then the stable system and initial-tool prefixes.
++  // Keep other native markers only while cache slots remain.
++  for (const block of preferred) {
++    if (block && available.has(block) && keep.size < 4) keep.add(block);
++  }
++  for (const block of blocks) {
++    if (keep.size >= 4) break;
++    keep.add(block);
++  }
++  for (const block of blocks) {
++    if (!keep.has(block)) delete block.cache_control;
++  }
+@@ -621,2 +716,2 @@
+-function normalizeLeadingSystemCache(system: unknown): void {
+-  if (!Array.isArray(system)) return;
++function normalizeLeadingSystemCache(system: unknown): CacheControlBlock | undefined {
++  if (!Array.isArray(system)) return undefined;
+@@ -627,3 +722,4 @@
+-  if (last && typeof last === "object") {
+-    (last as Record<string, unknown>).cache_control = { type: "ephemeral", ttl: "1h" };
+-  }
++  if (!last || typeof last !== "object") return undefined;
++  const block = last as CacheControlBlock;
++  block.cache_control = { type: "ephemeral", ttl: "1h" };
++  return block;
+@@ -641,0 +738 @@
++    tools?: unknown;
+@@ -665,0 +763,3 @@
++  const systemBreakpoint = nativeSystemInjections
++    ? normalizeLeadingSystemCache(payload.system)
++    : lastCacheControlBlock(payload.system);
+@@ -669 +768,0 @@
+-    normalizeLeadingSystemCache(payload.system);
+@@ -671 +770,8 @@
+-  if (initialSystemMessages?.length || nativeSystemInjections) setReplayCacheBreakpoints(messages!);
++  const replayBreakpoints: ReturnType<typeof setReplayCacheBreakpoints> =
++    initialSystemMessages?.length || nativeSystemInjections ? setReplayCacheBreakpoints(messages!) : {};
++  trimCacheControlBlocks(payload, [
++    replayBreakpoints.finalMessage,
++    replayBreakpoints.previousUser,
++    systemBreakpoint,
++    lastCacheControlBlock(payload.tools),
++  ]);
+--- /dev/null
++++ b/tests/cache-control.test.ts
+@@ -0,0 +1,89 @@
++import assert from "node:assert/strict";
++import test from "node:test";
++import { rewriteInitialRequest } from "../src/claude-cli.ts";
++
++const marker = { type: "ephemeral", ttl: "1h" };
++
++function countCacheControl(value: unknown): number {
++  if (Array.isArray(value)) return value.reduce((sum, child) => sum + countCacheControl(child), 0);
++  if (!value || typeof value !== "object") return 0;
++  return Object.entries(value).reduce(
++    (sum, [key, child]) => sum + (key === "cache_control" ? 1 : countCacheControl(child)),
++    0,
++  );
++}
++
++test("caps five markers from Claude Code prefix, tools, system, and replay boundaries", () => {
++  const prefix = [{ type: "text", text: "Claude Code prefix", cache_control: marker }];
++  const canonical = [{ type: "text", text: "first query" }];
++  const body = {
++    system: [
++      { type: "text", text: "identity", cache_control: marker },
++      { type: "text", text: "prompt", cache_control: marker },
++    ],
++    tools: [{ name: "mcp__pi__read", input_schema: { type: "object" }, cache_control: marker }],
++    messages: [
++      { role: "user", content: [...prefix, ...canonical] },
++      { role: "assistant", content: [{ type: "text", text: "first answer" }] },
++      { role: "user", content: [{ type: "text", text: "previous query" }] },
++      { role: "assistant", content: [{ type: "text", text: "second answer" }] },
++      { role: "user", content: [{ type: "text", text: "current query" }] },
++    ],
++  };
++  const rewritten = JSON.parse(
++    rewriteInitialRequest(Buffer.from(JSON.stringify(body)), prefix, canonical, undefined, []).toString("utf8"),
++  );
++
++  assert.ok(countCacheControl(rewritten) <= 4, `found ${countCacheControl(rewritten)} cache_control markers`);
++  assert.equal(rewritten.messages[0].content[0].cache_control, undefined);
++  assert.deepEqual(rewritten.system.at(-1).cache_control, marker);
++  assert.deepEqual(rewritten.tools[0].cache_control, marker);
++  assert.deepEqual(rewritten.messages[2].content.at(-1).cache_control, marker);
++  assert.deepEqual(rewritten.messages.at(-1).content.at(-1).cache_control, marker);
++});
++
++test("does not double-mark a pre-marked final system message", () => {
++  const body = {
++    system: [
++      { type: "text", text: "billing" },
++      { type: "text", text: "identity", cache_control: marker },
++      { type: "text", text: "prompt", cache_control: marker },
++    ],
++    tools: [{ name: "mcp__pi__bash", input_schema: { type: "object" }, cache_control: marker }],
++    messages: [
++      { role: "user", content: [{ type: "text", text: "run it" }] },
++      { role: "system", content: "environment" },
++      {
++        role: "assistant",
++        content: [{ type: "tool_use", id: "t1", name: "mcp__pi__bash", input: {} }],
++      },
++      { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "hi" }] },
++      {
++        role: "system",
++        content: [
++          { type: "text", text: "date reminder", cache_control: marker },
++          { type: "text", text: "parallel tool nudge" },
++        ],
++      },
++    ],
++  };
++  const rewritten = JSON.parse(
++    rewriteInitialRequest(
++      Buffer.from(JSON.stringify(body)),
++      undefined,
++      body.messages[0].content as unknown[],
++      [
++        {
++          role: "system",
++          content: [{ type: "text", text: "environment", cache_control: marker }],
++        },
++      ],
++      [],
++    ).toString("utf8"),
++  );
++  const final = rewritten.messages.at(-1).content;
++
++  assert.ok(countCacheControl(rewritten) <= 4, `found ${countCacheControl(rewritten)} cache_control markers`);
++  assert.equal(final[0].cache_control, undefined);
++  assert.deepEqual(final.at(-1).cache_control, marker);
++});

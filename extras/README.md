@@ -16,6 +16,12 @@ starts off, and only the owner turns it on. Read a file before you turn it on: a
 `~/.pi-pocket/vendor/pi-claude-code`, and the Claude CLI at `~/.local/bin/claude`. Each account runs with its own
 `CLAUDE_CONFIG_DIR`, so the two never mix. Pi Pocket never stores their tokens: the Claude CLI owns the login.
 
+The drop-in reads the npm package from `~/.pi-pocket/vendor/pi-claude-code/node_modules/@earendil-works/pi-claude-code`.
+Pi Pocket does not install or update this package. Reinstalling it replaces local edits, so apply the tracked patch after each
+package install or update with `bash extras/tt-providers/apply-pi-claude-code-cache-patch.sh`. Set
+`PI_CLAUDE_CODE_PACKAGE` to use another package path. The patch keeps the 4 most useful breakpoints and includes regression
+tests. The npm package omits upstream tests, so the full package suite needs an upstream source checkout.
+
 ## `tt-usage/`
 
 Shows how much of each provider account is left: OpenAI, Codex, and the two Claude accounts.
