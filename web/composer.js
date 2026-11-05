@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Avatar } from "./avatar.js";
 import { boxKey, keyBox } from "./box-keys.js";
-import { chatUnread, TypingLine } from "./chat.js";
 import {
     loadTemplates,
     parseCommand,
@@ -1093,17 +1092,11 @@ export function Composer() {
     if (collab() && !canSteer()) {
         return html`<footer class="composer-wrap" data-part="composer">
             <div class="dock" data-part="dock" ref=${dock}>
-                <${TypingLine} where="pi" />
                 <${SubagentsBar} />
             </div>
             <${ParentSessionButton} />
             <div class="view-only">
-                <span>
-                    <strong>View only.</strong> You can read along, react, and chat with the people here.
-                </span>
-                <button class="button small" onClick=${() => openSheet({ type: "chat" })}>
-                    <${Icon} name="chat" size=${15} /> Chat
-                </button>
+                <span><strong>View only.</strong> You can read along.</span>
             </div>
             <${StatusLine} />
         </footer>`;
@@ -1118,7 +1111,6 @@ export function Composer() {
 
     return html`<footer class="composer-wrap" data-part="composer">
         <div class="dock" data-part="dock" ref=${dock}>
-            <${TypingLine} where="pi" />
             ${
                 // How many wait: shown when the queue does not show them all (`dock.js`).
                 inbox.length > 0 &&
@@ -1622,24 +1614,17 @@ function StopButton() {
 }
 
 /**
- * Phones: the session's places (Files, Changes, the browser…) from beside the message box, where a thumb reaches; the
- * top bar's buttons are a stretch with one hand. A dot when the chat has news or a page is open.
+ * Phones: the session's places from beside the message box, opened with one compact icon.
  */
 function PlacesButton() {
-    const { browser } = store.state;
-    const news =
-        (collab() && chatUnread() > 0) ||
-        (browser?.open && browser.url !== "" && browser.url !== "about:blank");
-
     return html`<button
-        class="icon-button places-button badge-host"
+        class="icon-button places-button"
         data-part="composer-button"
-        aria-label="Places: Files, Changes, Browser, and more"
+        aria-label="Open places"
         title="Places (or swipe up here)"
         onClick=${() => openSheet({ type: "places" })}
     >
-        <${Icon} name="grid" />
-        ${news && html`<span class="browser-dot" aria-hidden="true"></span>`}
+        <${Icon} name="grid" size=${16} />
     </button>`;
 }
 

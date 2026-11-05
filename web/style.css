@@ -785,7 +785,7 @@ kbd {
  * than usual, it takes 40% of the screen at most (`sessions.js` drags to the same), so the conversation keeps room. */
 .sidebar {
     display: none;
-    width: min(var(--sidebar-w, 312px), max(312px, 40vw));
+    width: min(var(--sidebar-w, 240px), max(240px, 40vw));
     padding-left: env(safe-area-inset-left);
     flex: none;
     flex-direction: row;
@@ -1143,7 +1143,7 @@ kbd {
     }
 }
 
-/* The title and its line under it open the menu, all but the branch, which opens the branch picker. */
+/* The title gives the session name and folder. The compact Menu icon opens its actions. */
 .title {
     position: relative;
     flex: 1;
@@ -1155,23 +1155,6 @@ kbd {
     margin-left: 12px;
     border-radius: var(--r-row);
     transition: background-color var(--t-hover) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .title:has(> .title-open:hover) {
-        background: var(--hover);
-    }
-}
-
-/* Over the whole title, under the branch. */
-.title-open {
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-}
-
-.title-open:focus-visible {
-    outline-offset: -1px;
 }
 
 .title-main {
@@ -12875,6 +12858,17 @@ textarea.notes {
     margin: 0 6px 8px;
 }
 
+.places-session-action {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 12px 8px;
+}
+
+.places-session-action .icon-button {
+    width: 36px;
+    height: 36px;
+}
+
 .nav-menu .menu-signout {
     color: var(--err);
 }
@@ -12920,6 +12914,10 @@ textarea.notes {
     .nav-menu .list-item,
     .places-sheet .list-item {
         min-height: 44px;
+    }
+    .places-session-action .icon-button {
+        width: 44px;
+        height: 44px;
     }
 }
 
@@ -13046,13 +13044,6 @@ textarea.notes {
         width: 32px;
         height: 36px;
         color: var(--muted);
-    }
-    .composer-row .places-button .browser-dot {
-        top: 6px;
-        right: 5px;
-        width: 7px;
-        height: 7px;
-        box-shadow: 0 0 0 2px var(--card);
     }
     /* Room for it: the model's name gives way first. */
     .composer-row .model-chip {

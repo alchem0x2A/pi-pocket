@@ -18,7 +18,7 @@ test("the launcher opens every sheet the menu opens", () => {
     assert.deepEqual(missing, [], `the launcher has no action for: ${missing.join(", ")}`);
 });
 
-test("the launcher has every row of the menu, by name", () => {
+test("the launcher has every remaining row of the menu, by name", () => {
     // `item("Name"`, and `item(cond ? "One" : "Other"` on the lines after it.
     const names = [
         ...[...menu.matchAll(/item\(\s*"([^"]+)"/g)].map((match) => match[1]),
@@ -28,6 +28,6 @@ test("the launcher has every row of the menu, by name", () => {
     ];
     const missing = names.filter((name) => !launcherSources.includes(`"${name}`));
 
-    assert.ok(names.includes("Webhooks and watches") && names.includes("Take turns"));
+    assert.ok(names.includes("Webhooks and watches") && !names.includes("Take turns"));
     assert.deepEqual(missing, [], `the launcher has no action named: ${missing.join(", ")}`);
 });

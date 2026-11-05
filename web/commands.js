@@ -5,7 +5,7 @@ import { branchAvailable } from "./sheets/branch.js";
 import { memoryAvailable, remember } from "./sheets/memory.js";
 import { togglePeeks } from "./peeks.js";
 import { askPip, assistantName, openPip, pipAvailable } from "./pip.js";
-import { actions, collab, navigate, notify, openSheet, scoped, store } from "./store.js";
+import { actions, navigate, notify, openSheet, scoped, store } from "./store.js";
 import { chooseMode } from "./theme.js";
 import { trustAvailable } from "./trust.js";
 import { copyText, formatTokens, formatWhen, modelLabel, replyText, shortPath } from "./ui.js";
@@ -369,12 +369,6 @@ const COMMANDS = [
         name: "resume",
         description: "Switch to another session",
         run: () => store.set({ drawer: true }),
-    },
-    {
-        name: "chat",
-        description: "Open the people chat",
-        available: collab,
-        run: () => openSheet({ type: "chat" }),
     },
     {
         name: "browser",

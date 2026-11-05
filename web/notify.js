@@ -1,6 +1,6 @@
 // Phone notifications: this device subscribes to the server's pushes, and each person picks what they hear about.
 import { useEffect, useState } from "preact/hooks";
-import { api, attempt, closeSheet, notify, sessionUnread } from "./store.js";
+import { api, attempt, closeSheet, notify } from "./store.js";
 import { html, Loader, Sheet, Switch } from "./ui.js";
 
 const supported =
@@ -24,7 +24,7 @@ let badged = null;
 /** What the count was worked out from: it changes only with these, while streaming updates the store many times a second. */
 let countedFrom = null;
 
-/** The home-screen icon counts the sessions that need you: a call waits for approval, or the chat has news. */
+/** The home-screen icon counts sessions that wait for your approval. */
 export function updateBadge(state) {
     if (!("setAppBadge" in navigator) || !state.me) {
         return;
@@ -32,8 +32,6 @@ export function updateBadge(state) {
 
     if (
         countedFrom?.sessions === state.sessions &&
-        countedFrom.chatRead === state.chatRead &&
-        countedFrom.chatReads === state.chatReads &&
         countedFrom.me === state.me &&
         countedFrom.conversationId === state.conversationId
     ) {
@@ -42,14 +40,10 @@ export function updateBadge(state) {
 
     countedFrom = {
         sessions: state.sessions,
-        chatRead: state.chatRead,
-        chatReads: state.chatReads,
         me: state.me,
         conversationId: state.conversationId,
     };
-    const count = state.sessions.filter(
-        (session) => session.waiting || sessionUnread(session, state),
-    ).length;
+    const count = state.sessions.filter((session) => session.waiting).length;
 
     if (count === badged) {
         return;
@@ -110,8 +104,6 @@ const KINDS = [
         "Waiting for a limit",
         "when a run waits more than ten minutes for a provider's limit to clear",
     ],
-    ["mention", "Mentions", "when someone writes @your name in a chat"],
-    ["chat", "Chat messages", "in sessions you take part in"],
 ];
 
 export function NotificationsSheet() {
@@ -198,7 +190,7 @@ export function NotificationsSheet() {
         className="notifications-sheet"
     >
         <p class="muted small">
-            Get a notification on this device when you are not looking at the session: Pi finished, Pi needs approval, or someone wrote to you.
+            Get a notification on this device when Pi finishes or waits for your approval.
         </p>
         ${problem && html`<div class="error-box small">${problem}</div>`}
         ${

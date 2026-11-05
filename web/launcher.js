@@ -29,7 +29,6 @@ import {
     attempt,
     api,
     canSteer,
-    canToggleTurns,
     collab,
     navigate,
     notify,
@@ -266,12 +265,6 @@ function actionItems() {
                 icon: "fork",
                 run: () => openSheet({ type: "branch" }),
             },
-        conversation &&
-            collab() && {
-                label: "Chat with people here",
-                icon: "chat",
-                run: () => openSheet({ type: "chat" }),
-            },
         conversation && {
             label: "Find in this session",
             detail: "messages, by words",
@@ -280,16 +273,6 @@ function actionItems() {
             keys: "Mod F",
             run: () => openSheet({ type: "find" }),
         },
-        conversation &&
-            collab() &&
-            canToggleTurns() && {
-                label: view.turns?.on ? "Turn off take turns" : "Take turns",
-                detail: view.turns?.on
-                    ? "anyone here can send to Pi again"
-                    : "one person drives Pi at a time",
-                icon: "users",
-                run: () => attempt(() => actions.turns(view.turns?.on ? "off" : "on")),
-            },
         session &&
             steer && {
                 label: "Rename session",

@@ -17,7 +17,6 @@ import {
     attempt,
     canSteer,
     collab,
-    discuss,
     isRow,
     loadEarlier,
     loadedFrom,
@@ -55,7 +54,6 @@ import {
     Icon,
     Markdown,
     openFile,
-    plainText,
     readable,
     replyText,
     Spinner,
@@ -1749,18 +1747,6 @@ defineItem("reply", {
         </span>`,
 });
 defineItem("reply", {
-    id: "core:discuss",
-    label: "Discuss",
-    order: 200,
-    render: ({ entry, text }) =>
-        html`<button
-            class="answer-tool"
-            onClick=${() => discuss(entry.id, plainText(text).replace(/\s+/g, " ").slice(0, 280))}
-        >
-            Discuss
-        </button>`,
-});
-defineItem("reply", {
     id: "core:pin",
     label: "Pin",
     order: 300,
@@ -1839,7 +1825,7 @@ function AnswerActions({ entry }) {
 
 /** How one of Pi's answers ended, under its last words: a failed request, a stop, or the answer's actions. */
 function AnswerEnd({ entry }) {
-    // A final answer (not a step between tool calls) with something to say gets reactions and the discuss row.
+    // A final answer (not a step between tool calls) with something to say gets the reply tools.
     const answer = collab() && entry.stopReason !== "toolUse" && entry.blocks.some(says);
 
     return html`${

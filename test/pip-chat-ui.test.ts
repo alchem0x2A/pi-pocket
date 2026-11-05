@@ -453,7 +453,7 @@ test("a typed PiP text draft survives reload while open and while closed", real,
     await close();
 });
 
-test("Pia's display name replaces PiP in assistant-facing UI", real, async () => {
+test("Pia's display name remains, but its Places tile is gone", real, async () => {
     await fresh(VIEWPORTS.desktop);
     const person = owner(app);
 
@@ -473,54 +473,17 @@ test("Pia's display name replaces PiP in assistant-facing UI", real, async () =>
 
         await page.evaluate(`(await import('/store.js')).openSheet({ type: 'menu' })`);
         await see(
-            `document.querySelector('[data-place="pip"] .place-label') !== null`,
-            "assistant place tile",
-        );
-        assert.equal(
-            await inPage<string>(
-                `return JSON.stringify(document.querySelector('[data-place="pip"] .place-label')?.textContent)`,
-            ),
-            "Pia",
+            `document.querySelector('[data-place="pip"]') === null`,
+            "no assistant place tile",
         );
 
-        await page.evaluate(
-            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'extensions' })`,
-        );
+        await page.evaluate(`(await import('/store.js')).closeSheet()`);
+        await page.press("Control+K");
         await see(
-            `document.querySelector('[aria-controls="ext-more-pip-ts"]') !== null`,
-            "the assistant extension row",
+            `[...document.querySelectorAll('.launcher-item')].some((row) => row.textContent.includes('Ask Pia'))`,
+            "Pia remains available in the launcher",
         );
-        const extension = await inPage<string>(
-            `return JSON.stringify(document.querySelector('[aria-controls="ext-more-pip-ts"]')?.textContent)`,
-        );
-
-        assert.match(extension, /Pia/);
-        assert.doesNotMatch(extension, /PiP/);
-
-        await page.evaluate(
-            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'shortcuts' })`,
-        );
-        await see(`document.querySelector('.shortcuts') !== null`, "keyboard shortcuts sheet");
-        const shortcuts = await inPage<string>(
-            `return JSON.stringify(document.querySelector('.shortcuts')?.textContent)`,
-        );
-
-        assert.match(shortcuts, /Pia, your assistant/);
-        assert.doesNotMatch(shortcuts, /PiP/);
-
-        await page.evaluate(
-            `(await import('/store.js')).closeSheet(); (await import('/store.js')).openSheet({ type: 'hooks' })`,
-        );
-        await see(
-            `document.querySelector('.sheet')?.textContent.includes('Webhooks and watches')`,
-            "webhooks sheet",
-        );
-        const hooks = await inPage<string>(
-            `return JSON.stringify(document.querySelector('.sheet-body')?.textContent)`,
-        );
-
-        assert.match(hooks, /Pia/);
-        assert.doesNotMatch(hooks, /PiP/);
+        await page.press("Escape");
     } finally {
         await page.evaluate(
             `(await import('/store.js')).closeSheet(); (await import('/pip.js')).closePip()`,

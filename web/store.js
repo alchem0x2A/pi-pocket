@@ -482,39 +482,6 @@ function applyChat(data) {
     const added = data.messages.filter((message) => !known.has(message.id));
 
     store.set({ chat: (data.full ? data.messages : [...state.chat, ...added]).slice(-CHAT_LIMIT) });
-
-    // The People panel stays open for long: on its Pinned or Notes tab, new messages still count and show a notice.
-    if (chatLogs > 0) {
-        markChatRead();
-
-        return;
-    }
-
-    // A full list comes on connect: only live messages from others pop up.
-    const fresh = data.full
-        ? []
-        : added.filter((message) => message.userId !== state.me?.id && message.kind !== "event");
-
-    if (fresh.length === 0) {
-        return;
-    }
-
-    const open = () => openSheet({ type: "chat" });
-    const announce = (message) =>
-        chatNotices.set(notify("info", message, open), store.state.conversationId);
-
-    if (fresh.length > 1) {
-        return announce(`${fresh.length} new chat messages`);
-    }
-
-    const [message] = fresh;
-    const name = state.users.find((user) => user.id === message.userId)?.name ?? message.name;
-    const text = message.text.replace(/\s+/g, " ");
-    const mentioned = message.mentions?.includes(state.me?.id);
-
-    announce(
-        `${name}${mentioned ? " mentioned you" : ""}: ${text.length > 120 ? `${text.slice(0, 119)}…` : text}`,
-    );
 }
 
 let typingSent = { where: null, at: 0, conversationId: null };
@@ -1728,15 +1695,6 @@ export function insertIntoComposer(text, files = [], { inline = false } = {}) {
     store.set((state) => ({
         sheet: null,
         composerInsert: { text, files, inline, n: (state.composerInsert?.n ?? 0) + 1 },
-    }));
-}
-
-/** Open the chat to discuss a transcript message: the next chat message quotes it. */
-export function discuss(entryId, text) {
-    store.set((state) => ({
-        chatQuote: { entryId, text },
-        ...sheetChange({ type: "chat" }, state),
-        drawer: false,
     }));
 }
 

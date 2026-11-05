@@ -1,40 +1,23 @@
 // The menu: what can be done in this session and in the app.
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { browserAvailable, displayUrl, setBrowserOpen } from "../browser.js";
-import { chatUnread } from "../chat.js";
-import { schedulesAvailable, triggersOn, watchAvailable, watchPr } from "../commands.js";
+import { browserAvailable, setBrowserOpen } from "../browser.js";
+import { schedulesAvailable, triggersOn } from "../commands.js";
 import { extensionMenuItems, safeMode } from "../extension-ui.js";
 import { useChanges } from "../diff.js";
 import { filesAvailable, setFilesOpen } from "../files-panel.js";
-import { peeksOn, togglePeeks } from "../peeks.js";
 import { modelRefreshAvailable, refreshModels } from "../model-refresh.js";
-import { assistantName, openPip, pipAvailable, pipUnread } from "../pip.js";
+import { assistantName } from "../pip.js";
 import { setArchived } from "../sessions.js";
 import { openSubagent } from "../subagents.js";
-import {
-    actions,
-    api,
-    attempt,
-    canSteer,
-    canToggleTurns,
-    closeSheet,
-    collab,
-    navigate,
-    notify,
-    openSheet,
-    scoped,
-    setUnread,
-    signOut,
-    store,
-} from "../store.js";
+import { api, canSteer, closeSheet, collab, openSheet, scoped, signOut, store } from "../store.js";
 import { defineItem, slotItems } from "../slots.js";
-import { isPinned, modeLabel, togglePin } from "../theme.js";
+import { modeLabel } from "../theme.js";
 import { currentTrust, trustAvailable } from "../trust.js";
 import { branchAvailable } from "./branch.js";
 import { memoryAvailable, memoryHint, useMemory } from "./memory.js";
 import { restartAvailable, restartHint, restartWanted } from "./restart.js";
 import { defaultLabel, defaultsKept } from "./model.js";
-import { copyText, html, Icon, item, PlaceTile, Sheet, shortPath } from "../ui.js";
+import { html, Icon, item, PlaceTile, Sheet, shortPath } from "../ui.js";
 
 // Key hints are for people with a keyboard: a touch screen has none.
 const touch = matchMedia("(pointer: coarse)").matches;
@@ -52,9 +35,7 @@ function extensionsHint() {
 }
 
 /**
- * The session's places as big tiles at the top of the menu: Files, Changes, the browser, artifacts, the chat, find,
- * the branch, and peek tiles. The top bar keeps only the buttons with something to say; these are always here, a
- * thumb's width each.
+ * The core places are Files, Changes, Browser, Find, and Branch. Extension panels have their own topbar buttons.
  */
 function Places() {
     if (!store.state.view.conversation) {
@@ -72,8 +53,8 @@ function PlacesWithChanges() {
 }
 
 /**
- * The app's own places, items of the `places` slot (slots.js), which a person can hide and reorder in Appearance, with
- * extensions' panels after them. Each gets `{ changes }`: the folder's changes, for the count on Changes.
+ * The app's own places, items of the `places` slot (`slots.js`), which extensions may arrange and a person can hide or
+ * reorder in Appearance. Each gets `{ changes }`: the folder's changes, for the count on Changes.
  */
 const PLACES = [
     {
@@ -128,78 +109,15 @@ const PLACES = [
         },
     },
     {
-        id: "core:artifacts",
-        label: "Artifacts",
-        place: () => ({
-            icon: "artifact",
-            count: store.state.view.artifacts.length,
-            run: () => openSheet({ type: "artifacts" }),
-        }),
-    },
-    {
-        id: "core:chat",
-        label: "Chat",
-        place: () =>
-            collab() && {
-                icon: "chat",
-                count: chatUnread(),
-                counted: "unread",
-                run: () => openSheet({ type: "chat" }),
-            },
-    },
-    {
         id: "core:find",
         label: "Find",
         place: () => ({ icon: "search", run: () => openSheet({ type: "find" }) }),
-    },
-    {
-        // Ctrl K's launcher, for touch screens that have no keyboard to open it.
-        id: "core:launcher",
-        label: "Launcher",
-        place: () =>
-            touch && {
-                icon: "command",
-                run: () => {
-                    closeSheet();
-                    store.set({ launcher: true });
-                },
-            },
     },
     {
         id: "core:branch",
         label: "Branch",
         place: () =>
             branchAvailable() && { icon: "fork", run: () => openSheet({ type: "branch" }) },
-    },
-    {
-        id: "core:pip",
-        // The assistant's name as the server gives it (Classic "PiP"; the owner's name for Pia), read as it draws.
-        get label() {
-            return assistantName();
-        },
-        place: () =>
-            pipAvailable() && {
-                icon: "pip",
-                dot: pipUnread(),
-                dotLabel: "something new",
-                run: () => {
-                    openPip();
-                    closeSheet();
-                },
-            },
-    },
-    {
-        id: "core:peeks",
-        label: "Peeks",
-        place: () =>
-            store.state.server?.peeks === true && {
-                icon: "tiles",
-                on: peeksOn(),
-                run: () => {
-                    togglePeeks();
-                    closeSheet();
-                },
-            },
     },
 ];
 
@@ -224,15 +142,18 @@ PLACES.forEach((entry, index) =>
     }),
 );
 
+/** Extension panels have topbar buttons, so this compact grid shows core places only. */
 function PlacesGrid({ changes = null }) {
+    const places = slotItems("places", { changes }).filter(({ id }) => id.startsWith("core:"));
+
     return html`<nav class="places" aria-label="Places">
-        ${slotItems("places", { changes }).map(({ node }) => node)}
+        ${places.map(({ node }) => node)}
     </nav>`;
 }
 
 /**
  * The places alone, in a short sheet that stays near the bottom edge: what the button beside the message box and a
- * swipe up from it open on a phone, a thumb's reach away. The rest of the menu is a row below.
+ * swipe up from it open on a phone, a thumb's reach away. A compact icon opens the session menu below them.
  */
 export function PlacesSheet() {
     const conversation = store.state.view.conversation;
@@ -243,7 +164,16 @@ export function PlacesSheet() {
         className="places-sheet"
     >
         <${Places} />
-        ${item("Session menu", () => openSheet({ type: "menu", fromPlaces: true }), "rename, context, settings")}
+        <div class="places-session-action">
+            <button
+                class="icon-button"
+                aria-label="Session menu"
+                title="Session menu"
+                onClick=${() => openSheet({ type: "menu", fromPlaces: true })}
+            >
+                <${Icon} name="more" size=${16} />
+            </button>
+        </div>
     <//>`;
 }
 
@@ -416,105 +346,12 @@ export function MenuSheet({ places = true }) {
     return html`<${MenuFrame} title=${conversation?.pip ? assistantName() : (conversation?.title ?? "Menu")}>
         ${places && html`<${Places} />`}
         <div class="menu-session">
-            ${
-                conversation &&
-                collab() &&
-                canToggleTurns() &&
-                item(
-                    turns?.on ? "Turn off take turns" : "Take turns",
-                    () =>
-                        attempt(async () => {
-                            await actions.turns(turns?.on ? "off" : "on");
-                            closeSheet();
-                        }),
-                    turns?.on
-                        ? "anyone here can send to Pi again"
-                        : "one person drives Pi at a time",
-                )
-            }
             ${session && steer && item("Rename", () => openSheet({ type: "rename" }))}
-            ${
-                session &&
-                item(
-                    isPinned(conversation.id) ? "Unpin from the top" : "Pin to the top",
-                    () => {
-                        togglePin(conversation.id);
-                        closeSheet();
-                    },
-                    "this browser",
-                )
-            }
-            ${
-                session &&
-                item(
-                    "Mark unread",
-                    () => {
-                        setUnread(conversation.id, true);
-                        closeSheet();
-                        navigate(null);
-                    },
-                    "this browser; opening it again clears it",
-                )
-            }
-            ${
-                conversation?.worktree && steer
-                    ? item(
-                          "Worktree",
-                          () => openSheet({ type: "worktree" }),
-                          conversation.worktree.branch,
-                      )
-                    : conversation &&
-                      steer &&
-                      driving &&
-                      !scoped() &&
-                      item(
-                          "Working directory",
-                          () => openSheet({ type: "cwd", mode: "change" }),
-                          shortPath(view.agent?.cwd, server?.home),
-                      )
-            }
-            ${
-                conversation &&
-                browserAvailable() &&
-                store.state.browserOpen &&
-                item(
-                    "Close the browser",
-                    () => {
-                        setBrowserOpen(false);
-                        closeSheet();
-                    },
-                    store.state.browser?.open && displayUrl(store.state.browser.url),
-                )
-            }
-            ${conversation && trustAvailable() && item("Project trust", () => openSheet({ type: "trust" }), trustHint())}
             ${session && extensionMenuItems("session").map((each) => item(each.label, each.run, each.hint))}
-            ${session && steer && driving && item("Instructions for Pi", () => openSheet({ type: "instructions" }), instructions ? "on" : "none")}
             ${conversation && steer && driving && item("Compact context", () => openSheet({ type: "compact" }), "summarize older messages")}
             ${conversation && steer && driving && item("New context", () => openSheet({ type: "reset" }), "Pi starts fresh; history stays")}
             ${conversation && memoryAvailable() && item("Memory", () => openSheet({ type: "memory" }), memoryHint(memory))}
             ${schedulesAvailable() && item("Scheduled messages", () => openSheet({ type: "schedules" }), view.schedules.length === 0 ? "none" : `${view.schedules.length} coming`)}
-            ${
-                watchAvailable() &&
-                steer &&
-                view.watch?.status !== "watching" &&
-                item(
-                    "Watch pull request",
-                    () => {
-                        closeSheet();
-                        attempt(() => watchPr());
-                    },
-                    "fix CI, answer reviews",
-                )
-            }
-            ${
-                conversation &&
-                item("Copy link", () =>
-                    copyText(location.href).then(
-                        () => notify("info", "Link copied. Other signed-in devices can open it."),
-                        () => notify("error", "Could not copy."),
-                    ),
-                )
-            }
             ${
                 conversation &&
                 html`<a class="list-item" href=${`/api/c/${conversation.id}/export`} download>
@@ -544,6 +381,7 @@ export function MenuSheet({ places = true }) {
                 )}
             </div>`
         }
+        ${item("Extensions", () => openSheet({ type: "extensions" }), extensionsHint())}
         <div class="group">
             <div class="group-title">App</div>
             ${item("Appearance", () => openSheet({ type: "appearance" }), modeLabel())}
@@ -562,14 +400,40 @@ export function MenuSheet({ places = true }) {
             }
             ${item("Your name", () => openSheet({ type: "name" }), me?.name)}
             ${collab() ? item("People", () => openSheet({ type: "people" }), me?.role === "viewer" ? "you can view" : "") : item("Sign in another device", () => openSheet({ type: "invite" }))}
-            ${collab() && item("Notifications", () => openSheet({ type: "notifications" }), "Pi finished, approvals, chat")}
+            ${collab() && item("Notifications", () => openSheet({ type: "notifications" }), "Pi finished, approvals")}
+            ${
+                conversation &&
+                trustAvailable() &&
+                item("Project trust", () => openSheet({ type: "trust" }), trustHint())
+            }
+            ${
+                session &&
+                steer &&
+                driving &&
+                item(
+                    "Instructions for Pi",
+                    () => openSheet({ type: "instructions" }),
+                    instructions ? "on" : "none",
+                )
+            }
+            ${
+                conversation &&
+                steer &&
+                driving &&
+                !scoped() &&
+                !conversation.worktree &&
+                item(
+                    "Working directory",
+                    () => openSheet({ type: "cwd", mode: "change" }),
+                    shortPath(view.agent?.cwd, server?.home),
+                )
+            }
             ${item("Running now", () => openSheet({ type: "running" }), "everything Pi is doing")}
             ${item("Spend", () => openSheet({ type: "spend" }), me?.role === "owner" ? "by person and session, limits" : "yours")}
             ${triggersOn() && me?.role !== "viewer" && item("Webhooks and watches", () => openSheet({ type: "hooks" }), "GitHub, other services")}
             ${me?.role === "owner" && item("Providers", () => openSheet({ type: "providers" }))}
             ${modelRefreshAvailable() && item("Refresh models", refreshModels, store.state.modelRefresh.loading ? "refreshing…" : "models.json and providers")}
             ${extensionMenuItems().map((each) => item(each.label, each.run, each.hint))}
-            ${item("Extensions", () => openSheet({ type: "extensions" }), extensionsHint())}
             ${
                 restartAvailable() &&
                 item(

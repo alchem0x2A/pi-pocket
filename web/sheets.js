@@ -1,6 +1,5 @@
 // The open sheet: which component shows it. The sheets themselves are in web/sheets/, and a few beside their features
-// (chat.js, notify.js, share.js).
-import { ChatSheet } from "./chat.js";
+// (notify.js, share.js).
 import { ExtensionSheet, onExtensionsGone } from "./extension-ui.js";
 import { NotificationsSheet } from "./notify.js";
 import { ShareSheet } from "./share.js";
@@ -280,9 +279,6 @@ function sheetBody(sheet) {
             break;
         case "places":
             body = view.conversation ? html`<${PlacesSheet} />` : null;
-            break;
-        case "chat":
-            body = view.conversation ? html`<${ChatSheet} />` : null;
             break;
         case "rename":
             body = html`<${TextSheet}

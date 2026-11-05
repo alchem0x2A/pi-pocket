@@ -172,11 +172,13 @@ test("the bar says what works; Stop stops one", real, async () => {
     assert.equal(app.isBusy(slow.conversationId), false, "the subagent stopped");
 });
 
-test("the board shows a sub-tile for each subagent at work, with what it does", real, async () => {
+test("the launcher opens the board with a sub-tile for each subagent at work", real, async () => {
     await started(0);
     await page.setViewport(VIEWPORTS.desktop);
     await settled();
-    await page.click({ selector: ".rail-agents" });
+    await page.press("Control+K");
+    await page.type({ selector: ".launcher input" }, "> subagents");
+    await page.press("Enter");
     await see(
         `return JSON.stringify((await import("/store.js")).store.state.board === true)`,
         "the board",

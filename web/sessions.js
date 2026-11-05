@@ -12,7 +12,6 @@ import {
     sessionWords,
 } from "./extension-ui.js";
 import { useDragToClose } from "./gestures.js";
-import { PeeksRailButton } from "./peeks.js";
 import { PipRailButton } from "./pip.js";
 import { QuickNotesButton } from "./quick-notes-ui.js";
 import { sessionForest, unfolded } from "./session-tree.js";
@@ -27,7 +26,6 @@ import {
     isUnread,
     openSheet,
     scoped,
-    sessionUnread,
     setUnread,
     stillMoving,
     store,
@@ -370,7 +368,7 @@ export function sessionMark(session) {
 
 /**
  * One session on one line: its folder's color in the shape of its state, its title, and on the right what goes on there (its working subagents,
- * who else is in it, Pi working, a call waiting for you), unread chat, and how long ago. Its folder and model are in
+ * who else is in it, Pi working, a call waiting for you, and how long ago. Its folder and model are in
  * its tooltip. Memoized (`memo`): it reads nothing of the store as it draws, only its props, which `AllSessions` works
  * out for it. `minute` and `extensionsRev` draw it again as time passes and as extensions' chips and words change.
  */
@@ -394,7 +392,6 @@ function SessionRow({
     open,
     pinned,
     marked,
-    unread,
     unseen,
     moving,
     home,
@@ -470,7 +467,7 @@ function SessionRow({
             </span>`
         }
         <button
-            class=${`session ${unread ? "unread" : ""}`}
+            class="session"
             data-part="session-button"
             aria-current=${open ? "page" : undefined}
             onPointerDown=${(event) => onSelect(event, session.id)}
@@ -538,10 +535,10 @@ function SessionRow({
                     </span>`
                 }
                 ${
-                    (unread || marked) &&
+                    marked &&
                     html`<span
                         class="unread-dot"
-                        title=${marked ? "Marked unread" : "New chat messages"}
+                        title="Marked unread"
                     ></span>`
                 }
                 <span class="session-time">${timeAgo(session.updatedAt)}</span>
@@ -1270,8 +1267,7 @@ function AllSessions({ compact = false }) {
     const [onPick] = useState(() => (event, id) => handlers.current.pick(event, id));
     const [onSelect] = useState(() => (event, id) => handlers.current.select(event, id));
     const [onFold] = useState(() => (id) => handlers.current.toggleFold(id));
-    // What every row reads of the store, read once here: rows read none of it themselves (`SessionRow`). Marks, seen
-    // marks, and read times come through `isUnread`, `finishedUnseen`, and `sessionUnread`.
+    // What every row reads of the store, read once here: rows read none of it themselves (`SessionRow`).
     const { conversationId, me, moving } = store.state;
     const collabs = collab();
     // Row buttons that only a hovering pointer shows (`NO_HOVER`): touch screens draw none.
@@ -1304,7 +1300,6 @@ function AllSessions({ compact = false }) {
             open=${open}
             pinned=${isPinned(session.id)}
             marked=${isUnread(session.id)}
-            unread=${collabs && !open && sessionUnread(session)}
             unseen=${finishedUnseen(session)}
             moving=${moving[session.id] !== undefined}
             home=${home}
@@ -1563,7 +1558,7 @@ function AllSessions({ compact = false }) {
 /**
  * The store's keys the session list reads as it draws, itself and through what it calls: `prefs()` (`appearance`),
  * `canSteer()`, `scoped()`, and `collab()` (`me`, `server`), `isPinned` and `workspaceOrder` (`pinned`), `isUnread`
- * (`unread`), `sessionUnread` (`conversationId`, `chatRead`, `chatReads`, `me`), `finishedUnseen` and `sessionMark`
+ * (`unread`), `finishedUnseen` and `sessionMark`
  * (`peekSeen`, and `server` for when this browser started), and extensions' chips, words, filters, and actions
  * (`extensionsRev`). The sheet and the launcher it reads only as keys are pressed.
  */
@@ -1576,8 +1571,6 @@ const LIST_KEYS = [
     "unread",
     "moving",
     "conversationId",
-    "chatRead",
-    "chatReads",
     "peekSeen",
     "appearance",
     "extensionsRev",
@@ -1585,8 +1578,8 @@ const LIST_KEYS = [
 ];
 
 /**
- * Drawn again only when what it reads changes (`LIST_KEYS`): not as an answer streams, nor for the chat, people, or
- * the connection. Back to the list and each reconnect change little of it.
+ * Drawn again only when what it reads changes (`LIST_KEYS`): not as an answer streams or for the connection. Back to
+ * the list and each reconnect change little of it.
  */
 export const SessionList = drawnFor(LIST_KEYS, AllSessions);
 
@@ -1649,7 +1642,7 @@ function RailTiles() {
             >
                 ${index < 9 ? index + 1 : initials(session.title ?? "New session")}
                 ${
-                    ((collab() && sessionUnread(session)) || isUnread(session.id)) &&
+                    isUnread(session.id) &&
                     session.id !== conversationId &&
                     html`<span class="unread-dot"></span>`
                 }
@@ -1659,24 +1652,19 @@ function RailTiles() {
 }
 
 /**
- * The rail beside the session list: Pi (home), the sessions (which fold the sidebar), then the tools (peek tiles, PiP,
- * running now, the subagents board, people, providers, the theme) and you. Folded, it holds the sessions too, numbered.
+ * The rail beside the session list: Pi (home), sessions, PiP, Quick notes, Links, Running now, extensions, providers,
+ * the theme, and your account. Folded, it holds the sessions too, numbered.
  * In the drawer and on a phone's home screen it does not fold, and Pi is a mark.
  */
 function Rail({ foldable = false, folded = false }) {
-    const { sessions, board, me } = store.state;
+    const { sessions, me } = store.state;
     const canStart = canSteer() && !scoped();
     // Counted again only when the session list changes, not on each draw of the rail.
-    const { busy, agents } = useMemo(
-        () => ({
-            // Commands Pi runs in the background are at work too, after its answer ended.
-            busy: sessions.filter((session) => session.busy || session.background > 0).length,
-            agents: subagentTotals(sessions),
-        }),
+    const busy = useMemo(
+        // Commands Pi runs in the background are at work too, after its answer ended.
+        () => sessions.filter((session) => session.busy || session.background > 0).length,
         [sessions],
     );
-    const live = agents.working + agents.waiting;
-    const failed = failing(agents);
     const keys = APPLE ? "⌘B" : "Ctrl+B";
     const fold = () => setPrefs({ sidebar: folded ? "open" : "rail" });
     const role = me?.role === "owner" ? "owner" : me?.role === "viewer" ? "view only" : "guest";
@@ -1736,7 +1724,6 @@ function Rail({ foldable = false, folded = false }) {
             </button>`
         }
         ${folded && html`<${RailTiles} />`}
-        ${foldable && html`<${PeeksRailButton} />`}
         <${PipRailButton} />
         <${QuickNotesButton} />
         ${
@@ -1767,51 +1754,7 @@ function Rail({ foldable = false, folded = false }) {
             <${Icon} name="pulse" size=${19} />
             ${busy > 0 && html`<span class="rail-count">${busy}</span>`}
         </button>
-        <button
-            class=${`rail-button rail-agents ${live > 0 ? "lit" : ""} ${board ? "open" : ""}`}
-            data-part="rail-button"
-            data-state=${railState(board, live > 0)}
-            title="Subagents in every session"
-            aria-label=${[
-                "Subagents",
-                live > 0 && `${live} at work`,
-                agents.waiting > 0 && `${agents.waiting} waiting for approval`,
-                failed > 0 && `${failed} failed`,
-            ]
-                .filter(Boolean)
-                .join(", ")}
-            aria-pressed=${board}
-            onClick=${toggleBoard}
-        >
-            <${Icon} name="fork" size=${19} />
-            ${live > 0 && html`<span class="rail-count">${live}</span>`}
-            ${
-                (failed > 0 || agents.waiting > 0) &&
-                html`<span class="rail-trouble" aria-hidden="true"></span>`
-            }
-        </button>
         <${ExtensionRailButtons} />
-        ${
-            collab()
-                ? html`<button
-                    class="rail-button"
-                    data-part="rail-button"
-                    title=${canStart ? "People and invites" : "People"}
-                    aria-label="People"
-                    onClick=${() => openSheet({ type: "people" })}
-                >
-                    <${Icon} name="users" size=${19} />
-                </button>`
-                : html`<button
-                    class="rail-button"
-                    data-part="rail-button"
-                    title="Sign in another device"
-                    aria-label="Devices"
-                    onClick=${() => openSheet({ type: "invite" })}
-                >
-                    <${Icon} name="users" size=${19} />
-                </button>`
-        }
         ${
             me?.role === "owner" &&
             html`<button
@@ -1847,7 +1790,7 @@ function Rail({ foldable = false, folded = false }) {
 
 /**
  * The store's keys the rail reads as it draws, itself and through its buttons: the session list's for its numbered
- * sessions (`RailTiles`), the board, PiP's (`pip`, `pipOpen`), peek tiles' (`appearance`), and extensions' buttons,
+ * sessions (`RailTiles`), PiP's (`pip`, `pipOpen`), and extensions' buttons,
  * which show their page or panel as open (`page`, `extPanel`, `extensionsRev`).
  */
 const RAIL_KEYS = [
@@ -1857,10 +1800,7 @@ const RAIL_KEYS = [
     "pinned",
     "unread",
     "conversationId",
-    "chatRead",
-    "chatReads",
     "appearance",
-    "board",
     "pip",
     "pipOpen",
     "page",
@@ -1874,11 +1814,11 @@ const RAIL_KEYS = [
 export const RailNav = drawnFor(RAIL_KEYS, Rail);
 
 /** The sidebar's list is this wide at least and at most; the rail beside it stays 56px. */
-const LIST_MIN = 204;
+const LIST_MIN = 184;
 const LIST_MAX = 464;
 
 /** The sidebar's usual width, the rail and its list together: the one a new browser starts with (theme.js). */
-export const SIDEBAR_WIDTH = 312;
+export const SIDEBAR_WIDTH = 240;
 
 /** Drag the sidebar's right edge to resize its list; a double click puts it back to its usual width. */
 export function ResizeHandle() {

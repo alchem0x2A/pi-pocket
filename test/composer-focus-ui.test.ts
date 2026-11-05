@@ -112,7 +112,7 @@ after(async () => {
 // Issue #83, reported by @vitalNohj: Enter after a click on Plan pressed it again, and plan mode went back off.
 test("a click on Plan leaves the focus in the message box", real, async () => {
     await home(VIEWPORTS.desktop);
-    await page.click({ selector: `.sidebar .session-row[data-id="${Number(one)}"] > .session` });
+    await page.navigate(`${base}/s/${Number(one)}`);
     await opened(one);
     await until(boxFocused, "the box");
     await page.click({ selector: ".composer .plan-chip" });
