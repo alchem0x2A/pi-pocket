@@ -2,7 +2,7 @@
  * Restart requests: the agent's request_restart tool asks the owner to restart the server after it changes the server's code,
  * with a button in the app that restarts once no tool call runs. The agent never restarts the server itself.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { PocketHost } from "../host.ts";
 

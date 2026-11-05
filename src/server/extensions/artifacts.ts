@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
     defineExtension,
     defineTool,

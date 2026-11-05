@@ -1,5 +1,5 @@
 /** Agent Teams lets the agent start linked sessions, each an ordinary session of its own, and send them tasks, questions, and findings. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 // At run time this module uses nothing of Pia's but the host and web, and a pure helper that formats model facts.
 import type { ExtensionWeb, PocketHost } from "../host.ts";

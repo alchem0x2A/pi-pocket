@@ -421,6 +421,23 @@ function greyPng(width: number, height: number): Buffer {
     ]);
 }
 
+/** A JPEG's height, from its first start-of-frame marker. */
+function jpegHeight(data: Buffer): number {
+    let at = 2;
+
+    while (at + 9 < data.length) {
+        const marker = data[at + 1]!;
+
+        if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+            return data.readUInt16BE(at + 5);
+        }
+
+        at += 2 + data.readUInt16BE(at + 2);
+    }
+
+    throw new Error("No JPEG frame header");
+}
+
 test("a big pasted image goes to the model at most 2000 pixels a side", async () => {
     const id = await newSession();
 
@@ -438,8 +455,9 @@ test("a big pasted image goes to the model at most 2000 pixels a side", async ()
     const user = entries.items.find((entry) => entry.kind === "pi.user")!;
     const image = (await app.transcripts.entryImage(id, user.id as unknown as number, 0))!;
 
-    assert.equal(image.mimeType, "image/png");
-    assert.equal(image.data.readUInt32BE(20), 2000, "its height, from the PNG header");
+    // Pi 1.5 keeps the smaller of PNG and JPEG when it resizes: a flat grey image is a JPEG.
+    assert.equal(image.mimeType, "image/jpeg");
+    assert.equal(jpegHeight(image.data), 2000, "its height, from the JPEG frame header");
 });
 
 test("long polling delivers the stream's events, resends until acknowledged, and waits for new ones", async () => {

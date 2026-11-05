@@ -20,7 +20,7 @@ import {
     writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineTool, type ToolRegistration } from "@earendil-works/pi-durable";
 
 /** The file's path, in the session's working directory. */

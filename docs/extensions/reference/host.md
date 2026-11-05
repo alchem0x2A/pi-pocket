@@ -688,5 +688,6 @@ The host has more members, for Pia's built-in modules only. They are not in the 
 - `repoWatches`: the task of repository watches, for the triggers module.
 - `pia`: what the tools of Pia, the owner's assistant, do.
 - `piaCompaction`: Pia's own summaries when its context is compacted.
+- `history`: a conversation’s committed history as hooks read it (`entry`, `entries`).
 - `gallery`: the extension gallery, for its own routes.
 - `updates`: updates of Pia itself, for the Updates module's routes. Its status says how the copy was installed (`installKind`: `git`, `npm-global`, `npm-local`, `npx`, or `unknown`) and what stands in the way of an update from the app.

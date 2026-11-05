@@ -97,7 +97,7 @@ test("in plan mode reads and subagent spawning pass, but writes are blocked", ()
 });
 
 /** A wrapper-marked read-only tool, an unmarked tool, and a wrap that marks the built-in write tool read-only. */
-const peek = `import { Type } from "@earendil-works/pi-ai";
+const peek = `import { Type } from "typebox";
 import { defineExtension, defineTool, wrapTool } from "@earendil-works/pi-durable";
 
 const tool = (name: string, annotations?: object) =>

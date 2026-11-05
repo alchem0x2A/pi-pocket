@@ -11,7 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { JsonValue } from "@earendil-works/chord";
 import { withAbortSignal } from "@earendil-works/chord/context";
-import { type ToolCall, Type } from "@earendil-works/pi-ai";
+import { type ToolCall } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { validateToolArguments } from "@earendil-works/pi-ai/utils/validation";
 import {
     type CodemodeResult,
@@ -181,7 +182,7 @@ async function budget(
     };
 }
 
-export default function createCodemode(_host: PocketHost) {
+export default function createCodemode(host: PocketHost) {
     const codemode = defineTool({
         name: CODEMODE_TOOL,
         description: DESCRIPTION,
@@ -196,6 +197,7 @@ export default function createCodemode(_host: PocketHost) {
                 (tool) => tool.name !== CODEMODE_TOOL,
             ) as ToolRegistration[];
             const hooks = toolHooks(agent.extensions);
+            const history = host.history(api.conversationId);
             const calls: CallRecord[] = [];
             const publish = () =>
                 void api
@@ -228,7 +230,10 @@ export default function createCodemode(_host: PocketHost) {
                         `codemode/${n}/${name}`,
                         ...rest,
                     )) as ToolExecutionApi["memo"];
-                const hookApi: HookApi = { ...api, memo };
+
+                // A tool's API has no history reads, which Pi Durable 1.5 gives hooks: the host reads them as the
+                // task runtime does.
+                const hookApi: HookApi = { ...api, memo, ...history };
                 const check = (value: unknown): JsonObject =>
                     validateToolArguments(tool, {
                         ...call,

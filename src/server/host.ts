@@ -6,6 +6,7 @@ import type {
     ConversationId,
     DocumentReader,
     Extension,
+    HookApi,
     ModelRef,
     TaskId,
     Tx,
@@ -495,6 +496,11 @@ export interface PocketHost {
     };
     /** Session compactions: a selected review model can write their summaries without changing the session model. */
     readonly compactionReview: Pick<CompactionReview, "summarize" | "failure">;
+    /**
+     * A conversation's committed history, as a hook reads it (`HookApi.entry` and `entries`): codemode gives these to
+     * the hooks it runs for a script's calls, since a tool's API has no history reads.
+     */
+    readonly history: (conversationId: ConversationId) => Pick<HookApi, "entry" | "entries">;
     /** Sessions' watches of their pull requests: the agent's watch_pr tool starts and stops them. */
     readonly watches: Pick<Watches, "task" | "start" | "stop" | "get">;
     /** Repository watches: the triggers extension runs their task; Pia's repo_watch tool sets them up. */

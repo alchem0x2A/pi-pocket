@@ -20,7 +20,7 @@ const dropIns = join(dataDir, "extensions");
 const INDEX = "https://raw.githubusercontent.com/TannerMidd/pi-pocket-extensions/HEAD/index.json";
 
 const clock = `/** A clock tool, for the gallery's tests. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 
 export default () => defineExtension({

@@ -8,6 +8,7 @@
  */
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { Context, JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { clampThinkingLevel, type ModelThinkingLevel } from "@earendil-works/pi-ai";
 import {
@@ -28,12 +29,16 @@ import {
     createRegistry,
     defineExtension,
     type DocumentCommitChange,
+    type Entry,
+    type EntryId,
+    type HookApi,
     hook,
     ToolTask,
     Harness,
     type HarnessSettings,
     LiveDoc,
     type LiveState,
+    type RunFailureReason,
     ProviderDoc,
     type RegistryReader,
     type Storage,
@@ -180,10 +185,20 @@ const MAX_SUBAGENT_MODELS = 50;
  */
 export const MAX_PEEKS = 20;
 /**
- * How a run that failed leaves its messages: the model or its provider answered with an error, no model was there to
- * ask, or the run broke. Stopped (`aborted`), cleared (`reset`), and replaced (`stale`) runs did not fail.
+ * How a run that failed leaves its messages (Pi Durable's `RunFailureReason`): the model or its provider answered with
+ * an error, no model was there to ask, the run broke, could not run (`orphaned`), was cut off by restarts
+ * (`interrupted`, `restart_limit`), or used up its tool rounds (`turn_limit`). Stopped (`aborted`), cleared (`reset`),
+ * and replaced (`stale`) runs did not fail, and `nothing_to_answer` had nothing to do.
  */
-const FAILED_RUN = new Set(["model_error", "no_model", "faulted"]);
+const FAILED_RUN = new Set<string>([
+    "model_error",
+    "no_model",
+    "faulted",
+    "orphaned",
+    "interrupted",
+    "restart_limit",
+    "turn_limit",
+] satisfies RunFailureReason[]);
 
 /** A conversation's subagents document, as far as the app reads it. */
 type SubagentsValue = {
@@ -822,6 +837,7 @@ export class PocketApp {
                 read: this.inbox.readAsAgent.bind(this.inbox),
             },
             compactionReview: this.compactionReview,
+            history: (conversationId) => this.history(conversationId),
             watches: this.watches,
             repoWatches: this.repoWatches,
             memory: this.memory,
@@ -898,7 +914,7 @@ export class PocketApp {
                     await tx.doc(ArtifactsDoc, conversation.id);
                     await tx.doc(SubagentsDoc, conversation.id);
                 },
-                onReport: (error) => this.notice("warning", describe(error)),
+                onReport: (report) => this.notice("warning", describe(report.error)),
             },
             context,
         );
@@ -908,9 +924,12 @@ export class PocketApp {
 
         await this.spend.load(conversations);
 
-        this.#unsubscribeCommits = this.harness.subscribeCommits((publication) =>
-            this.#committed(publication),
-        );
+        const commits = this.harness.observeCommits({
+            advance: (publication) => this.#committed(publication),
+            end: () => {},
+        });
+
+        this.#unsubscribeCommits = () => commits.detach();
         this.#unsubscribeApprovals = this.approvals.subscribe((id) => {
             void this.#rooms.get(id)?.then(
                 (room) => room.schedule(),
@@ -1011,6 +1030,41 @@ export class PocketApp {
         return conversations;
     }
 
+    /**
+     * A conversation's committed history, as Pi Durable's task runtime gives it to hooks. The public Harness has no read
+     * of one entry, so `entry` reads the one-entry range at its id from `Conversation.entries()`: fork-aware, so only an
+     * entry visible from the conversation, and of the token's kind when one is given.
+     */
+    history(conversationId: ConversationId): Pick<HookApi, "entry" | "entries"> {
+        const conversation = async (readContext: Context) => {
+            const found = await this.harness.conversation(conversationId, readContext);
+
+            if (found === undefined) {
+                throw new Error(`Conversation ${String(conversationId)} does not exist`);
+            }
+
+            return found;
+        };
+
+        const entry = (async (...args: unknown[]) => {
+            const [token, id, readContext] = (
+                args.length === 2 ? [undefined, args[0], args[1]] : args
+            ) as [Entry<JsonValue> | undefined, EntryId, Context];
+            const page = await (
+                await conversation(readContext)
+            ).entries({ minEntryId: id, maxEntryId: id }, 1, undefined, readContext);
+            const found = page.items[0];
+
+            return token === undefined || found?.kind === token.kind ? found : undefined;
+        }) as HookApi["entry"];
+
+        return {
+            entry,
+            entries: async (query, limit, cursor, readContext) =>
+                (await conversation(readContext)).entries(query, limit, cursor, readContext),
+        };
+    }
+
     /** Every commit, as Pi Durable publishes it: what the app keeps in memory follows it, and so do the open views. */
     #committed(publication: CommitPublication): void {
         let sessionsChanged = false;
@@ -1022,7 +1076,7 @@ export class PocketApp {
             if (
                 change.type === "document" &&
                 change.record.kind === SpendDoc.definition.kind &&
-                change.value !== null
+                change.kind === "change"
             ) {
                 this.spend.countedChanged(change.value as { people: Record<string, number> });
                 alreadyPaid = true;
@@ -1039,7 +1093,7 @@ export class PocketApp {
             ) {
                 this.spend.usageChanged(
                     change.conversationId,
-                    change.value as UsageState | null,
+                    (change.kind === "change" ? change.value : null) as UsageState | null,
                     alreadyPaid,
                 );
 
@@ -1119,24 +1173,23 @@ export class PocketApp {
     #documentCommitted(change: Extract<DocumentCommitChange, { type: "document" }>): boolean {
         const kind = change.record.kind;
         const id = change.conversationId;
+        // A retirement has no value: the views read it as a document that is gone.
+        const value = change.kind === "change" ? change.value : null;
         let sessionsChanged = false;
 
         if (
             kind === BackgroundDoc.definition.kind &&
             id !== undefined &&
-            this.#noteBackground(
-                id,
-                change.value as { items: Record<string, BackgroundTask> } | null,
-            )
+            this.#noteBackground(id, value as { items: Record<string, BackgroundTask> } | null)
         ) {
             sessionsChanged = true;
         }
 
         if (kind === "pi.live" && id !== undefined) {
-            const busy = (change.value as LiveState | null)?.run !== undefined;
+            const busy = (value as LiveState | null)?.run !== undefined;
 
             // A compaction asks the model too (an idle session's manual one has no run): it may wait for a limit.
-            if (((change.value as LiveState | null)?.compactions?.length ?? 0) > 0) {
+            if (((value as LiveState | null)?.compactions?.length ?? 0) > 0) {
                 this.#compacting.add(id);
             } else {
                 this.#compacting.delete(id);
@@ -1192,8 +1245,8 @@ export class PocketApp {
                 }
             }
         } else if (kind === "pi.agent" && id !== undefined) {
-            if (change.value !== null) {
-                this.#agents.set(id, change.value as AgentState);
+            if (value !== null) {
+                this.#agents.set(id, value as AgentState);
             }
 
             sessionsChanged = true;
@@ -1201,7 +1254,7 @@ export class PocketApp {
             const before = this.#sessions;
 
             this.#sessions = {
-                ...((change.value as { items?: Record<string, SessionMeta> } | null)?.items ?? {}),
+                ...((value as { items?: Record<string, SessionMeta> } | null)?.items ?? {}),
             };
             sessionsChanged = true;
             this.#sessionEvents(before, this.#sessions);
@@ -1214,29 +1267,22 @@ export class PocketApp {
                 );
             }
         } else if (kind === FolderFavoritesDoc.definition.kind) {
-            this.folderFavorites.committed(
-                change.value as { users: Record<string, string[]> } | null,
-            );
+            this.folderFavorites.committed(value as { users: Record<string, string[]> } | null);
         } else if (kind === MemoryDoc.definition.kind) {
             this.memory.committed();
         } else if (ROOM_DOCS.has(kind) && id !== undefined) {
             if (kind === ChatDoc.definition.kind) {
-                if (
-                    this.#noteChat(
-                        id,
-                        (change.value as { messages?: ChatMessage[] } | null)?.messages,
-                    )
-                ) {
+                if (this.#noteChat(id, (value as { messages?: ChatMessage[] } | null)?.messages)) {
                     sessionsChanged = true;
                 }
             } else if (kind === SubagentsDoc.definition.kind) {
-                this.#noteSubagents(id, change.value as SubagentsValue | null);
+                this.#noteSubagents(id, value as SubagentsValue | null);
                 // The list counts each session's subagents, and the board lists them.
                 sessionsChanged = true;
             }
 
             void this.#rooms.get(id)?.then(
-                (room) => room.setDoc(kind, change.value as Record<string, unknown> | null),
+                (room) => room.setDoc(kind, value as Record<string, unknown> | null),
                 () => {},
             );
 
@@ -1245,7 +1291,7 @@ export class PocketApp {
                     void pending.then(
                         (room) => {
                             if (room.id !== id && this.rootOf(room.id) === id) {
-                                room.setDoc(kind, change.value as Record<string, unknown> | null);
+                                room.setDoc(kind, value as Record<string, unknown> | null);
                             }
                         },
                         () => {},

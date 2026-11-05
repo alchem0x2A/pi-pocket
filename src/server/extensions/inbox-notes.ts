@@ -2,7 +2,7 @@
  * Inbox notes let any session leave a tagged note for the owner's Pia, and read the notes under a tag, such as Pia's answer. A tagged note is data
  * that starts no work, and stays out of the owner's Quick notes panel.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import type { PocketHost } from "../host.ts";
 

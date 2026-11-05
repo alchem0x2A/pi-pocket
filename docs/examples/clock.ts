@@ -2,7 +2,7 @@
  * A clock tool, and a /clock-zone command that sets the time zone it uses in a session. An example drop-in extension:
  * copy it into `~/.pi-pocket/extensions/`, then turn it on in Menu → Extensions.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineDoc, defineExtension, defineTool } from "@earendil-works/pi-durable";
 // A type import is gone when the module runs. In the drop-in folder, import the types from "./_pocket.d.ts".
 import type { Web } from "../../types/pocket.d.ts";

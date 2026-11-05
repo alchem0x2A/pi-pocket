@@ -2,7 +2,7 @@
  * Memory gives the agent a library of notes that last across sessions, for a project or for everywhere: it searches and
  * reads them when it chooses, keeps the ones it read through a compaction, and proposes new ones that the owner approves.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import type { Message } from "@earendil-works/pi-ai";
 import {
     defineExtension,

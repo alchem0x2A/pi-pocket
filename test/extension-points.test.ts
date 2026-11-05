@@ -85,7 +85,7 @@ before(async () => {
     writeFileSync(
         join(dataDir, "extensions", "points.ts"),
         `/** Points: uses host.ask, host.hide, host.commandEnv, and host.browser, for tests. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, hook, ToolTask } from "@earendil-works/pi-durable";
 
 export const pocketApi = 2;

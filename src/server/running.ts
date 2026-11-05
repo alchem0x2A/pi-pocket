@@ -35,14 +35,14 @@ export type RunningSession = {
     tasks: RunningTask[];
 };
 
-/** The live tasks, as one read of the task graph. */
+/** The live tasks, as one read of the task graph: a watch's first value, and the watch stopped. */
 async function liveTasks(app: PocketApp): Promise<TaskGraphNode[]> {
-    const graph = await app.harness.taskGraph(context);
+    const graph = await app.harness.watchTaskGraph(context);
 
     try {
         return Object.values(graph.value.tasks);
     } finally {
-        graph.dispose();
+        await graph.stop();
     }
 }
 

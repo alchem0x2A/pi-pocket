@@ -2,13 +2,13 @@
  * One conversation's shared live view: the committed Pi Durable view plus Pia's own documents, projected into
  * small updates for every browser tab attached to it, and who is here and typing (memory only).
  */
-import type { AttachedReplicatedState } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type {
     AgentState,
     Conversation,
     ConversationId,
     ConversationView,
+    ConversationWatch,
     EntryRecord,
     InboxItem,
     InboxState,
@@ -312,8 +312,12 @@ export class Room {
     readonly #peekSent = new WeakMap<Client, string>();
     #peekTimer: NodeJS.Timeout | undefined;
     readonly #app: PocketApp;
-    #view: AttachedReplicatedState<ConversationView> | undefined;
-    #unsubscribe: (() => void) | undefined;
+    /**
+     * The view with its whole active context in `entries`, as the transcript needs it. Pi Durable's view watch holds a
+     * window of the newest 50 to 100 entries of the fork-aware history, so `#watchView` keeps the active entries itself.
+     */
+    #view: { value: ConversationView } | undefined;
+    #watch: ConversationWatch | undefined;
     #timer: NodeJS.Timeout | undefined;
     #closeTimer: NodeJS.Timeout | undefined;
     #headTimer: NodeJS.Timeout | undefined;
@@ -352,8 +356,7 @@ export class Room {
     }
 
     async open(conversation: Conversation): Promise<void> {
-        this.#view = await conversation.viewState(context);
-        this.#unsubscribe = this.#view.subscribe(() => this.schedule());
+        await this.#watchView(conversation);
         const harness = this.#app.harness;
 
         this.authors = {
@@ -379,7 +382,7 @@ export class Room {
         this.notes = {
             ...((await harness.snapshot(NotesDoc, this.id, context)) ?? { text: "", rev: 0 }),
         };
-        const owner = this.#view.value.conversation.owner;
+        const owner = this.#view!.value.conversation.owner;
         // Take turns belongs to the session: a subagent's view shows (and follows) its session's.
         const root = owner === undefined ? this.id : this.#app.rootOf(owner.conversationId);
 
@@ -420,6 +423,74 @@ export class Room {
             }
         }, HEAD_MS);
         this.#headTimer.unref();
+    }
+
+    /**
+     * Watch the conversation's view, keeping its whole active context: the context once (`Conversation.context()`), then
+     * each entry the watch adds, a head marker (a compaction, a reset, a handoff) cutting the entries before its head
+     * as the context does. When the window moved past entries not seen yet (a folded burst), read the context again.
+     */
+    async #watchView(conversation: Conversation): Promise<void> {
+        const watch = await conversation.watch(context);
+        let entries: readonly EntryRecord[] = [];
+        let newest = -1;
+
+        const reload = async () => {
+            entries = (await conversation.context(context)).entries;
+            newest = entries.reduce((max, entry) => Math.max(max, entry.id), -1);
+        };
+
+        const take = (view: ConversationView) => {
+            for (const entry of view.entries) {
+                if (entry.id <= newest) {
+                    continue;
+                }
+
+                if (entry.head === undefined) {
+                    entries = [...entries, entry];
+                } else {
+                    // A head marker keeps the non-head entries from its head, which are always a suffix, and goes first.
+                    const head = entry.head;
+                    let kept = entries.findIndex(
+                        (candidate) => candidate.head === undefined && candidate.id >= head,
+                    );
+
+                    if (kept < 0) {
+                        kept = entries.length;
+                    }
+
+                    entries = [entry, ...entries.slice(kept)];
+                }
+
+                newest = entry.id;
+            }
+
+            this.#view = { value: { ...view, entries } };
+        };
+
+        try {
+            // The watch first, so nothing committed between the two reads is lost: what both have is taken once.
+            await reload();
+            take(watch.value);
+        } catch (error) {
+            await watch.stop();
+
+            throw error;
+        }
+
+        this.#watch = watch;
+        watch.start(async (call) => {
+            if (call.kind !== "value") {
+                return;
+            }
+
+            if (call.value.before !== undefined && call.value.before > newest) {
+                await reload();
+            }
+
+            take(call.value);
+            this.schedule();
+        });
     }
 
     setDoc(kind: string, value: Record<string, unknown> | null): void {
@@ -1123,8 +1194,8 @@ export class Room {
         }
 
         this.#typing.clear();
-        this.#unsubscribe?.();
-        this.#view?.dispose();
+        void this.#watch?.stop();
+        this.#watch = undefined;
         this.#view = undefined;
         this.#projected.clear();
         this.#queued.clear();

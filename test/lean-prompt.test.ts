@@ -11,10 +11,10 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Context } from "@earendil-works/pi-ai";
+import type { Context } from "typebox";
 import { fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { defineExtension, defineTool, type ToolRegistration } from "@earendil-works/pi-durable";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import type { App } from "./helpers.ts";
 
 process.env.PI_POCKET_TOOL_DISCOVERY = "on";

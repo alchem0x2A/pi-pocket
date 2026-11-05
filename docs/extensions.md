@@ -67,7 +67,7 @@ A module is one `.ts` file with a default export: a function. Pia calls it with 
  * A clock tool: the date and time now, in any time zone. The first sentence of this comment is the module's
  * description in the Extensions sheet.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 
 const clock = defineTool({

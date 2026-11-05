@@ -64,6 +64,7 @@ type Internal =
     | "pia"
     | "pip"
     | "compactionReview"
+    | "history"
     | "gallery"
     | "updates"
     | "restarts"

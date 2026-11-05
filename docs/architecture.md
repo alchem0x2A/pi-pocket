@@ -9,7 +9,14 @@ Pi Durable owns the lasting state of conversations: conversations, entries, task
 - At startup, `#recover` reads each conversation's run, agent, chat, subagents, and who the agent works for in it.
 - After that, every commit goes through `#committed`, which keeps the memory up to date.
 
-Pi Durable 1.4.0 migrates SQLite storage to schema version 2 when it opens. Older Durable versions cannot open that database. Back up the complete data folder with the server stopped before upgrading to Pia 0.21.0.
+Pi Durable 1.4.0 migrates SQLite storage to schema version 2 when it opens. Older Durable versions cannot open that database. Back up the complete data folder with the server stopped before upgrading to Pia 0.21.0. Pi Durable 1.5.0 keeps that SQLite schema, but writes the `pi.live` document at version 3 (`trigger` in place of `reason` in compactions, and `turns` in a run), and `pi.tool` at version 3 and `pi.generation` at version 2. Pi Durable 1.4 cannot read these, so a server rolled back to 1.4.0 after 1.5.0 wrote to a conversation leaves its tasks blocked. Back up the data folder before the upgrade.
+
+Pi Durable 1.5.0 changed what Pia reads from it:
+
+- **Commits.** `#committed` observes stored commits (`observeCommits`). A document change is tagged: `kind: "change"` with its value, or `kind: "retire"`, which the views read as a document that is gone. Partial answers and tool output are deferred commits, so observers see them only when they are stored (at the end of the answer, a tool's result, or within 1 s). The room's view gets them at once through its watch.
+- **The room's view.** `Conversation.watch()` gives a window of the newest 50 to 100 entries of the fork-aware history, not the active context. `Room` (`#watchView` in `room.ts`) keeps the whole active context, as the view did before: the context once from `Conversation.context()`, then each entry the watch adds, a head marker cutting the entries before its head. When a burst moves the window past entries it has not seen (`before` past the newest held), it reads the context again.
+- **Failed runs.** `FAILED_RUN` in `app.ts` counts the new `RunFailureReason` values `orphaned`, `interrupted`, `restart_limit`, and `turn_limit` as failures; `nothing_to_answer` is not.
+- **Watches.** Listeners get a tagged call (`{ kind: "value", value }`). `taskGraph()` is gone: a read of the task graph takes the first value of `watchTaskGraph()` and stops the watch. `HookApi` gained `entry` and `entries`; a tool's API has neither, so codemode gives the hooks of a script's calls `host.history`, which reads them through `Conversation.entries()`.
 
 Scheduled messages, PR watches, repository watches, and Pia reports held while Pia is off use durable `sleepUntil()` checkpoints. A sleeping task holds no invocation and resumes at its saved phase when the harness clock reaches its deadline. The task graph includes these tasks with status `sleeping`.
 

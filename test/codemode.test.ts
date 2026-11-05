@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
     defineExtension,
     defineTool,
@@ -80,7 +80,19 @@ function fakeApi(tools: ToolRegistration[], extensions: ReturnType<typeof define
     };
 }
 
-const host = { approvals: new Approvals(() => undefined) } as unknown as PocketHost;
+/** The conversations whose history a hook asked the host for, and one entry it gives back. */
+const historyAsked: number[] = [];
+const host = {
+    approvals: new Approvals(() => undefined),
+    history: (conversationId: number) => {
+        historyAsked.push(conversationId);
+
+        return {
+            entry: async () => ({ id: 7, conversationId, kind: "pi.user" }),
+            entries: async () => ({ items: [] }),
+        };
+    },
+} as unknown as PocketHost;
 const codemodeTool = createCodemode(host).tools![0]!;
 
 const run = async (fake: Fake, code: string) => {
@@ -208,4 +220,25 @@ test("with Lancet Guard asking, each nested call waits for its own answer, even 
         second!,
         /^Tool call blocked: Sam denied this bash call after Lancet Guard asked \(risky\)/,
     );
+});
+
+test("hooks of a script's calls read the conversation's history through the host", async () => {
+    let seen: unknown;
+    const reader = defineExtension({
+        name: "reader",
+        hooks: [
+            hook(ToolTask, {
+                beforeTool: async (_call, api, hookContext) => {
+                    seen = await api.entry(7 as never, hookContext);
+
+                    return undefined;
+                },
+            }),
+        ],
+    });
+    const result = await run(fakeApi([echo], [reader]), `return await tools.echo({ text: "x" });`);
+
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(historyAsked.at(-1), 3, "the script's own conversation");
+    assert.deepEqual(seen, { id: 7, conversationId: 3, kind: "pi.user" });
 });

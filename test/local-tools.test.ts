@@ -24,7 +24,7 @@ import {
     defineTool,
     section,
 } from "@earendil-works/pi-durable";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { hasRipgrep, localToolRegistry } from "../src/server/local-tools.ts";
 
 process.env.PI_POCKET_TOOL_DISCOVERY = "on";
@@ -178,7 +178,7 @@ test("hot-loaded tools can supply local shortDescription metadata with a safe fa
     writeFileSync(
         path,
         `/** Test catalog metadata. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 export const pocketApi = 2;
 const make = (name, shortDescription, callers = ["model", "tools"]) => Object.assign(defineTool({
