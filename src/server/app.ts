@@ -810,8 +810,13 @@ export class PocketApp {
                 inbox: {
                     forAssistant: this.inbox.forAssistant.bind(this.inbox),
                     pendingCountForAssistant: this.inbox.pendingCountForAssistant.bind(this.inbox),
+                    taggedCountsForAssistant: this.inbox.taggedCountsForAssistant.bind(this.inbox),
                 },
             }),
+            inboxNotes: {
+                post: this.inbox.postAsAgent.bind(this.inbox),
+                read: this.inbox.readAsAgent.bind(this.inbox),
+            },
             pipCompaction: this.pipCompaction,
             compactionReview: this.compactionReview,
             watches: this.watches,

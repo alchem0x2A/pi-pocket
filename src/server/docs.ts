@@ -76,6 +76,10 @@ export type InboxNote = {
     state: "synced" | "archived";
     archivedAt?: number;
     conversationId?: number;
+    /** An agent's note: its tag. Tagged notes stay out of the owner's panel and out of Pia's plain count. */
+    tag?: string;
+    /** Who wrote a tagged note: a session's title, or Pia. */
+    from?: string;
 };
 
 /**

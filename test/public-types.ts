@@ -75,7 +75,8 @@ type Internal =
     | "background"
     | "goals"
     | "browsers"
-    | "memory";
+    | "memory"
+    | "inboxNotes";
 
 type PublicHost = Pick<PocketHost, keyof Host>;
 

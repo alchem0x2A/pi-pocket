@@ -17,6 +17,7 @@ import type { Goals } from "./goals.ts";
 import type { LancetGuard } from "./lancet.ts";
 import type { Memory } from "./memory.ts";
 import type { OwnerInbox } from "./inbox.ts";
+import type { InboxNote } from "./docs.ts";
 import type { Pip } from "./pip.ts";
 import type { PipCompaction } from "./pip-compact.ts";
 import type { CompactionReview } from "./compaction-review.ts";
@@ -476,7 +477,15 @@ export interface PocketHost {
     > & {
         /** Internal Pia-only inbox capability. Absent until a server with inbox support starts. */
         inbox?: Pick<OwnerInbox, "forAssistant"> &
-            Partial<Pick<OwnerInbox, "pendingCountForAssistant">>;
+            Partial<Pick<OwnerInbox, "pendingCountForAssistant" | "taggedCountsForAssistant">>;
+    };
+    /** Tagged inbox notes that any session working for the owner can post and read (`extensions/inbox-notes.ts`). */
+    readonly inboxNotes: {
+        read: OwnerInbox["readAsAgent"];
+        post(
+            source: ConversationId,
+            request: { tag?: unknown; text?: unknown },
+        ): Promise<InboxNote>;
     };
     /** PiP's compactions: its extension's hook has PiP write its own summaries. */
     readonly pipCompaction: Pick<PipCompaction, "summarize">;

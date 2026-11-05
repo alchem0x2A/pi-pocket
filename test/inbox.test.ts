@@ -476,3 +476,57 @@ test("the inbox tool is Pia-only, rechecks its private source, and fences note t
     await app.setAssistantProfile(me, "classic");
     await assert.rejects(app.inbox.forAssistant(pip, { action: "list" }), { status: 403 });
 });
+
+test("agents post tagged notes that stay out of the owner's list and Pia's plain count, and read answers by tag", async () => {
+    const me = owner(app);
+    const plain = await app.inbox.capture(me, { id: "plain-note", text: "an idea" });
+    const session = await newSession(app, work);
+
+    // A session that works for the owner may post; an unknown tag shape is refused.
+    await say(app, session, "hello");
+    await assert.rejects(app.inbox.postAsAgent(session, { tag: "Bad Tag", text: "x" }), {
+        status: 400,
+    });
+    await assert.rejects(app.inbox.postAsAgent(session, { tag: "model-help", text: " " }), {
+        status: 400,
+    });
+    const posted = await app.inbox.postAsAgent(session, {
+        tag: "model-help",
+        text: "luna hit its limit",
+    });
+
+    assert.equal(posted.tag, "model-help");
+    assert.ok(posted.from !== undefined);
+
+    // The owner's panel and plain list never show it; asking for the tag does.
+    const listed = (await app.inbox.list(me)).map((note) => note.id);
+
+    assert.ok(listed.includes(plain.id));
+    assert.ok(!listed.includes(posted.id));
+    assert.deepEqual(
+        (await app.inbox.list(me, false, "model-help")).map((note) => note.id),
+        [posted.id],
+    );
+
+    // Pia sees a count per tag, never text, and answers under the tag.
+    const pip = await app.pip.ensure(me);
+
+    await app.setAssistantProfile(me, "pia");
+    await app.pip.ensure(me);
+    await say(app, pip, "Hello");
+    assert.deepEqual(await app.inbox.taggedCountsForAssistant(pip), { "model-help": 1 });
+    assert.equal(await app.inbox.pendingCountForAssistant(pip), listed.length);
+    const answer = await app.inbox.forAssistant(pip, {
+        action: "post",
+        tag: "model-help",
+        text: "switch to codex luna",
+    });
+
+    assert.equal(answer[0]?.from, "Pia");
+    assert.deepEqual(
+        (await app.inbox.readAsAgent(session, "model-help")).map((note) => note.text),
+        ["luna hit its limit", "switch to codex luna"],
+    );
+    assert.deepEqual(await app.inbox.readAsAgent(session, "other"), []);
+    await app.setAssistantProfile(me, "classic");
+});
