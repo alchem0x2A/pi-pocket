@@ -454,6 +454,13 @@ function actionItems() {
                 run: () => openSheet({ type: "hooks" }),
             },
         me?.role === "owner" && {
+            label: "Links",
+            detail: "local network and tailnet services",
+            keywords: "ports web apps",
+            icon: "port",
+            run: () => openSheet({ type: "links" }),
+        },
+        me?.role === "owner" && {
             label: "Providers",
             detail: "sign in to model providers",
             icon: "key",

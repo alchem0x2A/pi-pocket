@@ -21,6 +21,7 @@ import {
     actions,
     canSteer,
     collab,
+    closeSheet,
     navigate,
     notify,
     isUnread,
@@ -1738,6 +1739,23 @@ function Rail({ foldable = false, folded = false }) {
         ${foldable && html`<${PeeksRailButton} />`}
         <${PipRailButton} />
         <${QuickNotesButton} />
+        ${
+            me?.role === "owner" &&
+            html`<button
+                class=${`rail-button ${store.state.sheet?.type === "links" ? "on" : ""}`}
+                data-part="rail-button"
+                data-state=${railState(store.state.sheet?.type === "links")}
+                title="Links to local and tailnet services"
+                aria-label="Links"
+                aria-expanded=${store.state.sheet?.type === "links"}
+                onClick=${() =>
+                    store.state.sheet?.type === "links"
+                        ? closeSheet()
+                        : openSheet({ type: "links" })}
+            >
+                <${Icon} name="port" size=${19} />
+            </button>`
+        }
         <button
             class=${`rail-button rail-running ${busy > 0 ? "lit" : ""}`}
             data-part="rail-button"
@@ -1849,6 +1867,7 @@ const RAIL_KEYS = [
     "extPanel",
     "extensionsRev",
     "foldedLinked",
+    "sheet",
 ];
 
 /** Drawn again only when what it reads changes (`RAIL_KEYS`): not as an answer streams. */

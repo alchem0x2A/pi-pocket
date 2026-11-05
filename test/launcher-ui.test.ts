@@ -153,6 +153,117 @@ after(async () => {
     cleanUp();
 });
 
+test("Links opens local-network and tailnet service tiles", real, async () => {
+    await home(VIEWPORTS.desktop);
+    await page.evaluate(`
+        localStorage.removeItem("pi-pocket.links.hiddenPorts");
+        const original = window.fetch.bind(window);
+        const services = [{
+            port: 1234,
+            title: "Inference Engine",
+            links: [
+                {
+                    network: "tailnet",
+                    host: "service.example.ts.net",
+                    url: "https://service.example.ts.net:1234/",
+                    secure: true,
+                },
+                { network: "tailnet", host: "100.64.0.10", url: "http://100.64.0.10:1234/" },
+                { network: "local", host: "192.0.2.10", url: "http://192.0.2.10:1234/" },
+                { network: "server", host: "localhost", url: "http://localhost:1234/" },
+            ],
+        }];
+
+        window.fetch = (input, options) =>
+            (typeof input === "string" ? input : input.url) === "/api/links"
+                ? Promise.resolve(new Response(JSON.stringify({ services }), {
+                    headers: { "content-type": "application/json" },
+                }))
+                : original(input, options);
+    `);
+    await page.click({ selector: '.rail [aria-label="Links"]' });
+    await see(
+        `return JSON.stringify(document.querySelector(".links-card-title")?.textContent === "Inference Engine")`,
+        "the service tile",
+    );
+
+    const links = await inPage<{ label: string; href: string; target: string }[]>(`
+        return JSON.stringify([...document.querySelectorAll(".links-open:not(.server)")].map((link) => ({
+            label: link.textContent.trim(),
+            href: link.href,
+            target: link.target,
+        })))
+    `);
+
+    assert.deepEqual(links, [
+        {
+            label: "Tailnet HTTPS",
+            href: "https://service.example.ts.net:1234/",
+            target: "_blank",
+        },
+        { label: "Tailnet HTTP", href: "http://100.64.0.10:1234/", target: "_blank" },
+        { label: "Local network", href: "http://192.0.2.10:1234/", target: "_blank" },
+    ]);
+    assert.equal(
+        await inPage<boolean>(
+            `return JSON.stringify(document.querySelector(".links-open.server").disabled)`,
+        ),
+        true,
+        "server-local pages need a session browser",
+    );
+    await page.evaluate(`document.querySelector(".links-hide").click()`);
+    await see(
+        `return JSON.stringify(document.querySelector(".links-card") === null)`,
+        "the hidden service tile",
+    );
+    assert.equal(
+        await inPage<string>(
+            `return JSON.stringify(localStorage.getItem("pi-pocket.links.hiddenPorts"))`,
+        ),
+        "[1234]",
+        "the hidden port is saved as JSON",
+    );
+
+    await page.press("Escape");
+    await see(
+        `return JSON.stringify(document.querySelector(".links-sheet") === null)`,
+        "Links closed",
+    );
+    await page.evaluate(`(await import("/store.js")).openSheet({ type: "links" })`);
+    await see(
+        `return JSON.stringify(document.querySelector(".links-card") === null && document.body.textContent.includes("All service tiles are hidden."))`,
+        "the service stays hidden when Links opens again",
+    );
+    await page.evaluate(`document.querySelector(".links-show-hidden").click()`);
+    await see(
+        `return JSON.stringify(document.querySelector(".links-card.hidden-tile") !== null)`,
+        "the hidden tile shown again",
+    );
+    await page.evaluate(`document.querySelector(".links-hide").click()`);
+    await see(
+        `return JSON.stringify(localStorage.getItem("pi-pocket.links.hiddenPorts") === "[]" && document.querySelector(".links-card:not(.hidden-tile)") !== null)`,
+        "the tile unhidden",
+    );
+    await page.press("Escape");
+    await see(
+        `return JSON.stringify(document.querySelector(".links-sheet") === null)`,
+        "Links closed after checking saved hidden state",
+    );
+});
+
+test("Links leaves Places and stays available in the launcher", real, async () => {
+    await home(VIEWPORTS.mobile, true);
+    await page.evaluate(`(await import("/store.js")).openSheet({ type: "places" })`);
+    await see(`document.querySelector('[data-place="links"]') === null`, "no Links tile");
+    await page.press("Escape");
+    await page.setViewport(VIEWPORTS.desktop);
+    await settle();
+    await open();
+    await search("> Links");
+    await page.press("Enter");
+    await see(`document.querySelector(".links-sheet") !== null`, "Links opened from the launcher");
+});
+
 test("mobile session search finds and opens Memory and AGENTS instructions", real, async () => {
     await home(VIEWPORTS.mobile);
 

@@ -12143,6 +12143,84 @@ textarea.notes {
     color: var(--faint);
 }
 
+@media (min-width: 700px) {
+    .sheet.links-sheet {
+        width: min(760px, calc(100vw - 40px));
+    }
+}
+
+.links-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.links-tools p {
+    line-height: 1.45;
+}
+
+.links-card.hidden-tile {
+    opacity: 0.55;
+    border-style: dashed;
+}
+
+.links-show-hidden {
+    align-self: center;
+    margin-top: 6px;
+}
+
+.links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 10px;
+}
+
+.links-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    border: 1px solid var(--hair);
+    border-radius: var(--r-card);
+    background: var(--bg);
+}
+
+.links-card-title {
+    overflow-wrap: anywhere;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.links-card-port {
+    color: var(--muted);
+    font: 11px var(--mono);
+}
+
+.links-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.links-open,
+.links-hide {
+    gap: 6px;
+    min-height: 40px;
+    text-decoration: none;
+}
+
+.links-hide {
+    margin-left: auto;
+}
+
+.links-error {
+    color: var(--warn);
+}
+
 .browser-server-list {
     display: flex;
     flex-direction: column;

@@ -9,6 +9,7 @@ import { BranchPicker } from "./sheets/branch.js";
 import { ExtensionsContent, ExtensionsSheet } from "./sheets/extensions.js";
 import { FileSheet } from "./sheets/file.js";
 import { FindSheet } from "./sheets/find.js";
+import { LinksSheet } from "./sheets/links.js";
 import {
     galleryAvailable,
     GalleryShareSheet,
@@ -324,6 +325,9 @@ function sheetBody(sheet) {
             break;
         case "running":
             body = html`<${RunningSheet} />`;
+            break;
+        case "links":
+            body = html`<${LinksSheet} />`;
             break;
         case "schedules":
             body = view.conversation ? html`<${SchedulesSheet} />` : null;
