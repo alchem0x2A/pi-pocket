@@ -18,6 +18,8 @@ import {
 import { ExtensionPage, ExtensionPanel, extPanelShown } from "./extension-ui.js";
 import { startEdgeBack, startSwipes, useDragToClose } from "./gestures.js";
 import { Splash } from "./home.js";
+// Synchronization stays active even when a phone conversation mounts no rail.
+import "./inbox-sync.js";
 import { Launcher } from "./launcher.js";
 import { registerWorker, updateBadge } from "./notify.js";
 import {
@@ -489,6 +491,7 @@ function App() {
         return html`<${Boot}
             caption=${state.notices.some((notice) => notice.level === "error") ? "waiting for the server" : "starting"}
         />
+        <a class="offline-capture-link" href="/offline.html">Quick notes on this device</a>
         <${Notices} />`;
     }
 

@@ -1,8 +1,41 @@
 // Pi Pocket's service worker. It shows push notifications (Pi finished, an approval, a chat message), answers an
 // approval from its notification, opens the right session when one is tapped, and hands things shared to Pi Pocket
-// from other apps to the page. It caches none of the app: the app is edited live.
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+// from other apps to the page. Only the fixed offline capture shell is cached.
+const OFFLINE_CACHE = "pocket-offline-shell-v5";
+const OFFLINE_ASSETS = ["/offline.html", "/offline.js", "/offline.css", "/quick-notes.js"];
+
+self.addEventListener("install", (event) => {
+    event.waitUntil(
+        (async () => {
+            const cache = await caches.open(OFFLINE_CACHE);
+
+            for (const path of OFFLINE_ASSETS) {
+                const response = await fetch(path, { cache: "no-store" });
+
+                if (!response.ok || response.redirected) {
+                    throw new Error(`Could not cache offline asset: ${path}`);
+                }
+
+                await cache.put(path, response);
+            }
+
+            await self.skipWaiting();
+        })(),
+    );
+});
+self.addEventListener("activate", (event) => {
+    event.waitUntil(
+        (async () => {
+            for (const name of await caches.keys()) {
+                if (name.startsWith("pocket-offline-shell-") && name !== OFFLINE_CACHE) {
+                    await caches.delete(name);
+                }
+            }
+
+            await self.clients.claim();
+        })(),
+    );
+});
 
 /** Where shared things wait until the page picks them up; see `web/share.js`. */
 const SHARE_CACHE = "pocket-share";
@@ -165,5 +198,60 @@ self.addEventListener("fetch", (event) => {
         url.pathname === "/share"
     ) {
         event.respondWith(receiveShare(event.request));
+
+        return;
+    }
+
+    if (event.request.method !== "GET" || url.origin !== self.location.origin) {
+        return;
+    }
+
+    if (
+        event.request.mode === "navigate" &&
+        (url.pathname === "/" || url.pathname.startsWith("/s/"))
+    ) {
+        event.respondWith(
+            (async () => {
+                let response;
+
+                try {
+                    response = await fetch(event.request);
+
+                    if (response.status < 500) {
+                        return response;
+                    }
+                } catch {
+                    // The server is unreachable; use the standalone shell.
+                }
+
+                const cache = await caches.open(OFFLINE_CACHE);
+
+                return (await cache.match("/offline.html")) ?? response ?? Response.error();
+            })(),
+        );
+
+        return;
+    }
+
+    if (OFFLINE_ASSETS.includes(url.pathname) && !url.search) {
+        event.respondWith(
+            (async () => {
+                let response;
+
+                try {
+                    response = await fetch(event.request);
+
+                    if (response.status < 500) {
+                        return response;
+                    }
+                } catch {
+                    // The server is unreachable; use the installed shell asset.
+                }
+
+                const cache = await caches.open(OFFLINE_CACHE);
+
+                return (await cache.match(url.pathname)) ?? response ?? Response.error();
+            })(),
+        );
     }
 });

@@ -10,7 +10,7 @@ let registering = null;
 
 /** The service worker that shows notifications. Push needs a secure page: https, or localhost. */
 export function registerWorker() {
-    if (!supported || !isSecureContext) {
+    if (!("serviceWorker" in navigator) || !isSecureContext) {
         return Promise.resolve(null);
     }
 
@@ -123,7 +123,7 @@ export function NotificationsSheet() {
     useEffect(() => {
         attempt(async () => setInfo(await api("push")));
         registerWorker()
-            .then((registration) => registration?.pushManager.getSubscription() ?? null)
+            .then((registration) => registration?.pushManager?.getSubscription() ?? null)
             .then(setSubscription, () => setSubscription(null));
     }, []);
 

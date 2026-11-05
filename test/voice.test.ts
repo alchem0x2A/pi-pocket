@@ -5,7 +5,7 @@ import { test } from "node:test";
 /** What voice.js imports, stood in for: hooks for one call outside a component, and no page to draw on. */
 const STUBS: Record<string, string> = {
     "preact/hooks": `
-        export const useState = (initial) => [typeof initial === "function" ? initial() : initial, () => {}];
+        export const useState = (initial) => [typeof initial === "function" ? initial() : initial, (value) => globalThis.voiceStateUpdates.push(value)];
         export const useRef = (current) => ({ current });
         export const useEffect = (effect) => globalThis.voiceCleanups.push(effect());
     `,
@@ -26,6 +26,8 @@ registerHooks({
 type Result = { 0: { transcript: string }; isFinal: boolean };
 type Recognition = {
     onresult: ((event: { results: Result[] }) => void) | null;
+    onerror: ((event: { error: string }) => void) | null;
+    onend: (() => void) | null;
     started: boolean;
 };
 type Dictation = { listening: boolean; toggle: () => void; stop: (drop?: boolean) => void };
@@ -41,6 +43,7 @@ type Voice = {
 const recognitions: Recognition[] = [];
 
 (globalThis as Record<string, unknown>).voiceCleanups = [];
+(globalThis as Record<string, unknown>).voiceStateUpdates = [];
 (globalThis as Record<string, unknown>).document = {
     activeElement: null,
     hidden: false,
@@ -138,6 +141,31 @@ function unmountAll() {
         cleanup();
     }
 }
+
+test("a rejected microphone request clears dictation so the next tap can retry", () => {
+    const { dictation } = dictate();
+    const rejected = recognitions.at(-1)!;
+    const updates = (globalThis as unknown as { voiceStateUpdates: boolean[] }).voiceStateUpdates;
+
+    rejected.onerror!({ error: "not-allowed" });
+
+    assert.equal(updates.at(-1), false, "the mic stops showing as active");
+    assert.equal(rejected.started, false, "the failed recognizer is aborted");
+
+    const count = recognitions.length;
+
+    dictation.toggle();
+    assert.equal(recognitions.length, count + 1, "the next tap starts a fresh request");
+    assert.equal(recognitions.at(-1)!.started, true);
+
+    rejected.onend!();
+    assert.equal(
+        recognitions.at(-1)!.started,
+        true,
+        "a late end from the old request leaves the new one alone",
+    );
+    unmountAll();
+});
 
 test("words heard show as they come, and a revision replaces them", () => {
     const { box, hear } = dictate();

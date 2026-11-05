@@ -3,6 +3,7 @@ import { onRoute, pushRoute } from "./back.js";
 import { sessionForest, unfolded } from "./session-tree.js";
 import { liveMessage } from "./live.js";
 import { fitClock, moment } from "./clock.js";
+import { forgetInboxAccount, rememberInboxAccount } from "./quick-notes.js";
 
 /** A random id. crypto.randomUUID only exists on https and localhost pages; plain-http network addresses lack it. */
 export function uid() {
@@ -199,6 +200,10 @@ export const store = {
      */
     set(patch) {
         const change = typeof patch === "function" ? patch(this.state) : patch;
+
+        if (Object.hasOwn(change, "me") && change.me !== undefined) {
+            rememberInboxAccount(localStorage, change.me);
+        }
 
         this.state = { ...this.state, ...change };
 
@@ -546,6 +551,7 @@ export async function api(path, body, options = {}) {
         method: body === undefined && !options.method ? "GET" : (options.method ?? "POST"),
         headers: { "X-Pocket": "1" },
         ...(options.signal ? { signal: options.signal } : {}),
+        ...(options.cache ? { cache: options.cache } : {}),
     };
 
     if (body !== undefined) {
@@ -569,6 +575,10 @@ export async function api(path, body, options = {}) {
     }
 
     if (!response.ok) {
+        if (response.status === 401) {
+            forgetInboxAccount(localStorage);
+        }
+
         throw new ApiError(response.status, data.error ?? `HTTP ${response.status}`);
     }
 
@@ -638,6 +648,7 @@ export async function attempt(action) {
 /** End this browser's sign-in, and go to the sign-in page. */
 export function signOut() {
     return attempt(async () => {
+        forgetInboxAccount(localStorage);
         await api("logout", {});
         location.href = "/";
     });
@@ -1311,10 +1322,42 @@ onRoute(() => {
     }
 });
 
+/** Discard a stale authenticated stream before confirming a changed sign-in cookie. */
+export function revalidateAccount() {
+    source?.close();
+    source = null;
+    forgetInboxAccount(localStorage);
+    store.set({
+        me: undefined,
+        connection: "connecting",
+        sessions: [],
+        sessionsLoaded: false,
+        view: emptyView(),
+        pipView: emptyView(),
+        pip: null,
+    });
+
+    return start();
+}
+
+let startGeneration = 0;
+let startRetry;
+
 export async function start() {
+    const generation = ++startGeneration;
+
+    clearTimeout(startRetry);
+
     try {
         const asked = moment();
-        const hello = await api("me");
+        const hello = await api("me", undefined, {
+            signal: AbortSignal.timeout(10000),
+            cache: "no-store",
+        });
+
+        if (generation !== startGeneration) {
+            return;
+        }
 
         store.set({
             me: hello.user,
@@ -1325,11 +1368,15 @@ export async function start() {
         });
         connect();
     } catch (error) {
+        if (generation !== startGeneration) {
+            return;
+        }
+
         store.set({ me: error.status === 401 ? null : undefined });
 
         if (error.status !== 401) {
             notify("error", `Server unreachable: ${error.message}`);
-            setTimeout(start, 3000);
+            startRetry = setTimeout(start, 3000);
         }
     }
 }

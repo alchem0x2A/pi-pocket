@@ -124,6 +124,19 @@ export function useDictation(box, onText, { top = false } = {}) {
                     recognition.stop();
                 }
             },
+            /** Clear this attempt when the browser ends it, or reports an error without ending it. */
+            finish(recognition) {
+                if (this.recognition !== recognition) {
+                    return;
+                }
+
+                this.recognition = null;
+                setListening(false);
+
+                if (current === this) {
+                    current = null;
+                }
+            },
             start() {
                 const element = box.current;
                 const Recognition = Recognizer();
@@ -266,19 +279,28 @@ export function useDictation(box, onText, { top = false } = {}) {
                 };
 
                 recognition.onerror = (event) => {
+                    if (this.recognition !== recognition) {
+                        return;
+                    }
+
                     // Aborted is this app's own doing; no speech for a while ends a quiet dictation, said once.
                     if (event.error !== "aborted") {
                         const level = event.error === "no-speech" ? "info" : "error";
 
                         notify(level, ERRORS[event.error] ?? `Dictation stopped: ${event.error}.`);
                     }
-                };
 
-                recognition.onend = () => {
-                    if (this.recognition === recognition) {
-                        this.stop();
+                    // Permission failures do not always dispatch `end`; clear the box so the next tap can retry.
+                    this.finish(recognition);
+
+                    try {
+                        recognition.abort();
+                    } catch {
+                        // The browser may have stopped the recognizer before it reported the error.
                     }
                 };
+
+                recognition.onend = () => this.finish(recognition);
 
                 try {
                     recognition.start();
