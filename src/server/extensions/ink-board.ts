@@ -1,5 +1,9 @@
 /**
- * Ink Board tools for a standalone local Ink Board service.
+ * Ink Board: pen mark-up of PDFs, SVGs, images and web pages, through the local Ink Board service (~/Dev/ink-board, port 8375).
+ *
+ * The service is its own project. This module finds its checkout at `INK_BOARD_HOME` (default `~/Dev/ink-board`) and
+ * talks to it on `127.0.0.1:INK_BOARD_PORT` (default 8375). It reuses a running service, or starts one from the
+ * checkout and stops only that one. Nothing is installed: when the checkout is missing, the tools say how to set it up.
  */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
@@ -11,18 +15,13 @@ import { join, resolve } from "node:path";
 
 export const pocketApi = 2;
 
-// The installer replaces this JSON string literal with the checkout path.
-const INSTALLED_HOME = "__INK_BOARD_INSTALL_DIR__";
-const HOME = resolve(
-    process.env.INK_BOARD_HOME ||
-        (INSTALLED_HOME === "__INK_BOARD_" + "INSTALL_DIR__"
-            ? join(homedir(), "Dev", "ink-board")
-            : INSTALLED_HOME),
-);
+const HOME = resolve(process.env.INK_BOARD_HOME || join(homedir(), "Dev", "ink-board"));
 const PORT = Number(process.env.INK_BOARD_PORT ?? 8375);
 const BASE = `http://127.0.0.1:${PORT}`;
 const INSTALL =
-    "Install the private Ink Board repository: gh repo clone alchem0x2A/ink-board ~/Dev/ink-board && ~/Dev/ink-board/scripts/install.sh. If it is already cloned, run scripts/install.sh in that checkout. Set INK_BOARD_HOME if needed.";
+    `Ink Board is looked for at ${HOME} (set INK_BOARD_HOME to change it) and served on ${BASE} ` +
+    "(set INK_BOARD_PORT to change it). To set it up: gh repo clone alchem0x2A/ink-board ~/Dev/ink-board && " +
+    "~/Dev/ink-board/scripts/install.sh, then start it with ~/Dev/ink-board/scripts/ink-board or let this module start it.";
 const pause = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 // Shared only by adapter versions in this Pi Pocket process. It prevents a
 // replacement from mistaking its predecessor's child for an external service.
