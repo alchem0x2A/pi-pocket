@@ -12,15 +12,15 @@ starts off, and only the owner turns it on. Read a file before you turn it on: a
 ## `tt-providers/`
 
 `tt-providers.ts` registers two Claude Code subscriptions as providers: `claude-code` (the `~/.claude` login) and
-`claude-code-personal` (the `~/.claude-personal` login). It needs the `pi-claude-code` package under
-`~/.pi-pocket/vendor/pi-claude-code`, and the Claude CLI at `~/.local/bin/claude`. Each account runs with its own
-`CLAUDE_CONFIG_DIR`, so the two never mix. Pi Pocket never stores their tokens: the Claude CLI owns the login.
+`claude-code-personal` (the `~/.claude-personal` login). It uses the checked-in `pi-claude-code/` source copy and the
+Claude CLI at `~/.local/bin/claude`. The copy is based on upstream commit `0065a1f` and includes the cache breakpoint fix.
+Each account runs with its own `CLAUDE_CONFIG_DIR`, so the two never mix. Pi Pocket never stores their tokens: the Claude
+CLI owns the login.
 
-The drop-in reads the npm package from `~/.pi-pocket/vendor/pi-claude-code/node_modules/@earendil-works/pi-claude-code`.
-Pi Pocket does not install or update this package. Reinstalling it replaces local edits, so apply the tracked patch after each
-package install or update with `bash extras/tt-providers/apply-pi-claude-code-cache-patch.sh`. Set
-`PI_CLAUDE_CODE_PACKAGE` to use another package path. The patch keeps the 4 most useful breakpoints and includes regression
-tests. The npm package omits upstream tests, so the full package suite needs an upstream source checkout.
+Pi Pocket does not need the npm package. Copy both `tt-providers.ts` and the `pi-claude-code/` directory into
+`~/.pi-pocket/extensions/`, then turn on the drop-in. This does not change the npm package used by standalone `pi`.
+For an upstream update, review the new source, keep the local cache fix and regression test, and run `npm test` in
+`pi-claude-code/`.
 
 ## `tt-usage/`
 
