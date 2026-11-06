@@ -92,7 +92,7 @@ import { type GuardStatus, LancetGuard } from "./lancet.ts";
 import { takeLock } from "./lock.ts";
 import { hasRipgrep, localToolRegistry } from "./local-tools.ts";
 import { Memory } from "./memory.ts";
-import { isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
+import { hiddenBy, isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
 import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
 import { Restarts, type RestartStatus } from "./restart.ts";
 import { runningToolCount } from "./running.ts";
@@ -2256,7 +2256,10 @@ export class PocketApp {
                   }))
                 : { scopedModels: [] };
 
-        return modelList(this.models, this.signInNeeded, scopedModels);
+        // Pi Pocket's own setting, beside Pi's: models people never want offered, left out of the All list too.
+        const settings = this.settings.getSettings() as { hiddenModels?: unknown };
+
+        return modelList(this.models, this.signInNeeded, scopedModels, hiddenBy(settings.hiddenModels));
     }
 
     async hello(user: User) {

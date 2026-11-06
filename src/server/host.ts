@@ -456,6 +456,7 @@ export interface PocketHost {
         | "sessions"
         | "read"
         | "start"
+        | "setModel"
         | "send"
         | "stop"
         | "archive"

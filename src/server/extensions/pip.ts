@@ -37,7 +37,7 @@ ${name} reaches you from a small panel over whatever they are doing, often on a 
 - When something that matters is unclear (which session, which folder), ask one short question instead of guessing.
 - Say only what your tools showed you just now, and plainly what you did not check.
 - Quality over speed: a task that touches code asks Pi there to run the checks and tests, and work is not finished until they pass.
-- Never choose a model: pass or name one only when ${name} did. If a model or its sign-in fails, tell ${name}; do not switch models. PiP's own model is separate from new sessions' default: if a session has no model, ask them to choose one in that session. Menu → Default model sets the model for future sessions. Do not describe this setup step as missing tools.
+- Models: you may pick one for a new session (session_start model) or switch a session's (session_model), also on your own judgement when a run hit a limit. A loose name is enough ("luna max", "codex sol"): infer the model, never ask what it means unless nothing fits. Stay on the same tier; the other provider's twin. Do not describe a missing default model as missing tools.
 - If a tool reports a real blocker (access, approval, model setup, or unavailable capability), explain that specific blocker and the next step. Do not claim work started or finished when the tools did not confirm it.`;
 }
 
@@ -46,7 +46,7 @@ ${name} reaches you from a small panel over whatever they are doing, often on a 
  * decluttering come first; direct work is allowed.
  */
 function piaPreamble(name: string, person: string, workspace: string): string {
-    return `You are ${name}, ${person}'s assistant in Pi Pocket, a self-hosted app where Pi, a coding agent, works in many sessions at once. You have the normal tools of a session (files, commands, and the others enabled here) and the session tools: sessions, session_read, session_start, session_send, session_follow, session_stop, session_archive, session_schedule, and approvals.
+    return `You are ${name}, ${person}'s assistant in Pi Pocket, a self-hosted app where Pi, a coding agent, works in many sessions at once. You have the normal tools of a session (files, commands, and the others enabled here) and the session tools: sessions, session_read, session_start, session_send, session_model, session_follow, session_stop, session_archive, session_schedule, and approvals.
 
 Your priorities, in order:
 1. Oversight: know what the sessions are doing, follow runs that matter, report what actually happened, and surface what needs ${person}.
@@ -59,7 +59,7 @@ ${person} reaches you from a small panel over whatever they are doing, often on 
 - Check before you act: before you message, stop, archive, follow, redo, or reschedule anything in a session, read it as it is now (session_read) and do only what it needs.
 - When something that matters is unclear (which session, which folder), ask one short question instead of guessing.
 - Say only what your tools showed you just now, and plainly what you did not check.
-- Never choose a model: pass or name one only when ${person} did. If a model or its sign-in fails, tell ${person}; do not switch models.
+- Models: you may pick one for a new session (session_start model) or switch a session's (session_model), also on your own judgement when a run hit a limit (check provider_usage first, and keep the same tier on the other provider). A loose name is enough ("luna max", "codex sol"): infer the model, and ask only when nothing fits. ${person} can always say no.
 - Before you run something destructive or irreversible, say what it will do. A guard may ask a person to approve risky commands; if a call is blocked, do not try to get around the block.
 
 Your workspace: ${workspace}. Every chat with you starts there and shares its files, and its AGENTS.md holds your standing instructions. It is a default, not a limit: work in any folder the task needs. Put temporary files in /tmp, not in the workspace. Start fresh clears your context, not the workspace or its AGENTS.md. The panel does not draw artifact_inline cards; they show when the chat is opened as a conversation.`;
@@ -327,7 +327,7 @@ export default function createPip(host: PocketHost) {
             model: Type.Optional(
                 Type.String({
                     description:
-                        "Only a model your person named for this, as provider/model. Otherwise leave it out: the session starts on the default model.",
+                        'A model, as provider/model or a loose name such as "luna max" or "codex sol" (inferred, best effort; a thinking level in the name is applied). Leave it out for the default model.',
                 }),
             ),
             report,
@@ -412,6 +412,23 @@ export default function createPip(host: PocketHost) {
 
             return reply(`Sent to /s/${String(args.session)}.${await now(api, args.session)}`);
         },
+    });
+
+    const model = defineTool({
+        name: "session_model",
+        description:
+            'Switch the model of a session (read it first). Takes a loose name such as "luna max" or "codex sol". Use it when a session hit a limit: pick the same tier on the other provider after provider_usage. The change applies to its next run.',
+        parameters: Type.Object({
+            session,
+            model: Type.String({
+                description: "provider/model or a loose name; a thinking level may be in it",
+            }),
+        }),
+        replay: "safe",
+        execute: async (args, api) =>
+            reply(
+                `/s/${String(args.session)} now uses ${await host.pip.setModel(api.conversationId, args.session, args.model)}.${await now(api, args.session)}`,
+            ),
     });
 
     const follow = defineTool({
@@ -748,6 +765,7 @@ export default function createPip(host: PocketHost) {
             read,
             start,
             send,
+            model,
             follow,
             stop,
             archive,

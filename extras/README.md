@@ -12,9 +12,15 @@ starts off, and only the owner turns it on. Read a file before you turn it on: a
 ## `tt-providers/`
 
 `tt-providers.ts` registers two Claude Code subscriptions as providers: `claude-code` (the `~/.claude` login) and
-`claude-code-personal` (the `~/.claude-personal` login). It needs the `pi-claude-code` package under
-`~/.pi-pocket/vendor/pi-claude-code`, and the Claude CLI at `~/.local/bin/claude`. Each account runs with its own
-`CLAUDE_CONFIG_DIR`, so the two never mix. Pi Pocket never stores their tokens: the Claude CLI owns the login.
+`claude-code-personal` (the `~/.claude-personal` login). It uses the checked-in `pi-claude-code/` source copy and the
+Claude CLI at `~/.local/bin/claude`. The copy is based on upstream commit `0065a1f` and includes the cache breakpoint fix.
+Each account runs with its own `CLAUDE_CONFIG_DIR`, so the two never mix. Pi Pocket never stores their tokens: the Claude
+CLI owns the login.
+
+Pi Pocket does not need the npm package. Copy both `tt-providers.ts` and the `pi-claude-code/` directory into
+`~/.pi-pocket/extensions/`, then turn on the drop-in. This does not change the npm package used by standalone `pi`.
+For an upstream update, review the new source, keep the local cache fix and regression test, and run `npm test` in
+`pi-claude-code/`.
 
 ## `tt-usage/`
 

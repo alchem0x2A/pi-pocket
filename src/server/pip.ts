@@ -16,33 +16,29 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
     AgentDoc,
     AssistantEntry,
-    CompactionEntry,
     type ConversationId,
-    type Cursor,
     defineTask,
     InboxDoc,
     LiveDoc,
-    ResetEntry,
     type Task,
     type TaskRuntime,
     type Tx,
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { AuthorsDoc, FollowsDoc, PipAskedDoc, SessionsDoc } from "./docs.ts";
+import { FollowsDoc, SessionsDoc } from "./docs.ts";
 import { NOTE_ENTRY } from "./entry-format.ts";
 import { describe, HttpError } from "./errors.ts";
 import { clip, defang, quoted } from "./fence.ts";
 import { git } from "./git.ts";
 import { originRepo, parseRepo, requirePush, sameRepo } from "./github.ts";
-import { indexed, modelsNamed, personNamed, sharePhrase, words } from "./model-names.ts";
-import { findModel } from "./models.ts";
+import { findModel, rankModels } from "./models.ts";
 import { homePath } from "./paths.ts";
 import { type ClientEntry, projectEntry, snippet } from "./projection.ts";
 import type { RepoWatchRequest, RepoWatchView } from "./repo-watches.ts";
@@ -102,12 +98,6 @@ const ORIGIN_FOR_MS = 5 * 60_000;
 const FOLLOW_MEMORY_MS = 24 * 3_600_000;
 /** How long PiP's look at a session (a read, its start, a report from it) counts as knowing what it is doing. */
 const CHECKED_FOR_MS = 15 * 60_000;
-/**
- * How many of PiP's newest entries are searched for the models its person named, at most, and how many at a time: its
- * context (since its last compaction or new context) is searched whole, up to this many.
- */
-const NAMED_IN_ENTRIES = 2_000;
-const NAMED_IN_PAGE = 200;
 /**
  * How long after a follow reported its session's "Pi finished" stays muted: long enough for the push of the same run's
  * end, which comes a few seconds later, and short enough not to mute the next run's.
@@ -648,232 +638,55 @@ export class Pip {
     }
 
     /**
-     * What PiP's person said to it in their own words: their messages in its context now, newest first (since its last
-     * new context, and those its last compaction kept), and the standing instructions of the watches and webhooks to it
-     * that they set up. Never the instructions of a watch PiP set up (its own words, checked against the models signed
-     * in then), what was posted to a webhook, what GitHub said, a report, or anything else sent for them. Each message
-     * apart: a short name's family word counts in its own message only. `messages`: their messages alone, with their
-     * entries, newest first. `newest`: the newest entry of PiP's conversation; `since`: where its context starts, as far
-     * as this read (its new context's entry, the oldest its last compaction kept, or the oldest read).
+     * The signed-in model for a loose name ("luna max", "codex sol", "opus"): the best fit, on a provider that works now,
+     * with the thinking level it names. Several fits at once are spread: the one whose account has used least, or the
+     * first when usage is unknown. No fit is an error that lists nothing to pick from; PiP asks its person then.
      */
-    async #personWords(
-        pipId: ConversationId,
-        user: User,
-    ): Promise<{
-        words: string[];
-        messages: { id: number; text: string }[];
-        newest: number | undefined;
-        since: number;
-    }> {
+    async #modelFor(spec: string): Promise<{ model: { provider: string; modelId: string }; level?: ModelThinkingLevel }> {
         const app = this.#app;
-        const own = (await app.harness.snapshot(AuthorsDoc, pipId, context))?.entries ?? {};
-        const conversation = await app.conversation(pipId);
-        const messages: { id: number; text: string }[] = [];
-        // A compaction keeps the newest messages before it as they were: down to its head, they are still in context.
-        let keptFrom: number | undefined;
-        let cursor: Cursor | undefined;
-        let read = 0;
-        let newest: number | undefined;
-        let since = 0;
+        const exact = findModel(app.models, spec);
+        const { models, level } = exact
+            ? { models: [exact], level: undefined }
+            : rankModels(spec, app.models.getAvailableSnapshot());
 
-        scan: do {
-            const page = await conversation.entries({}, NAMED_IN_PAGE, cursor, context);
-
-            for (const entry of page.items) {
-                newest ??= Number(entry.id);
-
-                if (entry.kind === ResetEntry.kind) {
-                    since = Number(entry.id);
-
-                    break scan;
-                }
-
-                if (keptFrom !== undefined && entry.id < keptFrom) {
-                    since = keptFrom;
-
-                    break scan;
-                }
-
-                since = Number(entry.id);
-
-                if (entry.kind === CompactionEntry.kind) {
-                    keptFrom ??= entry.head ?? Number(entry.id);
-
-                    continue;
-                }
-
-                const shown = projectEntry(entry);
-
-                if (shown?.kind === "user" && own[String(shown.id)] === user.id) {
-                    messages.push({ id: shown.id, text: shown.text });
-                }
-            }
-
-            read += page.items.length;
-            cursor = page.next;
-        } while (cursor !== undefined && read < NAMED_IN_ENTRIES);
-
-        const target = Number(pipId);
-        const standing = [
-            ...(await app.repoWatches.list(user)).filter(
-                (watch) => watch.by === user.id && !watch.byPi && watch.target === target,
-            ),
-            ...(await app.hooks.list(user)).filter(
-                (hook) => hook.by === user.id && hook.target === target,
-            ),
-        ];
-
-        return {
-            words: [
-                ...messages.map((each) => each.text),
-                ...standing.map((each) => each.instructions ?? ""),
-            ],
-            messages,
-            newest,
-            since,
-        };
-    }
-
-    /**
-     * Whether the person's newest message (`person`'s) answers the question PiP was last told to ask, which provider pays
-     * (`PipAskedDoc`), with `model`'s: asked in PiP's context now, it is their first message since, and just the whole
-     * name or id of the provider of one of the models asked about, `model` among them, and of no other provider asked
-     * about. Everyday words ("sure", "go") answer nothing, and no question from before PiP's context began is answered:
-     * one from before Start fresh (whenever that came: sent while PiP works, it waits for its next pause), one from
-     * before what its last compaction kept, or one an earlier build kept (without `at`).
-     */
-    async #answered(
-        pipId: ConversationId,
-        model: { provider: string; id: string },
-        person: { messages: readonly { id: number; text: string }[]; since: number },
-        providerName: (provider: string) => string,
-    ): Promise<boolean> {
-        const asked = (await this.#app.harness.snapshot(PipAskedDoc, pipId, context))?.asked;
-        const [newest, before] = person.messages;
-
-        if (
-            typeof asked?.at !== "number" ||
-            asked.at < person.since ||
-            newest === undefined ||
-            newest.id <= asked.at ||
-            (before !== undefined && before.id > asked.at) ||
-            !asked.models.some((each) => each.provider === model.provider && each.id === model.id)
-        ) {
-            return false;
-        }
-
-        const answer = words(newest.text).join(" ");
-        const answering = [...new Set(asked.models.map((each) => each.provider))].filter(
-            (provider) =>
-                answer !== "" &&
-                [provider, providerName(provider)].some((full) => words(full).join(" ") === answer),
-        );
-
-        return answering.length === 1 && answering[0] === model.provider;
-    }
-
-    /**
-     * The signed-in model PiP may start a session on: one its person named, whose sign-in works now. Anything else is
-     * refused, telling PiP to leave the model out or ask, never to pick another.
-     */
-    async #personsModel(pipId: ConversationId, user: User, spec: string) {
-        const app = this.#app;
-        const model = findModel(app.models, spec);
-
-        if (model === undefined) {
-            throw new Error(
-                `${spec} is not a model signed in here. Leave model out (the session starts on the default model), or ask your person which model they mean; do not pick another.`,
+        for (const model of models) {
+            const problem = await app.providers.problem(
+                { provider: model.provider, modelId: model.id },
+                true,
             );
-        }
 
-        // Read once for the checks below: it can be long.
-        const person = await this.#personWords(pipId, user);
-        const said = indexed(person.words);
-        const available = app.models.getAvailableSnapshot();
-        // Every model Pi knows: words that name one not signed in name no shorter one that is.
-        const known = app.models.getModels();
-        const providerName = (provider: string) =>
-            app.models.getProvider(provider)?.name ?? provider;
-        const theirs = modelsNamed(said, [model], true, [...available, ...known]).includes(model);
-        const named =
-            personNamed(said, model, available, providerName, known) ||
-            (theirs && (await this.#answered(pipId, model, person, providerName)));
-
-        // Their words name it, but at more than one provider: which one pays is theirs to say. What PiP asks about is kept,
-        // for their answer (`#answered`).
-        if (!named && theirs) {
-            const asked = [
-                model,
-                ...available.filter(
-                    (other) => other.provider !== model.provider && sharePhrase(said, model, other),
-                ),
-            ];
-
-            await app.harness.commit(async (tx) => {
-                (await tx.doc(PipAskedDoc, pipId)).asked = {
-                    models: asked.map((each) => ({ provider: each.provider, id: each.id })),
-                    at: person.newest ?? 0,
+            if (problem === undefined) {
+                return {
+                    model: { provider: model.provider, modelId: model.id },
+                    ...(level === undefined ? {} : { level }),
                 };
-            }, context);
-
-            throw new Error(
-                `Your person named ${model.name}, which more than one signed-in provider has: ${[...new Set(asked.map((each) => providerName(each.provider)))].join(", ")}. Ask them which one to use (their answer may be just its name); do not pick one.`,
-            );
+            }
         }
 
-        if (!named) {
-            throw new Error(
-                `Your person did not name ${model.provider}/${model.id}. Models are theirs to choose: leave model out (the session starts on the default model), or ask them which model to use.`,
-            );
-        }
-
-        const problem = await app.providers.problem(
-            { provider: model.provider, modelId: model.id },
-            true,
+        throw new Error(
+            models.length === 0
+                ? `No signed-in model fits "${spec}" (typo?). Pick the closest from this list and call again with its exact provider/id; ask your person only if none is close: ${app.models
+                      .getAvailableSnapshot()
+                      .map((each) => `${each.provider}/${each.id}`)
+                      .join(", ")}`
+                : `Every model that fits "${spec}" cannot be used now (sign-in or limit). Tell your person.`,
         );
-
-        if (problem !== undefined) {
-            throw new Error(
-                `${model.provider}/${model.id} cannot be used now: ${problem}. Tell your person; do not pick another model.`,
-            );
-        }
-
-        return { provider: model.provider, modelId: model.id };
     }
 
-    /**
-     * Refuse text from PiP that names a model its person did not name: which model to use is theirs to say. Words that
-     * name the same model at two providers pass when the person named either: text picks no provider (a subagent's
-     * model must be one the owner allows anyway).
-     */
-    async #requireNoModelChoice(pipId: ConversationId, user: User, text: string): Promise<void> {
-        const app = this.#app;
-        const available = app.models.getAvailableSnapshot();
-        const known = app.models.getModels();
-        const written = indexed(text);
-        const named = modelsNamed(written, available, true, known, false);
+    /** Change the model of a session, for its person: when it hit a limit, say. Takes a loose name. */
+    async setModel(pipId: ConversationId, sessionId: number, spec: string): Promise<string> {
+        const user = this.#person(pipId);
+        const id = this.#session(pipId, user, sessionId);
 
-        if (named.length === 0) {
-            return;
-        }
+        this.#requireLooked(pipId, sessionId, "change the model of");
+        const { model, level } = await this.#modelFor(spec);
 
-        const theirs = modelsNamed(
-            indexed((await this.#personWords(pipId, user)).words),
-            available,
-            true,
-            known,
-        );
-        const chosen = named.filter(
-            (model) =>
-                !theirs.includes(model) &&
-                !theirs.some((other) => sharePhrase(written, model, other)),
-        );
+        await this.#app.commands.configure(id, user, {
+            model,
+            ...(level === undefined ? {} : { thinkingLevel: level }),
+        });
 
-        if (chosen.length > 0) {
-            throw new Error(
-                `This names ${chosen.map((model) => `${model.provider}/${model.id}`).join(", ")}, which your person did not name. Which model to use is theirs to say: take it out (a session uses its default model, and its subagents and linked sessions the owner's allowed ones), or ask them first.`,
-            );
-        }
+        return `${model.provider}/${model.modelId}${level === undefined ? "" : ` (thinking ${level})`}`;
     }
 
     /** A session's state now, in a few words, for the results of PiP's tools that act on it. */
@@ -1080,16 +893,8 @@ export class Pip {
         const app = this.#app;
         const user = this.#person(pipId);
         // Before anything is made: a model that is not there, or that nobody chose, leaves no session behind.
-        const model =
-            request.model === undefined
-                ? undefined
-                : await this.#personsModel(pipId, user, request.model);
-
-        await this.#requireNoModelChoice(
-            pipId,
-            user,
-            `${request.title ?? ""}\n${request.message ?? ""}`,
-        );
+        const chosen = request.model === undefined ? undefined : await this.#modelFor(request.model);
+        const model = chosen?.model;
 
         if (request.folder !== undefined && request.repo !== undefined) {
             throw new Error("Give a folder or a repository, not both.");
@@ -1109,7 +914,10 @@ export class Pip {
         );
 
         if (model !== undefined) {
-            await app.commands.configure(id, user, { model });
+            await app.commands.configure(id, user, {
+                model,
+                ...(chosen?.level === undefined ? {} : { thinkingLevel: chosen.level }),
+            });
         }
 
         // PiP made it, and knows what it is doing: nothing yet.
@@ -1139,7 +947,6 @@ export class Pip {
                 // see, and was checked for model names as the session started.
                 if (options.started !== true) {
                     this.#requireLooked(pipId, sessionId, "message");
-                    await this.#requireNoModelChoice(pipId, user, message);
                 }
             }),
         };
@@ -1317,9 +1124,6 @@ export class Pip {
 
         const target = to === undefined ? pipId : this.#session(pipId, user, to);
 
-        // What each event will have done: no model in it that its person did not name.
-        await this.#requireNoModelChoice(pipId, user, rest.instructions ?? "");
-
         // Counted even when refused: it asked GitHub, which the hourly count also keeps in bounds.
         this.#count(user, "act", ACTIONS_PER_HOUR);
 
@@ -1427,7 +1231,6 @@ export class Pip {
         // chose.
         if (!(await app.schedules.list(id)).some((item) => item.key === key)) {
             this.#requireLooked(pipId, sessionId, "schedule messages in");
-            await this.#requireNoModelChoice(pipId, user, message);
         }
 
         // A schedule is work to come, counted like a message.

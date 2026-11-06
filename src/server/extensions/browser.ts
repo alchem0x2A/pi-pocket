@@ -48,7 +48,11 @@ const CHANGING = new Set<Action>([
 ]);
 const MAX_TEXT = 20_000;
 
-const GUIDE = `You have a browser tool: a real Chromium on this machine. The people in this conversation see the same page live in the app's Browser panel and can click and type in it too, so it is how you show and test web work: local dev servers (http://localhost:5173), HTML files on this machine (give their path), or any site.
+const GUIDE = `You have a browser tool: headless Chromium on this machine. The people in this conversation see the same page live in the app's Browser panel and can click and type in it too, so it is how you show and test web work: local dev servers (http://localhost:5173), HTML files on this machine (give their path), or any site.
+- Use this browser for local web work. Do not rely on it for external web search or fetch. Websites may show CAPTCHA or other challenges, including HTTP 429. Do not try to bypass CAPTCHA.
+- A test returned a 429 CAPTCHA for Google search in Pi Pocket, but the same query worked in another browser setup. The test does not prove the cause.
+- Use the \`vm_browser\` skill, a headed browser with a real profile, for these tasks when available.
+- Cookies last only for the open page. Do not promise persistent sign-in.
 - Start a dev server in the background with bash first, for example \`nohup npm run dev > /tmp/dev.log 2>&1 &\`, then navigate to it.
 - snapshot lists the page's text and its controls with refs like [e12]; click, type, select, and hover take a ref (or a CSS selector, or the visible label). Refs last until the next snapshot.
 - screenshot shows you how the page looks: use it to check layout and styling. viewport switches between mobile, tablet, and desktop sizes.
@@ -81,7 +85,7 @@ export default function createBrowser(host: PocketHost) {
     const browser = defineTool({
         name: "browser",
         description:
-            "Use a real web browser (Chromium on this machine) that the people in this conversation watch live. Open pages (local dev servers, files, sites), read them as a snapshot with element refs, click, type, take screenshots you can see, read console errors, and run JavaScript in the page.",
+            "Use headless Chromium for local web pages, snapshots, clicks, typing, screenshots, and console checks. Do not rely on it for external web search or fetch: websites may show CAPTCHA or other challenges, including HTTP 429. Do not offer CAPTCHA bypasses. A Google search test returned a 429 CAPTCHA in Pi Pocket, but the same query worked in another browser setup; the test does not prove the cause. Use the `vm_browser` skill, a headed browser with a real profile, for these tasks when available. Cookies last only for the open page; do not promise persistent sign-in.",
         parameters: Type.Object({
             action: Type.Union(
                 ACTIONS.map((action) => Type.Literal(action)),

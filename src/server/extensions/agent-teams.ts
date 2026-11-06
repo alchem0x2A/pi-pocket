@@ -21,7 +21,7 @@ function models(
     const mine = own === undefined ? undefined : `${own.provider}/${own.modelId}`;
 
     if (allowed.length === 0) {
-        return "A linked session runs on your model; models are the user's to choose.";
+        return "A linked session runs on your model.";
     }
 
     // The subagent section, when the agent has that tool, already lists these models with their facts.
@@ -43,7 +43,7 @@ function models(
         ? `the models listed for subagents; pass one as model`
         : `these models, which the user allows for subagents; pass one as model:\n${lines.join("\n")}\n`;
 
-    return `A linked session runs only on ${listing}${shown ? ". " : ""}Match the model to the work: a fast, cheap one for mechanical work, a strong one for review, design, or hard reasoning. ${left} Never name one off the list: models are the user's to list. If a listed model fails or cannot be used, stop and tell the user; never start the work again on another model.`;
+    return `A linked session runs only on ${listing}${shown ? ". " : ""}Match the model to the work: a fast, cheap one for mechanical work, a strong one for review, design, or hard reasoning. ${left} Never name one off the list: models are the user's to list. If a listed model fails or hits a limit, tell the user and restart the work on the same tier at another listed provider that works now; else ask.`;
 }
 
 export default function createAgentTeams(host: PocketHost, web?: ExtensionWeb) {

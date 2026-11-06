@@ -1,6 +1,6 @@
 import { cleanUp, owner, root, scriptedModel, work } from "./helpers.ts";
 import assert from "node:assert/strict";
-import { rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { PocketApp } from "../src/server/app.ts";
@@ -44,5 +44,27 @@ test("a sign-in store that cannot be read leaves the scope out rather than faili
         assert.equal(choices.length, 3);
     } finally {
         rmSync(auth);
+    }
+});
+
+test("hiddenModels leaves matching models out of All, but never a scoped one", async () => {
+    const folder = join(work, ".pi");
+    const file = join(folder, "settings.json");
+
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(file, JSON.stringify({ hiddenModels: ["faux/faux-1", "*-2", 7] }));
+
+    try {
+        await app.settings.reload();
+        app.settings.setEnabledModels(["faux/faux-2"]);
+
+        const ids = (await app.hello(owner(app))).models.map((model) => model.id);
+
+        assert.ok(!ids.includes("faux-1"), "a hidden model is left out");
+        assert.ok(ids.includes("faux-2"), "a scoped model stays though a pattern matches it");
+        assert.ok(ids.includes("faux-vision"), "a model no pattern matches stays");
+    } finally {
+        rmSync(folder, { recursive: true, force: true });
+        await app.settings.reload();
     }
 });

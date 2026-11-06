@@ -2,7 +2,7 @@
 import { createJiti } from "jiti";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   createModels,
@@ -24,12 +24,7 @@ import type { Host, Web } from "./_pocket.d.ts";
 
 const CLAUDE_COMMAND = join(homedir(), ".local", "bin", "claude");
 const CLAUDE_SOURCE = join(
-  homedir(),
-  ".pi-pocket",
-  "vendor",
-  "pi-claude-code",
-  "node_modules",
-  "@earendil-works",
+  dirname(fileURLToPath(import.meta.url)),
   "pi-claude-code",
   "src",
 );
