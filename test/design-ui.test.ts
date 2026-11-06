@@ -601,7 +601,7 @@ test(
     "a viewer sees the canvas, the versions, and the comments, and can write none",
     real,
     async () => {
-        viewerPage = await browsers.open(2);
+        viewerPage = await browsers.open(2, { profile: "isolated" });
         await viewerPage.setViewport({ width: 1440, height: 900, scale: 1, mobile: false });
         await viewerPage.navigate(`${base}/login?token=${encodeURIComponent(viewerToken)}`);
         await viewerPage.navigate(`${base}/s/${session}`);

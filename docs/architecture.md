@@ -17,7 +17,7 @@ Some state lives in this process alone, and a restart forgets it. For example:
 
 - who is connected, typing, or away;
 - which tool calls wait for approval;
-- the browser's pages;
+- the browser's pages; its shared profile's cookies and storage remain on disk;
 - when each run ended, which peek tiles and session-list squares use, and whether its last run failed;
 - provider sign-ins in progress;
 - the edit and write calls Changes found in each session's history, so a look reads only the entries added since.

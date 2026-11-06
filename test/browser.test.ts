@@ -114,9 +114,20 @@ let base = "";
 
 before(async () => {
     site = createServer((request, response) => {
+        const path = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+
+        if (path === "/set-persistent") {
+            response.setHeader(
+                "set-cookie",
+                "pocket_profile=kept; Max-Age=3600; Path=/; SameSite=Lax",
+            );
+        } else if (path === "/set-isolated") {
+            response.setHeader("set-cookie", "pocket_temporary=only-here; Path=/; SameSite=Lax");
+        }
+
         response.writeHead(200, { "content-type": "text/html" });
 
-        response.end(request.url === "/two" ? "<title>Two</title><h1>Second</h1>" : PAGE);
+        response.end(path === "/two" ? "<title>Two</title><h1>Second</h1>" : PAGE);
     });
     await new Promise<void>((done) => site.listen(0, "127.0.0.1", done));
     base = `http://127.0.0.1:${(site.address() as { port: number }).port}`;
@@ -172,8 +183,71 @@ test(
             );
             await new Promise((done) => setTimeout(done, 500));
             assert.equal(page.url, `${base}/`);
+
+            await page.evaluate(`window.open(${JSON.stringify(`${base}/two`)}, "_blank"); true`);
+            await until(() => page.url === `${base}/two`, "a popup in the default context");
         } finally {
             await browsers.closeAll({ final: true });
+        }
+    },
+);
+
+test(
+    "the default profile survives a page close and browser restart; isolated pages cannot read or write it",
+    real,
+    async () => {
+        const dataDir = mkdtempSync(join(root, "profile-"));
+        const first = new Browsers({ dataDir, load: async () => undefined, save: () => {} });
+        let restarted: Browsers | undefined;
+
+        try {
+            const page = await first.open(1, { restore: false });
+
+            assert.equal(page.profile, "persistent");
+            await page.navigate(`${base}/set-persistent`);
+            assert.match(await page.evaluate("document.cookie"), /pocket_profile=kept/);
+            await first.close(1);
+            await first.closeAll({ final: true });
+
+            // A new manager models a server restart; Chromium must flush its cookie database before it exits.
+            restarted = new Browsers({ dataDir, load: async () => undefined, save: () => {} });
+            const restored = await restarted.open(1, { restore: false });
+
+            await restored.navigate(`${base}/read`);
+            assert.match(await restored.evaluate("document.cookie"), /pocket_profile=kept/);
+
+            const otherConversation = await restarted.open(2, { restore: false });
+
+            await otherConversation.navigate(`${base}/read`);
+            assert.match(
+                await otherConversation.evaluate("document.cookie"),
+                /pocket_profile=kept/,
+            );
+
+            const isolated = await restarted.open(1, {
+                profile: "isolated",
+                restore: false,
+            });
+
+            assert.equal(isolated.profile, "isolated");
+            await isolated.navigate(`${base}/read`);
+            assert.equal(await isolated.evaluate("document.cookie"), "");
+            await isolated.navigate(`${base}/set-isolated`);
+            assert.match(await isolated.evaluate("document.cookie"), /pocket_temporary=only-here/);
+
+            const persistentAgain = await restarted.open(1, {
+                profile: "persistent",
+                restore: false,
+            });
+
+            await persistentAgain.navigate(`${base}/read`);
+            const cookies = await persistentAgain.evaluate("document.cookie");
+
+            assert.match(cookies, /pocket_profile=kept/);
+            assert.doesNotMatch(cookies, /pocket_temporary/);
+        } finally {
+            await first.closeAll({ final: true });
+            await restarted?.closeAll({ final: true });
         }
     },
 );
@@ -220,6 +294,14 @@ test(
                 return fauxAssistantMessage([fauxText("done")]);
             }
 
+            if (text.includes("open an isolated test page")) {
+                return call({
+                    action: "navigate",
+                    url: `${base}/read`,
+                    profile: "isolated",
+                });
+            }
+
             if (text.includes("open the test page")) {
                 return call({
                     action: "navigate",
@@ -260,6 +342,7 @@ test(
                           body: JSON.stringify(body),
                       },
             );
+        let clientBrowsers: Browsers | undefined;
 
         try {
             const id = await newSession(app);
@@ -343,8 +426,75 @@ test(
                 servers: [],
             });
             assert.equal((await request(guest.token, `c/${id}/browser/teleport`, {})).status, 404);
+
+            const page = app.browsers.page(Number(id))!;
+
+            await page.navigate(`${base}/set-persistent`);
+            assert.match(await page.evaluate("document.cookie"), /pocket_profile=kept/);
+            await say(app, id, "open an isolated test page");
+            await until(() => results.length === 3, "the isolated browser tool result");
+            const isolated = app.browsers.page(Number(id))!;
+
+            assert.equal(isolated.profile, "isolated");
+            assert.equal(await isolated.evaluate("document.cookie"), "");
+            assert.equal(
+                (await request(viewer.token, `c/${id}/browser/clear-profile`, {})).status,
+                403,
+            );
+            assert.equal(
+                (await request(guest.token, `c/${id}/browser/clear-profile`, {})).status,
+                403,
+            );
+            clientBrowsers = new Browsers({
+                dataDir: mkdtempSync(join(root, "browser-panel-client-")),
+                load: async () => undefined,
+                save: () => {},
+            });
+            const appPage = await clientBrowsers.open(1, { restore: false });
+            const appBase = api.slice(0, -4);
+
+            await appPage.navigate(
+                `${appBase}/login?token=${encodeURIComponent(app.config.ownerToken)}`,
+            );
+            await appPage.navigate(`${appBase}/s/${id}`);
+            await appPage.waitFor({ selector: ".composer textarea", timeoutMs: 20_000 });
+            const clickApp = (selector: string) =>
+                appPage.evaluate(
+                    `document.querySelector(${JSON.stringify(selector)})?.click(); true`,
+                );
+
+            await clickApp('.topbar [aria-label="Menu"]');
+            await appPage.waitFor({ selector: ".nav-menu", timeoutMs: 10_000 });
+            await clickApp('.place[data-place="browser"]');
+            await appPage.waitFor({ selector: '[data-part="browser-panel"]', timeoutMs: 10_000 });
+            await appPage.waitFor({
+                selector: '[aria-label="Browser actions"]',
+                timeoutMs: 10_000,
+            });
+            await clickApp('[aria-label="Browser actions"]');
+            await appPage.waitFor({ selector: '[role="menuitem"]', timeoutMs: 10_000 });
+            assert.equal(
+                await appPage.evaluate(
+                    `document.querySelector('[role="menuitem"]').textContent.trim()`,
+                ),
+                "Clear shared profile",
+            );
+            await clickApp('[role="menuitem"]');
+            await appPage.waitFor({
+                text: "The shared browser profile was cleared.",
+                timeoutMs: 20_000,
+            });
+
+            const afterClear = await app.browsers.open(Number(id), {
+                profile: "persistent",
+                restore: false,
+            });
+
+            await afterClear.navigate(`${base}/read`);
+            assert.equal(await afterClear.evaluate("document.cookie"), "");
             app.detach(tab.client);
         } finally {
+            await clientBrowsers?.closeAll({ final: true });
             server.closeAllConnections();
             server.close();
             await app.close();
