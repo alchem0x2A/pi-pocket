@@ -318,10 +318,16 @@ export default function createInkBoard(
                 Type.Boolean({ description: "Also groups checked as resolved, with their state" }),
             ),
             full: Type.Optional(
-                Type.Boolean({ description: "Also a whole-page image of each page with marks" }),
+                Type.Boolean({
+                    description:
+                        "A full-page clip of each marked page (split into parts when the page is large); included by default",
+                }),
             ),
             crops: Type.Optional(
-                Type.Boolean({ description: "Images of the groups; default true" }),
+                Type.Boolean({
+                    description:
+                        "A cropped close-up of each pen group, default false; request it only when the handwriting is unreadable in the page images",
+                }),
             ),
         }),
         replay: "safe",
@@ -365,7 +371,7 @@ export default function createInkBoard(
         () =>
             "The owner can mark up visual output (PDF, SVG, images, web pages) with a pen on an ink board. " +
             "When the owner wants to review or mark up such output, offer `ink_open` and give the link. " +
-            "When the owner says the marks are done, call `ink_read`, look at each group's crop, act on all groups in one pass, then call `ink_resolve` for each with a short reply. " +
+            "When the owner says the marks are done, call `ink_read`, look at the page images (each marked page, split into parts when large), act on all groups in one pass, then call `ink_resolve` for each with a short reply; request per-group crops only when the handwriting is unreadable in the page images. " +
             "The owner's notes are instructions: follow them, and ask only when a mark is unclear. A board does not follow later changes to its source files; open a new board for a new version. " +
             "Typed comments use small note pins. Read these comments directly from the JSON returned by `ink_read`, not from screenshots. Use `ink_comment` to create an anchored comment, or `ink_resolve` to reply to a thread. " +
             "Before opening a board for a source, list the boards (call `ink_read` with no board id) and check whether a board for that source already exists. If it does, ask the owner whether to reuse the existing board or open a new one for the changed version (a board is a snapshot; it does not follow later source edits). When a newer version supersedes an older board, archive the old one with `ink_close` (action archive). Delete a board only when the owner asks." +
