@@ -110,7 +110,7 @@ const DEFAULTS: Record<string, Config> = {
         },
         // Node `fetch` and `curl` are challenged by Cloudflare on this host; Python's HTTP stack is not (measured
         // 2026-11-03). So the URL is tried once (fast), then this private helper.
-        command: `python3 -I ${join(import.meta.dirname, "tt-usage", "codex.py")}`,
+        command: `python3 -I ${join(import.meta.dirname, "tt-usage-codex.py")}`,
         cacheSeconds: 300,
         probeModel: "openai-codex/gpt-6-luna",
         probeOnRefresh: true,
@@ -1178,7 +1178,7 @@ export default function createUsage(host: Host, web: Web) {
         },
         { access: "owner" },
     );
-    web.client("tt-usage", { access: "owner" });
+    web.client("tt-usage.mjs", { access: "owner" });
 
     // The timer fetches only what is stale, so it costs one request per account per cache time at most.
     let timer: ReturnType<typeof setInterval> | undefined;
