@@ -1,6 +1,6 @@
 // What an artifact's page may ask of the app, through `parent.postMessage`: put a follow-up in the person's message
 // box, for them to review and send (#88); and load or save a small JSON value of its own, for that person (#89). The
-// page keeps its sandbox: it never gets the app, its cookies, or a way to make Pi act. Only the frame's first page is
+// page keeps its sandbox: it never gets the app, its cookies, or a way to make the agent act. Only the frame's first page is
 // heard (over a channel it opens as it starts), only while its session shows, and the app's rights decide, not the page.
 //
 // Design mode (`docs/design/design-mode.md`) adds a line the other way, for the workspace: `send` puts the app's
@@ -456,11 +456,11 @@ const RATE = 60;
  * `source` names the page in the box ("the artifact “Plan”"). `enabled` is false for a page that has no bridge (SVG,
  * Markdown). The page asks with `parent.postMessage`, as a page does, but the frame page it starts with (`ARTIFACT_BRIDGE`)
  * takes the call, checks that a person tapped the page (a real tap, which the page cannot make), and sends it down the
- * line. A follow-up so reaches us only after a tap; a frame inside PiP's panel adds nothing to the session's box.
+ * line. A follow-up so reaches us only after a tap; a frame inside Pia's panel adds nothing to the session's box.
  *
  * Design mode (stream B) adds, in `settings` (read each time, so they may change):
  * - `onMessage(message, frame)`: a checked `pocket-picked`, `pocket-text-edited`, `pocket-tweaks`, or `pocket-deck`
- *   (`checkPageMessage`). Not for a viewer's frame in PiP's panel, nor once the session is another.
+ *   (`checkPageMessage`). Not for a viewer's frame in Pia's panel, nor once the session is another.
  * - `onReady(frame)`: the frame's page opened its line. Its page has just started: say the modes again.
  *
  * Returns `{ send(message), ready(), detach() }`. `send` is `sendToFrame` for this frame (see there); `ready` is true
@@ -484,7 +484,7 @@ export function attachBridge(ref, settings = {}) {
             return answer({ ok: false, error: problem });
         }
 
-        if (store.state.conversationId !== conversationId || frame.closest(".pip-panel")) {
+        if (store.state.conversationId !== conversationId || frame.closest(".pia-panel")) {
             return answer({ ok: false, error: "Not in this session" });
         }
 
@@ -567,7 +567,7 @@ export function attachBridge(ref, settings = {}) {
         if (
             message &&
             store.state.conversationId === conversationId &&
-            !frame.closest(".pip-panel")
+            !frame.closest(".pia-panel")
         ) {
             settings.onMessage?.(message, frame);
         }

@@ -1,8 +1,8 @@
 # CSS names: tokens and parts
 
-The CSS names that an extension's stylesheet may rely on: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there. The file keeps its old name, from when Pi Pocket had themes. It has none now: the app has one palette (after Rosé Pine) in a light and a dark mode.
+The CSS names that an extension's stylesheet may rely on: the tokens (CSS variables), the parts (`data-part` names), their states, and the page's own attributes. `web/theme-surface.js` lists the tokens and parts, and `test/theme-surface.test.ts` checks that each one is still there. The file keeps its old name, from when Pia had themes. It has none now: the app has one palette (after Rosé Pine) in a light and a dark mode.
 
-This page is the one full list of the CSS names Pi Pocket keeps. Every name on it is there since 0.14.0; a later one says since when. Everything else in the app's CSS and markup (class names, the order of elements) may change in any release.
+This page is the one full list of the CSS names Pia keeps. Every name on it is there since 0.14.0; a later one says since when. Everything else in the app's CSS and markup (class names, the order of elements) may change in any release.
 
 ## Extensions' CSS names
 
@@ -50,7 +50,7 @@ The app's one palette, in `web/style.css`: the dark values in `:root`, the light
 | `--accent-fill`, `--accent-ink`                                                  | The accent under text (buttons, badges), and the text on it                  |
 | `--accent-soft`, `--accent-line`                                                 | The accent as a soft fill, and as a line                                     |
 | `--focus-ring`                                                                   | The keyboard's focus ring (`--accent`). Keep the ring                        |
-| `--spark`, `--brand`                                                             | The second color of loaders and thoughts; the π mark                         |
+| `--spark`, `--brand`                                                             | The second color of loaders and thoughts; the ribbon brand mark              |
 | `--ok`, `--ok-soft`                                                              | Done, worked                                                                 |
 | `--warn`, `--warn-soft`, `--warn-line`                                           | Waits for you, needs a look                                                  |
 | `--err`, `--err-soft`, `--err-line`                                              | Failed                                                                       |
@@ -63,7 +63,7 @@ The app's one palette, in `web/style.css`: the dark values in `:root`, the light
 | `--sans`, `--mono`                                             | Geist for words; JetBrains Mono for code, paths, counts, keys.                                                                                    |
 | `--ligatures`                                                  | `none`: no ligatures, as in a terminal                                                                                                            |
 | `--r-mark`, `--r-tag`, `--r-seg`, `--r-row`, `--r-control`     | 2, 4, 5, 6, 7 px: state squares, tags, segments, rows, fields                                                                                     |
-| `--r-card`, `--r-window`, `--r-sheet`, `--r-float`, `--r-pill` | 8, 10, 12, 12, 999 px: cards, windows, sheets, PiP, pills                                                                                         |
+| `--r-card`, `--r-window`, `--r-sheet`, `--r-float`, `--r-pill` | 8, 10, 12, 12, 999 px: cards, windows, sheets, Pia, pills                                                                                         |
 | `--radius`                                                     | A control's corner that names none (`--r-control`)                                                                                                |
 | `--gap-out`, `--gap-in`, `--border`                            | 8, 4, 1 px: the tiled windows' gaps and border                                                                                                    |
 | `--window-border`, `--window-border-active`                    | A tiled window's border color (`--hair`), and the one in focus (`--accent-line`)                                                                  |
@@ -100,7 +100,7 @@ Each is a `data-part` attribute. Some elements have two (`data-part="composer-bu
 | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `app`                                                               | The whole layout: the sidebar, the conversation, and the panels beside it, in a row                                                                                                            |
 | `boot`                                                              | The screen while the app starts                                                                                                                                                                |
-| `brand-mark`                                                        | The π: on the rail, and on the boot screen                                                                                                                                                     |
+| `brand-mark`                                                        | The ribbon logo: on the rail, and on the boot screen                                                                                                                                           |
 | `sidebar`                                                           | The rail and the session list, on wide screens                                                                                                                                                 |
 | `drawer`                                                            | The rail and the session list sliding in, on narrow screens                                                                                                                                    |
 | `rail`, `rail-button`                                               | The column of buttons, and each of them (an extension's too)                                                                                                                                   |
@@ -126,26 +126,26 @@ Each is a `data-part` attribute. Some elements have two (`data-part="composer-bu
 
 ### The conversation
 
-| Part                                            | What                                                                                                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `transcript`                                    | The column of turns                                                                                           |
-| `prompt-row`                                    | The row a person's message stands in                                                                          |
-| `prompt`                                        | A person's message                                                                                            |
-| `prompt-head`, `author-mark`, `prompt-author`   | Its head: who sent it and when; their initials; their name                                                    |
-| `prompt-text`                                   | What it says (its skill chip, words, and files)                                                               |
-| `reply`                                         | Pi's answer                                                                                                   |
-| `reply-actions`                                 | The row under an answer: react, discuss, pin, copy                                                            |
-| `activity`, `activity-head`, `activity-chevron` | A group of what Pi did, its head (what it did, how long), and the chevron that opens it                       |
-| `timeline`                                      | The open group's steps, on a rule                                                                             |
-| `timeline-earlier`                              | Above a long group's newest steps: shows the earlier ones                                                     |
-| `thinking`, `tool-call`                         | A step: a thought, a tool call                                                                                |
-| `step-head`, `step-mark`, `step-label`          | A step's line, its mark on the rule, and its name                                                             |
-| `step-detail`                                   | What a step shows under its line: what it made, and its input and output                                      |
-| `approval`                                      | A call that waits for someone to allow it                                                                     |
-| `live-line`, `live-mark`                        | The line that says what Pi does now, and its dot                                                              |
-| `live-limit`, `live-retry`                      | In that line while Pi waits for a provider's limit to clear: when it tries next, and Retry now (since 0.21.0) |
-| `code-block`, `code-head`                       | A code block in a reply, and its bar (language, Copy)                                                         |
-| `inline-code`                                   | Code in a line of words, in a reply                                                                           |
+| Part                                            | What                                                                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `transcript`                                    | The column of turns                                                                                                  |
+| `prompt-row`                                    | The row a person's message stands in                                                                                 |
+| `prompt`                                        | A person's message                                                                                                   |
+| `prompt-head`, `author-mark`, `prompt-author`   | Its head: who sent it and when; their initials; their name                                                           |
+| `prompt-text`                                   | What it says (its skill chip, words, and files)                                                                      |
+| `reply`                                         | the agent's answer                                                                                                   |
+| `reply-actions`                                 | The row under an answer: react, discuss, pin, copy                                                                   |
+| `activity`, `activity-head`, `activity-chevron` | A group of what the agent did, its head (what it did, how long), and the chevron that opens it                       |
+| `timeline`                                      | The open group's steps, on a rule                                                                                    |
+| `timeline-earlier`                              | Above a long group's newest steps: shows the earlier ones                                                            |
+| `thinking`, `tool-call`                         | A step: a thought, a tool call                                                                                       |
+| `step-head`, `step-mark`, `step-label`          | A step's line, its mark on the rule, and its name                                                                    |
+| `step-detail`                                   | What a step shows under its line: what it made, and its input and output                                             |
+| `approval`                                      | A call that waits for someone to allow it                                                                            |
+| `live-line`, `live-mark`                        | The line that says what the agent does now, and its dot                                                              |
+| `live-limit`, `live-retry`                      | In that line while the agent waits for a provider's limit to clear: when it tries next, and Retry now (since 0.21.0) |
+| `code-block`, `code-head`                       | A code block in a reply, and its bar (language, Copy)                                                                |
+| `inline-code`                                   | Code in a line of words, in a reply                                                                                  |
 
 ### The composer
 
@@ -184,7 +184,7 @@ Each is a `data-part` attribute. Some elements have two (`data-part="composer-bu
 | `peeks`, `peek-tile` | The peek tiles' column or strip, and each tile                            |
 | `files-panel`        | The Files tile                                                            |
 | `browser-panel`      | The Browser panel                                                         |
-| `pip`                | PiP's panel                                                               |
+| `pia`                | Pia's panel                                                               |
 | `subagents-board`    | The subagents board                                                       |
 | `extension-page`     | An extension's page, with `data-module` naming its module                 |
 | `extension-panel`    | An extension's panel, with `data-module` naming its module (since 0.19.0) |
@@ -202,7 +202,7 @@ Each is a `data-part` attribute. Some elements have two (`data-part="composer-bu
 | `session-group-head`, `activity-head`, `step-head` | `aria-expanded`                                  | `true` while open                                                                                                                              |
 | `activity`                                         | `data-state`                                     | `open` while open                                                                                                                              |
 | `tool-call`                                        | `data-state`                                     | `running`, `ok`, `failed`, `waiting` (for approval), `denied`, `stopped`                                                                       |
-| `prompt`                                           | `data-from`                                      | `me`, `person` (someone else), `linked` (a linked session), `other` (Pi's schedule, the main agent, a watch or a webhook)                      |
+| `prompt`                                           | `data-from`                                      | `me`, `person` (someone else), `linked` (a linked session), `other` (the agent's schedule, the main agent, a watch or a webhook)               |
 | `send-button`                                      | `data-state`                                     | `ready` when there is something to send                                                                                                        |
 | `sheet`                                            | `data-sheet`, `data-size`                        | The sheet's type; `wide` for a wide one                                                                                                        |
 | `sheet`, `launcher`, `drawer`                      | `data-state`                                     | `closing` while it goes                                                                                                                        |

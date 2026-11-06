@@ -56,7 +56,7 @@ test("addresses as people type them become URLs the browser may open", () => {
         assert.equal(normalizeUrl(refused), undefined, refused);
     }
 
-    // Pi and the owner may open files on this machine.
+    // the agent and the owner may open files on this machine.
     assert.equal(normalizeUrl("file:///etc/hosts", { trusted: true }), "file:///etc/hosts");
     assert.equal(
         normalizeUrl("./site/index.html", { trusted: true, cwd: "/work" }),
@@ -66,7 +66,7 @@ test("addresses as people type them become URLs the browser may open", () => {
     assert.equal(normalizeUrl("javascript:alert(1)", { trusted: true }), undefined);
 });
 
-test("plan mode lets Pi look at pages but not act on them", () => {
+test("plan mode lets the agent look at pages but not act on them", () => {
     for (const action of ["navigate", "snapshot"]) {
         assert.equal(blockedInPlanMode("browser", { action }), undefined, action);
     }
@@ -79,7 +79,7 @@ test("plan mode lets Pi look at pages but not act on them", () => {
         );
     }
 
-    // A data: page is one Pi writes, scripts and all.
+    // A data: page is one the agent writes, scripts and all.
     assert.match(
         blockedInPlanMode("browser", {
             action: "navigate",
@@ -204,7 +204,7 @@ test("a command sent while a navigation swaps the page waits for it", real, asyn
 });
 
 test(
-    "Pi uses the browser tool, and people watch and use the same page in the panel",
+    "the agent uses the browser tool, and people watch and use the same page in the panel",
     real,
     async () => {
         const results: string[] = [];
@@ -291,7 +291,7 @@ test(
             assert.equal(
                 (await app.transcripts.entryImage(id, shot.id as unknown as number, 0))?.mimeType,
                 "image/jpeg",
-                "Pi sees the screenshot",
+                "the agent sees the screenshot",
             );
 
             // Everyone who sees the session watches; only people who can steer use the page, and files are the owner's.

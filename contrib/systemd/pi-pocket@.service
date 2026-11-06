@@ -1,7 +1,7 @@
-# Pi Pocket as a systemd template unit. The instance name is the access mode; see docs/systemd.md.
+# Pia as a systemd template unit. The instance name is the access mode; see docs/systemd.md.
 
 [Unit]
-Description=Pi Pocket (%i access)
+Description=Pia (%i access)
 Documentation=https://github.com/TannerMidd/pi-pocket/blob/main/docs/systemd.md
 Wants=network-online.target
 After=network-online.target tailscaled.service

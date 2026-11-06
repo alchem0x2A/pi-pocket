@@ -1,4 +1,4 @@
-// PiP's own file composer, in an isolated real browser.
+// Pia's own file composer, in an isolated real browser.
 // These tests never select a real provider or use the running server's people, data, or browser profile.
 import {
     type App,
@@ -28,7 +28,7 @@ import { createHandler } from "../src/server/http.ts";
 const real = {
     skip: findBrowser() === undefined ? "no Chromium-based browser on this machine" : false,
 } as const;
-const BOX = ".pip-composer textarea";
+const BOX = ".pia-composer textarea";
 const PNG =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 const requests: { text: string; images: { data: string; mimeType: string }[] }[] = [];
@@ -37,7 +37,7 @@ let server: Server;
 let browsers: Browsers;
 let page: BrowserPage;
 let base = "";
-let pip: ConversationId;
+let pia: ConversationId;
 let background: ConversationId;
 const project = join(work, "project-alpha");
 
@@ -56,9 +56,9 @@ const value = () =>
     inPage<string>(`return JSON.stringify(document.querySelector(${JSON.stringify(BOX)}).value)`);
 const names = () =>
     inPage<string[]>(
-        `return JSON.stringify([...document.querySelectorAll('.pip-attachment-name')].map((each) => each.textContent))`,
+        `return JSON.stringify([...document.querySelectorAll('.pia-attachment-name')].map((each) => each.textContent))`,
     );
-const calls = () => inPage<Call[]>(`return JSON.stringify(window.pipTestCalls)`);
+const calls = () => inPage<Call[]>(`return JSON.stringify(window.piaTestCalls)`);
 const submissions = async () => (await calls()).filter((call) => call.url.endsWith("/submit"));
 const settle = () =>
     page.evaluate(`
@@ -84,22 +84,22 @@ async function text(words: string): Promise<void> {
         box.value = ${JSON.stringify(words)};
         box.dispatchEvent(new Event('input', { bubbles: true }));
     `);
-    await until(async () => (await value()) === words, "PiP draft changed");
+    await until(async () => (await value()) === words, "Pia draft changed");
 }
 
 async function open(): Promise<void> {
-    await page.evaluate(`(await import('/pip.js')).openPip()`);
+    await page.evaluate(`(await import('/pip.js')).openPia()`);
     await see(
-        `document.querySelector('.pip-panel:not(.leaving)') !== null &&
-        (await import('/store.js')).store.state.pipView.conversation?.id === ${Number(pip)}`,
-        "PiP's own live view",
+        `document.querySelector('.pia-panel:not(.leaving)') !== null &&
+        (await import('/store.js')).store.state.piaView.conversation?.id === ${Number(pia)}`,
+        "Pia's own live view",
     );
     await settle();
 }
 
 async function close(): Promise<void> {
-    await page.evaluate(`(await import('/pip.js')).closePip()`);
-    await see(`document.querySelector('.pip-panel') === null`, "PiP closed");
+    await page.evaluate(`(await import('/pip.js')).closePia()`);
+    await see(`document.querySelector('.pia-panel') === null`, "Pia closed");
 }
 
 async function fresh(viewport: Viewport = VIEWPORTS.desktop): Promise<void> {
@@ -109,15 +109,15 @@ async function fresh(viewport: Viewport = VIEWPORTS.desktop): Promise<void> {
         )
     ) {
         await page.evaluate(
-            `document.querySelectorAll('.pip-attachment-remove').forEach((button) => button.click())`,
+            `document.querySelectorAll('.pia-attachment-remove').forEach((button) => button.click())`,
         );
         await text("");
     }
 
     await page.evaluate(`
         (await import('/store.js')).closeSheet();
-        (await import('/pip.js')).closePip();
-        localStorage.removeItem('pocket.pip.draft');
+        (await import('/pip.js')).closePia();
+        localStorage.removeItem('pocket.pia.draft');
     `);
     await settle();
     await page.setViewport(viewport);
@@ -126,21 +126,21 @@ async function fresh(viewport: Viewport = VIEWPORTS.desktop): Promise<void> {
     await see(`document.querySelector('.composer textarea') !== null`, "the background screen");
     await settle();
     await page.evaluate(`
-        window.pipTestFetch = window.fetch;
-        window.pipTestCalls = [];
-        window.pipTestGates = [];
-        window.pipTestHold = '';
-        window.pipTestFail = '';
+        window.piaTestFetch = window.fetch;
+        window.piaTestCalls = [];
+        window.piaTestGates = [];
+        window.piaTestHold = '';
+        window.piaTestFail = '';
         window.fetch = (url, init) => {
             const path = String(url);
             const kind = path.includes('/upload?') ? 'upload' : path.endsWith('/submit') ? 'submit' : '';
-            window.pipTestCalls.push({ url: path, ...(typeof init?.body === 'string' ? { body: JSON.parse(init.body) } : {}) });
-            const send = () => window.pipTestFetch(url, init);
-            if (kind && kind === window.pipTestFail) {
+            window.piaTestCalls.push({ url: path, ...(typeof init?.body === 'string' ? { body: JSON.parse(init.body) } : {}) });
+            const send = () => window.piaTestFetch(url, init);
+            if (kind && kind === window.piaTestFail) {
                 return Promise.reject(new TypeError('test offline'));
             }
-            if (kind && kind === window.pipTestHold) {
-                return new Promise((resolve, reject) => window.pipTestGates.push({ resolve: () => resolve(send()), reject }));
+            if (kind && kind === window.piaTestHold) {
+                return new Promise((resolve, reject) => window.piaTestGates.push({ resolve: () => resolve(send()), reject }));
             }
             return send();
         };
@@ -160,11 +160,11 @@ async function attach(
             data.items.add(new File([bytes], fixture.name, { type: fixture.image ? 'image/png' : 'text/plain' }));
         }
         if (${JSON.stringify(method)} === 'picker') {
-            const picker = document.querySelector('.pip-file-picker');
+            const picker = document.querySelector('.pia-file-picker');
             picker.files = data.files;
             picker.dispatchEvent(new Event('change', { bubbles: true }));
         } else {
-            const wrap = document.querySelector('.pip-composer-wrap');
+            const wrap = document.querySelector('.pia-composer-wrap');
             wrap.dispatchEvent(new DragEvent('dragover', { dataTransfer: data, bubbles: true, cancelable: true }));
             wrap.dispatchEvent(new DragEvent('drop', { dataTransfer: data, bubbles: true, cancelable: true }));
         }
@@ -173,11 +173,11 @@ async function attach(
 
 async function uploaded(count: number): Promise<void> {
     await see(
-        `document.querySelectorAll('.pip-attachment').length === ${count} &&
-        document.querySelector('.pip-attachments .spinner') === null`,
-        "uploaded PiP files",
+        `document.querySelectorAll('.pia-attachment').length === ${count} &&
+        document.querySelector('.pia-attachments .spinner') === null`,
+        "uploaded Pia files",
     );
-    await see(`!document.querySelector('.pip-send').disabled`, "PiP Send enabled");
+    await see(`!document.querySelector('.pia-send').disabled`, "Pia Send enabled");
 }
 
 async function enter(): Promise<void> {
@@ -188,26 +188,26 @@ async function enter(): Promise<void> {
 async function idle(): Promise<void> {
     await until(
         async () => {
-            const entries = await app.transcripts.allEntries(pip, true);
+            const entries = await app.transcripts.allEntries(pia, true);
             const user = entries.findLast((entry) => entry.kind === "user");
             const answer = entries.findLast((entry) => entry.kind === "assistant");
 
             return (
-                !app.isBusy(pip) &&
+                !app.isBusy(pia) &&
                 user !== undefined &&
                 answer !== undefined &&
                 answer.id > user.id
             );
         },
-        "PiP finished the latest answer",
+        "Pia finished the latest answer",
         20_000,
     );
-    await see(`!(await import('/store.js')).store.state.pipView.live.busy`, "PiP's idle view");
+    await see(`!(await import('/store.js')).store.state.piaView.live.busy`, "Pia's idle view");
 }
 
 async function release(): Promise<void> {
     await page.evaluate(
-        `window.pipTestHold = ''; window.pipTestGates.splice(0).forEach((gate) => gate.resolve())`,
+        `window.piaTestHold = ''; window.piaTestGates.splice(0).forEach((gate) => gate.resolve())`,
     );
 }
 
@@ -232,17 +232,17 @@ before(async () => {
 
             requests.push({ text, images });
 
-            return fauxAssistantMessage([fauxText(`PiP received ${images.length} images.`)]);
+            return fauxAssistantMessage([fauxText(`Pia received ${images.length} images.`)]);
         }),
     );
 
     app.watches.gh = async () => {
-        throw new Error("No GitHub in PiP UI tests");
+        throw new Error("No GitHub in Pia UI tests");
     };
 
     background = await newSession(app, project);
-    pip = await app.pip.ensure(owner(app));
-    await app.commands.configure(pip, owner(app), {
+    pia = await app.pia.ensure(owner(app));
+    await app.commands.configure(pia, owner(app), {
         model: { provider: "faux", modelId: "faux-vision" },
         thinkingLevel: "off",
     });
@@ -252,7 +252,7 @@ before(async () => {
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
     browsers = new Browsers({
-        dataDir: mkdtempSync(join(root, "pip-chat-browser-")),
+        dataDir: mkdtempSync(join(root, "pia-chat-browser-")),
         load: async () => undefined,
         save: () => {},
         args: [
@@ -282,7 +282,7 @@ after(async () => {
     }
 });
 
-test("image-only and file-only messages to PiP, not the background project", real, async () => {
+test("image-only and file-only messages to Pia, not the background project", real, async () => {
     await fresh(VIEWPORTS.desktop);
     const backgroundBefore = await app.transcripts.allEntries(background, true);
 
@@ -295,12 +295,12 @@ test("image-only and file-only messages to PiP, not the background project", rea
     assert.deepEqual(await names(), [image, document]);
     await tap(`[aria-label="Remove ${document}"]`);
     assert.deepEqual(await names(), [image], "remove one leaves the other");
-    await tap(".pip-send");
+    await tap(".pia-send");
     await until(() => requests.length > before, "the vision model saw the send");
     await idle();
     const sent = (await submissions()).at(-1)!;
 
-    assert.equal(sent.url, `/api/c/${pip}/submit`);
+    assert.equal(sent.url, `/api/c/${pia}/submit`);
     assert.equal(sent.body?.text, "");
     assert.deepEqual(
         sent.body?.attachments?.map((file) => file.name),
@@ -320,7 +320,7 @@ test("image-only and file-only messages to PiP, not the background project", rea
     assert.deepEqual(await names(), []);
     await attach("picker", [{ name: document }]);
     await uploaded(1);
-    await tap(".pip-send");
+    await tap(".pia-send");
     await until(async () => (await names()).length === 0, "file-only message sent");
     await idle();
     const file = (await submissions()).at(-1)?.body?.attachments?.[0];
@@ -333,12 +333,12 @@ test("image-only and file-only messages to PiP, not the background project", rea
     assert.deepEqual(
         await app.transcripts.allEntries(background, true),
         backgroundBefore,
-        "PiP never messages the background conversation",
+        "Pia never messages the background conversation",
     );
     assert.ok(
         (await calls())
             .filter((call) => call.url.includes("/upload?"))
-            .every((call) => call.url.startsWith(`/api/c/${pip}/upload?`)),
+            .every((call) => call.url.startsWith(`/api/c/${pia}/upload?`)),
     );
     await close();
 });
@@ -353,7 +353,7 @@ test(
             await attach("picker", [{ name: "recover.png", image: true }, { name: "recover.txt" }]);
             await uploaded(2);
             await text("recover these words");
-            await page.evaluate(`window.pipTestFail = 'submit'`);
+            await page.evaluate(`window.piaTestFail = 'submit'`);
             await enter();
             await see(
                 `(await import('/store.js')).store.state.notices.some((notice) => notice.message.includes('test offline'))`,
@@ -369,14 +369,14 @@ test(
             assert.equal(await value(), "recover these words");
             assert.deepEqual(await names(), ["recover.png", "recover.txt"]);
             await page.evaluate(
-                `window.pipTestFail = ''; window.pipTestHold = 'submit'; window.pipTestCalls = []`,
+                `window.piaTestFail = ''; window.piaTestHold = 'submit'; window.piaTestCalls = []`,
             );
             await enter();
-            await see(`window.pipTestGates.length === 1`, "submission held");
+            await see(`window.piaTestGates.length === 1`, "submission held");
             await text("newer words while sending");
             await attach("drop", [{ name: "added-during-send.txt" }]);
             await see(
-                `document.querySelectorAll('.pip-attachment').length === 3 && document.querySelector('.pip-attachments .spinner') === null`,
+                `document.querySelectorAll('.pia-attachment').length === 3 && document.querySelector('.pia-attachments .spinner') === null`,
                 "new file added during the pending send",
             );
             await enter();
@@ -405,7 +405,7 @@ test(
             assert.equal(sent.body?.text, "recover these words");
             assert.equal(sent.body?.attachments?.length, 2);
         } finally {
-            await page.evaluate(`window.pipTestFail = ''`);
+            await page.evaluate(`window.piaTestFail = ''`);
             await release();
         }
 
@@ -413,17 +413,17 @@ test(
     },
 );
 
-test("a typed PiP text draft survives reload while open and while closed", real, async () => {
+test("a typed Pia text draft survives reload while open and while closed", real, async () => {
     await fresh(VIEWPORTS.desktop);
-    const draft = "Keep this PiP draft across reload.\nSecond line, not a sent message.";
+    const draft = "Keep this Pia draft across reload.\nSecond line, not a sent message.";
 
     await tap(BOX);
     await page.type({ selector: BOX }, draft);
     await until(async () => (await value()) === draft, "native typing saved the text draft");
     await page.navigate(`${base}/s/${background}`);
     await see(
-        `(await import('/store.js')).store.state.me?.role === 'owner' && document.querySelector(${JSON.stringify(BOX)}) !== null && (await import('/store.js')).store.state.pipView.conversation?.id === ${Number(pip)}`,
-        "PiP restored after reload and sign-in state loaded",
+        `(await import('/store.js')).store.state.me?.role === 'owner' && document.querySelector(${JSON.stringify(BOX)}) !== null && (await import('/store.js')).store.state.piaView.conversation?.id === ${Number(pia)}`,
+        "Pia restored after reload and sign-in state loaded",
     );
     await settle();
     assert.equal(
@@ -435,12 +435,12 @@ test("a typed PiP text draft survives reload while open and while closed", real,
     await page.navigate(`${base}/s/${background}`);
     await see(
         `(await import('/store.js')).store.state.me?.role === 'owner' && document.querySelector('.composer textarea') !== null`,
-        "background screen reloaded while PiP closed",
+        "background screen reloaded while Pia closed",
     );
     await settle();
     assert.equal(
         await inPage<boolean>(
-            `return JSON.stringify(document.querySelector('.pip-panel') === null)`,
+            `return JSON.stringify(document.querySelector('.pia-panel') === null)`,
         ),
         true,
     );
@@ -448,32 +448,30 @@ test("a typed PiP text draft survives reload while open and while closed", real,
     assert.equal(
         await value(),
         draft,
-        "a closed-panel reload keeps the saved text until the owner reopens PiP",
+        "a closed-panel reload keeps the saved text until the owner reopens Pia",
     );
     await close();
 });
 
 test("Pia's display name remains, but its Places tile is gone", real, async () => {
     await fresh(VIEWPORTS.desktop);
-    const person = owner(app);
 
     try {
-        await app.setAssistantProfile(person, "pia");
         await see(
             `(await import('/store.js')).store.state.server?.assistant?.name === 'Pia'`,
-            "Pia profile reached the browser",
+            "Pia name reached the browser",
         );
         await open();
         assert.equal(
             await inPage<string>(
-                `return JSON.stringify(document.querySelector('.pip-head h2')?.textContent.trim())`,
+                `return JSON.stringify(document.querySelector('.pia-head h2')?.textContent.trim())`,
             ),
             "Pia",
         );
 
         await page.evaluate(`(await import('/store.js')).openSheet({ type: 'menu' })`);
         await see(
-            `document.querySelector('[data-place="pip"]') === null`,
+            `document.querySelector('[data-place="pia"]') === null`,
             "no assistant place tile",
         );
 
@@ -486,28 +484,23 @@ test("Pia's display name remains, but its Places tile is gone", real, async () =
         await page.press("Escape");
     } finally {
         await page.evaluate(
-            `(await import('/store.js')).closeSheet(); (await import('/pip.js')).closePip()`,
-        );
-        await app.setAssistantProfile(person, "classic");
-        await see(
-            `(await import('/store.js')).store.state.server?.assistant?.name === 'PiP'`,
-            "Classic profile restored",
+            `(await import('/store.js')).closeSheet(); (await import('/pip.js')).closePia()`,
         );
     }
 
     await close();
 });
 
-test("your messages that wait while PiP works show at once, as waiting", real, async () => {
+test("your messages that wait while Pia works show at once, as waiting", real, async () => {
     await fresh(VIEWPORTS.mobile);
     const me = owner(app).id;
 
-    // What the server sends while PiP works: your steer, a note of someone else's, and a command's card.
+    // What the server sends while Pia works: your steer, a note of someone else's, and a command's card.
     await page.evaluate(`
         const { store } = await import('/store.js');
         store.set((state) => ({
-            pipView: {
-                ...state.pipView,
+            piaView: {
+                ...state.piaView,
                 inbox: [
                     { id: 9001, mode: "steer", by: ${JSON.stringify(me)}, text: "[from: Owner] Also check the PR" },
                     { id: 9002, mode: "steer", by: "someone-else", text: "not mine" },
@@ -516,18 +509,18 @@ test("your messages that wait while PiP works show at once, as waiting", real, a
             },
         }));
     `);
-    await see(`document.querySelector('.pip-you.pending') !== null`, "the waiting message");
+    await see(`document.querySelector('.pia-you.pending') !== null`, "the waiting message");
     assert.deepEqual(
         await inPage<string[]>(
-            `return JSON.stringify([...document.querySelectorAll('.pip-you.pending > div:first-child')].map((each) => each.textContent))`,
+            `return JSON.stringify([...document.querySelectorAll('.pia-you.pending > div:first-child')].map((each) => each.textContent))`,
         ),
         ["Also check the PR"],
     );
 
     await page.evaluate(`
         const { store } = await import('/store.js');
-        store.set((state) => ({ pipView: { ...state.pipView, inbox: [] } }));
+        store.set((state) => ({ piaView: { ...state.piaView, inbox: [] } }));
     `);
-    await see(`document.querySelector('.pip-you.pending') === null`, "taken by PiP");
+    await see(`document.querySelector('.pia-you.pending') === null`, "taken by Pia");
     await close();
 });

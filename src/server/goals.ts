@@ -1,6 +1,6 @@
 /**
- * "Done when": a session's goal is a check command, such as `npm test`. After each of Pi's final answers the goals
- * extension (`extensions/goals.ts`) runs the check in the session's folder; while it fails, Pi is told so, with the
+ * "Done when": a session's goal is a check command, such as `npm test`. After each of the agent's final answers the goals
+ * extension (`extensions/goals.ts`) runs the check in the session's folder; while it fails, the agent is told so, with the
  * end of the output, and keeps going, up to a number of checks. This module keeps the goal and runs the check.
  */
 import type { Context } from "@earendil-works/chord";
@@ -12,15 +12,15 @@ import { HttpError } from "./errors.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** The extension that runs checks after Pi's answers; while it is off, goals do nothing. */
+/** The extension that runs checks after the agent's answers; while it is off, goals do nothing. */
 export const GOALS_EXTENSION = "pocket-goals";
-/** How the message telling Pi that a check failed starts. The web app shows these as check cards. */
+/** How the message telling the agent that a check failed starts. The web app shows these as check cards. */
 export const GOAL_PREFIX = "[goal] ";
-/** How many checks a goal gets before Pi stops trying. */
+/** How many checks a goal gets before the agent stops trying. */
 const MAX_CHECKS = 5;
 /** How long a check may run. */
 const CHECK_TIMEOUT_SECONDS = 600;
-/** How much of a failing check's output Pi gets: its end, where the failures usually are. */
+/** How much of a failing check's output the agent gets: its end, where the failures usually are. */
 const TAIL_CHARS = 3000;
 const MAX_COMMAND = 2000;
 /** Answers remembered as checked: enough for any run that is still going. */
@@ -100,12 +100,16 @@ export class Goals {
         }, context);
     }
 
-    /** Whether Pi may take another round toward the goal: not past a spend limit. When not, the session is told why. */
+    /** Whether the agent may take another round toward the goal: not past a spend limit. When not, the session is told why. */
     mayContinue(id: ConversationId): boolean {
         const why = this.#app.spend.heldBack(id);
 
         if (why !== undefined) {
-            this.#app.notice("warning", `The check still fails, but ${why}, so Pi stopped.`, id);
+            this.#app.notice(
+                "warning",
+                `The check still fails, but ${why}, so the agent stopped.`,
+                id,
+            );
         }
 
         return why === undefined;
@@ -188,7 +192,7 @@ export class Goals {
         } else if (goal?.status === "gave-up") {
             app.notice(
                 "warning",
-                `${goal.command} still fails after ${goal.max} checks: Pi stopped trying.`,
+                `${goal.command} still fails after ${goal.max} checks: the agent stopped trying.`,
                 id,
             );
         }

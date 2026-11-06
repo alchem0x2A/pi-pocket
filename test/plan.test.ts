@@ -1,4 +1,4 @@
-// Plan mode: Pi reads and proposes, anything that changes something is blocked, and approving turns it off.
+// Plan mode: the agent reads and proposes, anything that changes something is blocked, and approving turns it off.
 import {
     type App,
     cleanUp,
@@ -206,7 +206,7 @@ test("a session in plan mode is told so, cannot write, still reads, and approvin
     const said = (await modelTexts(app, id)).join("\n");
 
     assert.match(said, /Plan mode is on: The write tool can change things/);
-    assert.match(said, /plan: 1\. write the file/, "read-only bash ran and Pi answered");
+    assert.match(said, /plan: 1\. write the file/, "read-only bash ran and the agent answered");
 
     await app.commands.approvePlan(id, owner(app));
     assert.equal((await app.harness.snapshot(PlanDoc, id, context))?.on, false);

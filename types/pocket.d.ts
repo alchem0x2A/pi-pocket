@@ -1,5 +1,5 @@
 /**
- * Pi Pocket's public extension API: what a module gets on the server (`Host`, `Web`, `CommandContext`), and what its
+ * Pia's public extension API: what a module gets on the server (`Host`, `Web`, `CommandContext`), and what its
  * browser module gets in the app (`Pocket`).
  *
  * Import these types with `import type`. Node erases that import, so it has no effect when the module runs. Do not use
@@ -9,9 +9,9 @@
  * import type { Host, Web } from "./_pocket.d.ts";
  * ```
  *
- * `@since` gives the first Pi Pocket release that has a member. `@experimental` marks a member that can change in any
+ * `@since` gives the first Pia release that has a member. `@experimental` marks a member that can change in any
  * release. A member without it is stable. The reference is in `docs/extensions/reference/`. `test/public-types.ts`
- * fails when this file and Pi Pocket's code do not agree.
+ * fails when this file and Pia's code do not agree.
  */
 import type { Context } from "@earendil-works/chord";
 import type { Api, Model, ModelThinkingLevel } from "@earendil-works/pi-ai";
@@ -38,7 +38,7 @@ import type {
 // ─── Common ──────────────────────────────────────────────────────────────────
 
 /**
- * A person's role in Pi Pocket.
+ * A person's role in Pia.
  * @since 0.14.0
  */
 export type Role = "owner" | "guest" | "viewer";
@@ -87,7 +87,7 @@ export interface Module {
         web: Web,
     ): Extension | readonly Extension[] | void | Promise<Extension | readonly Extension[] | void>;
     /**
-     * The version of the extension API that the module needs. An older Pi Pocket does not set it up.
+     * The version of the extension API that the module needs. An older Pia does not set it up.
      * @since 0.14.0
      */
     pocketApi?: number;
@@ -102,12 +102,12 @@ export interface Module {
  */
 export interface Host {
     /**
-     * Pi Pocket's data folder.
+     * Pia's data folder.
      * @since 0.1.0
      */
     readonly dataDir: string;
     /**
-     * The running server's Pi Pocket package version, not the extension API level.
+     * The running server's Pia package version, not the extension API level.
      * @since 0.16.0
      */
     readonly pocketVersion: string;
@@ -127,17 +127,17 @@ export interface Host {
           }
         | undefined;
     /**
-     * Pi's own folder, usually `~/.pi/agent`.
+     * the agent's own folder, usually `~/.pi/agent`.
      * @since 0.1.0
      */
     readonly agentDir: string;
     /**
-     * The extra skill folders in Pi's settings.
+     * The extra skill folders in the agent's settings.
      * @since 0.1.0
      */
     skillPaths(): string[];
     /**
-     * Pi's skills for a session that works in `cwd`, from all the places where Pi looks.
+     * the agent's skills for a session that works in `cwd`, from all the places where the agent looks.
      * @since 0.12.0
      */
     skills(cwd: string): Skill[];
@@ -153,13 +153,13 @@ export interface Host {
      */
     subagentModels(): readonly string[];
     /**
-     * Why Pi cannot use a model now (not known, not signed in, or the sign-in expired), or undefined when it can. With
+     * Why the agent cannot use a model now (not known, not signed in, or the sign-in expired), or undefined when it can. With
      * `fresh`, it asks the provider again first.
      * @since 0.13.1
      */
     modelProblem(ref: ModelRef, fresh?: boolean): Promise<string | undefined>;
     /**
-     * Registers a model provider with Pi's model runtime, as a Pi extension does. `config` is Pi's own provider
+     * Registers a model provider with the agent's model runtime, as an agent extension does. `config` is the agent's own provider
      * configuration, including the models it starts with and how it refreshes them. The last registration of a name
      * wins. The return value removes it again and puts back the registration before it; pass it to `web.onDispose`. A
      * removal of a registration that is not the last one changes nothing.
@@ -169,7 +169,7 @@ export interface Host {
     registerModelProvider(provider: string, config: ProviderConfig): () => void;
     /**
      * Shapes the request every model call sends: `shape` returns a replacement payload, or undefined to keep it. It runs
-     * after Pi and the caller shaped the request, closest to the wire. The return value stops the shaping.
+     * after the agent and the caller shaped the request, closest to the wire. The return value stops the shaping.
      * @since 0.18.0
      * @experimental
      */
@@ -177,24 +177,24 @@ export interface Host {
         shape: (payload: unknown, model: Model<Api>) => unknown | undefined,
     ): () => void;
     /**
-     * The id of the person that Pi works for in a session now: the person whose message started its current work.
+     * The id of the person that the agent works for in a session now: the person whose message started its current work.
      * @since 0.3.0
      */
     requesterOf(conversationId: ConversationId): string | undefined;
     /**
-     * Listens to what happens in the app: sessions made, renamed, and archived, messages people send to Pi, and runs that start and end. Returns how to stop: pass it to `web.onDispose`. PiP's conversations send none.
+     * Listens to what happens in the app: sessions made, renamed, and archived, messages people send to the agent, and runs that start and end. Returns how to stop: pass it to `web.onDispose`. Pia's conversations send none.
      * @since 0.22.0
      * @experimental
      */
     on<E extends AppEventName>(event: E, listener: (data: AppEvents[E]) => unknown): () => void;
     /**
-     * Asks the person Pi works for on a card in the session: their answer, with what they typed, goes to the extension, never to Pi or into the transcript. Do not keep the values in a memo or a document.
+     * Asks the person the agent works for on a card in the session: their answer, with what they typed, goes to the extension, never to the agent or into the transcript. Do not keep the values in a memo or a document.
      * @since 0.22.0
      * @experimental
      */
     ask(request: AskRequest, context: Context): Promise<AskAnswer>;
     /**
-     * Hides a value from what Pi and people read: command output as it streams, each tool's result, and people's messages to Pi. It shows as `[label]`. Returns how to stop: pass it to `web.onDispose`.
+     * Hides a value from what the agent and people read: command output as it streams, each tool's result, and people's messages to the agent. It shows as `[label]`. Returns how to stop: pass it to `web.onDispose`.
      * @since 0.22.0
      * @experimental
      */
@@ -206,7 +206,7 @@ export interface Host {
      */
     commandEnv(provider: CommandEnvProvider): () => void;
     /**
-     * A session's browser page, the one Pi and people use: opened when `open` is true, else only when it is open already. Undefined while the Browser module is off.
+     * A session's browser page, the one the agent and people use: opened when `open` is true, else only when it is open already. Undefined while the Browser module is off.
      * @since 0.22.0
      * @experimental
      */
@@ -221,7 +221,7 @@ export interface Host {
      */
     notice(level: NoticeLevel, message: string, conversationId?: ConversationId): void;
     /**
-     * Why Pi cannot start work in a session when nobody asked for it (a spend limit), or undefined when it can.
+     * Why the agent cannot start work in a session when nobody asked for it (a spend limit), or undefined when it can.
      * @since 0.12.0
      */
     heldBack(conversationId: ConversationId): string | undefined;
@@ -237,12 +237,12 @@ export interface Host {
      */
     readonly linkedSessions: LinkedSessions;
     /**
-     * Makes text from other places safe for Pi to read.
+     * Makes text from other places safe for the agent to read.
      * @since 0.14.0
      */
     readonly text: SafeText;
     /**
-     * Fetches an address from outside (from Pi, a page, or a person) as `fetch` does, but refuses non-public ranges
+     * Fetches an address from outside (from the agent, a page, or a person) as `fetch` does, but refuses non-public ranges
      * and current local interface addresses. It checks literal addresses, every DNS answer, and each redirect.
      * Public addresses routed back into the network (NAT reflection or internal public ranges) are not detected.
      * A refusal throws an `Error` with a `code`: `"POCKET_NOT_PUBLIC"`, `"POCKET_TOO_LARGE"`, or
@@ -259,7 +259,7 @@ export interface Host {
 }
 
 /**
- * Makes text from other places safe for Pi to read. Tell Pi in the same place that the text is data.
+ * Makes text from other places safe for the agent to read. Tell the agent in the same place that the text is data.
  * @since 0.14.0
  */
 export interface SafeText {
@@ -307,7 +307,7 @@ export interface AppEvents {
      */
     "session.archived": { conversationId: number; archived: boolean };
     /**
-     * A person sent Pi a message: its words as stored, attachments left out. `via` names what sent it for them.
+     * A person sent the agent a message: its words as stored, attachments left out. `via` names what sent it for them.
      * @since 0.22.0
      * @experimental
      */
@@ -319,13 +319,13 @@ export interface AppEvents {
         via?: string;
     };
     /**
-     * Pi started to work in a conversation, a session's or a subagent's. `session` is its session.
+     * the agent started to work in a conversation, a session's or a subagent's. `session` is its session.
      * @since 0.22.0
      * @experimental
      */
     "run.started": { conversationId: number; session: number };
     /**
-     * Pi stopped working in a conversation.
+     * the agent stopped working in a conversation.
      * @since 0.22.0
      * @experimental
      */
@@ -381,7 +381,7 @@ export type SettingField =
 export type SettingValue = string | number | boolean;
 
 /**
- * A question for the person Pi works for, on a card in the session (`host.ask`).
+ * A question for the person the agent works for, on a card in the session (`host.ask`).
  * @since 0.22.0
  * @experimental
  */
@@ -679,7 +679,7 @@ export interface BrowserPageHandle {
      */
     readonly title: string;
     /**
-     * The page as Pi reads it, with refs such as `[e12]`, and its controls as data. Refs last until the next snapshot.
+     * The page as the agent reads it, with refs such as `[e12]`, and its controls as data. Refs last until the next snapshot.
      * @since 0.22.0
      * @experimental
      */
@@ -705,7 +705,7 @@ export interface BrowserPageHandle {
      */
     click(target: BrowserTarget): Promise<{ label: string; navigated: boolean }>;
     /**
-     * Types into a target as Pi types.
+     * Types into a target as the agent types.
      * @since 0.22.0
      * @experimental
      */
@@ -765,7 +765,7 @@ export interface PublicFetchInit {
 }
 
 /**
- * Sessions that a session starts and sends messages to. Each call acts as the person that Pi works for in `source`,
+ * Sessions that a session starts and sends messages to. Each call acts as the person that the agent works for in `source`,
  * with that person's checks. A call again with the same `key` acts once, and returns what the first call returned.
  * @since 0.14.0
  * @experimental
@@ -774,7 +774,7 @@ export interface LinkedSessions {
     /**
      * Starts a session linked to `source`, in `cwd` or the source's folder, and sends it `message` as its first
      * message. `model` is `provider/modelId`; `thinking` is any level (since 0.25.0; before, no higher than the source's). `cwd` is since 0.19.0:
-     * an older Pi Pocket ignores it, and starts the session in the source's folder. A blank `cwd` counts as none; a
+     * an older Pia ignores it, and starts the session in the source's folder. A blank `cwd` counts as none; a
      * relative one resolves against the server process's folder, not the source's.
      * @since 0.14.0
      * @experimental
@@ -801,7 +801,7 @@ export interface LinkedSessions {
         key: string,
     ): Promise<void>;
     /**
-     * The sessions linked to `source`, at any distance, that the person Pi works for there can see.
+     * The sessions linked to `source`, at any distance, that the person the agent works for there can see.
      * @since 0.14.0
      * @experimental
      */
@@ -833,7 +833,7 @@ export interface LinkedSession {
      */
     cwd?: string;
     /**
-     * Whether Pi works in it now, with the same condition as `title`.
+     * Whether the agent works in it now, with the same condition as `title`.
      * @since 0.14.0
      * @experimental
      */
@@ -1346,7 +1346,7 @@ export interface Web {
 // ─── Commands ────────────────────────────────────────────────────────────────
 
 /**
- * A command that people run from the message box, without asking Pi.
+ * A command that people run from the message box, without asking the agent.
  * @since 0.14.0
  */
 export interface Command {
@@ -1781,7 +1781,7 @@ export type TopbarSpec = Action &
 export type ComposerButtonSpec = TopbarSpec;
 
 /**
- * One of Pi's answers, as an action under it gets it.
+ * One of the agent's answers, as an action under it gets it.
  * @since 0.19.0
  * @experimental
  */
@@ -1807,7 +1807,7 @@ export interface Reply {
 }
 
 /**
- * An action under Pi's answers, before More. `run` gets the answer; a sheet gets it as the prop `reply`.
+ * An action under the agent's answers, before More. `run` gets the answer; a sheet gets it as the prop `reply`.
  * @since 0.19.0
  * @experimental
  */
@@ -2134,11 +2134,11 @@ export interface MessageInfo {
  */
 export interface ComposerBox {
     /**
-     * Which box: the session's message box, or PiP's.
+     * Which box: the session's message box, or Pia's.
      * @since 0.20.0
      * @experimental
      */
-    readonly where: "session" | "pip";
+    readonly where: "session" | "pia";
     /**
      * The box's text when the key came.
      * @since 0.20.0
@@ -2167,7 +2167,7 @@ export interface ComposerBox {
 }
 
 /**
- * A key in the message boxes, the session's and PiP's. It comes before the box's own keys.
+ * A key in the message boxes, the session's and Pia's. It comes before the box's own keys.
  * @since 0.20.0
  * @experimental
  */
@@ -2201,7 +2201,7 @@ export interface ComposerKeySpec {
 /**
  * A place in the app built from named items: `"topbar"` (the buttons after the session's title), `"status"` (the
  * status line under the message box), `"places"` (the tiles of the places and the menu), `"composer"` (the buttons on
- * the left of the message box's row), or `"reply"` (the actions under Pi's answers).
+ * the left of the message box's row), or `"reply"` (the actions under the agent's answers).
  * @since 0.19.0
  * @experimental
  */
@@ -2257,7 +2257,7 @@ export interface CallSummary {
  */
 export interface ToolCallSpec<A = Record<string, unknown>> {
     /**
-     * The tool's name, as Pi calls it. It must be a tool of the module's own extensions.
+     * The tool's name, as the agent calls it. It must be a tool of the module's own extensions.
      * @since 0.14.0
      */
     tool: string;
@@ -2379,30 +2379,35 @@ export interface SwitchProps {
 }
 
 /**
- * What `pocket.pip.ask` answers. It does not throw when PiP is not there: `reason` tells why nothing happened. `sent` is
- * false when the text waits in PiP's message box.
+ * What `pocket.pia.ask` answers. It does not throw when Pia is not there: `reason` tells why nothing happened. `sent` is
+ * false when the text waits in Pia's message box.
  * @since 0.26.0
  * @experimental
  */
-export type PipAskResult = { ok: true; sent: boolean } | { ok: false; reason: string };
+export type PiaAskResult = { ok: true; sent: boolean } | { ok: false; reason: string };
+/** @since 0.26.0 @deprecated Use `PiaAskResult`; retained for existing browser modules. */
+export type PipAskResult = PiaAskResult;
 
 /**
- * The part of `pocket` that talks to PiP.
+ * The part of `pocket` that talks to Pia.
  * @since 0.26.0
  * @experimental
  */
-export interface PipApi {
+export interface PiaApi {
     /**
-     * Gives PiP text as the person's own message. By default it opens PiP and puts the text in its message box, after
+     * Gives Pia text as the person's own message. By default it opens Pia and puts the text in its message box, after
      * what is there, for the person to read, edit, and send. With `send: true` it sends the text at once, but only just
      * after the person tapped or pressed a key: one tap serves for 5 seconds and for one send. The text starts with the
-     * module's title, so the person and PiP see where it came from. It resolves with `{ ok: false, reason }` when the
-     * person has no PiP, and when `send` has no tap to use. Text that is empty or past 100,000 characters throws.
+     * module's title, so the person and Pia see where it came from. It resolves with `{ ok: false, reason }` when the
+     * person has no Pia, and when `send` has no tap to use. Text that is empty or past 100,000 characters throws.
      * @since 0.26.0
      * @experimental
      */
-    ask(text: string, options?: { send?: boolean }): Promise<PipAskResult>;
+    ask(text: string, options?: { send?: boolean }): Promise<PiaAskResult>;
 }
+
+/** @since 0.26.0 @deprecated Use `PiaApi`; retained for existing browser modules. */
+export interface PipApi extends PiaApi {}
 
 /**
  * The app's API for a browser module: the argument of its default export.
@@ -2415,7 +2420,7 @@ export interface Pocket {
      */
     readonly version: number;
     /**
-     * The connected server's Pi Pocket package version; undefined with a server older than 0.16.0.
+     * The connected server's Pia package version; undefined with a server older than 0.16.0.
      * @since 0.16.0
      */
     readonly pocketVersion: string | undefined;
@@ -2495,7 +2500,7 @@ export interface Pocket {
      */
     readonly Loader: FunctionComponent<LoaderProps>;
     /**
-     * Markdown, cleaned as the app cleans Pi's replies.
+     * Markdown, cleaned as the app cleans the agent's replies.
      * @since 0.14.0
      */
     readonly Markdown: FunctionComponent<MarkdownProps>;
@@ -2622,7 +2627,7 @@ export interface Pocket {
      */
     composerButton(spec: ComposerButtonSpec): Added<ComposerButtonSpec>;
     /**
-     * Adds an action under Pi's answers.
+     * Adds an action under the agent's answers.
      * @since 0.19.0
      * @experimental
      */
@@ -2652,7 +2657,7 @@ export interface Pocket {
      */
     sessionSearch(spec: SessionSearchSpec): Added<SessionSearchSpec>;
     /**
-     * Adds a key in the message boxes, the session's and PiP's, before the box's own keys.
+     * Adds a key in the message boxes, the session's and Pia's, before the box's own keys.
      * @since 0.20.0
      * @experimental
      */
@@ -2664,10 +2669,12 @@ export interface Pocket {
      */
     insertText(text: string, options?: { inline?: boolean }): void;
     /**
-     * Gives text to the person's PiP, their assistant.
+     * Gives text to the person's Pia, their assistant.
      * @since 0.26.0
      * @experimental
      */
+    readonly pia: PiaApi;
+    /** @since 0.26.0 @deprecated Use `pia`. Kept for existing browser modules. */
     readonly pip: PipApi;
     /**
      * Hides or reorders a slot's items, the app's own too. A person's own choices in Appearance → Layout win.

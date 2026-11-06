@@ -1,16 +1,16 @@
 # Types for your editor
 
-[types/pocket.d.ts](../../../types/pocket.d.ts) has the types of Pi Pocket's public extension API. With it, your editor completes names and finds mistakes, and Pi reads the exact shapes. The reference pages give the same members in words.
+[types/pocket.d.ts](../../../types/pocket.d.ts) has the types of Pia's public extension API. With it, your editor completes names and finds mistakes, and the agent reads the exact shapes. The reference pages give the same members in words.
 
 ## Get the types
 
 Use one of these:
 
-1. **`_pocket.d.ts` in the drop-in folder.** Pi Pocket makes this link to its types file each time that it starts, beside the `node_modules` link. Its leading `_` keeps it from loading as a module. The same import then works on all machines. If you point the link at another readable file, such as your own checkout's types, Pi Pocket leaves it as it is. A file of your own with this name also stays.
-2. **The path in Pi Pocket's folder:** `/path/to/pi-pocket/types/pocket.d.ts`.
+1. **`_pocket.d.ts` in the drop-in folder.** Pia makes this link to its types file each time that it starts, beside the `node_modules` link. Its leading `_` keeps it from loading as a module. The same import then works on all machines. If you point the link at another readable file, such as your own checkout's types, Pia leaves it as it is. A file of your own with this name also stays.
+2. **The path in Pia's folder:** `/path/to/pi-pocket/types/pocket.d.ts`.
 3. **The copy on the documentation site:** `https://tannermidd.github.io/pi-pocket/docs/pocket.d.ts`. It is for the latest release.
 
-Where Pi Pocket cannot make links (on Windows, or when the system refuses them), `_pocket.d.ts` is a copy of the types file instead. Its first line says so, and Pi Pocket refreshes it at each start when the types change. Do not edit it.
+Where Pia cannot make links (on Windows, or when the system refuses them), `_pocket.d.ts` is a copy of the types file instead. Its first line says so, and Pia refreshes it at each start when the types change. Do not edit it.
 
 ## Import the types
 
@@ -37,7 +37,7 @@ export default function setup(pocket) {
 
 From a browser module in a folder, the path is `../_pocket.d.ts`.
 
-The types file imports types from Pi Durable, Pi AI, and Preact by package name. The drop-in folder's `node_modules` link gives them.
+The types file imports types from Pi Durable, the agent AI, and Preact by package name. The drop-in folder's `node_modules` link gives them.
 
 `tsc` skips `<name>.js` when there is a `<name>.ts`. To check both with `tsc`, put the browser module in the folder `<name>/`. An editor checks each file that you open.
 
@@ -67,7 +67,7 @@ interface Module {
 
 Since 0.1.0 · Stable
 
-A module: one `.ts` file that default-exports a setup function. [Modules, loading, and errors](../modules.md) tells you how Pi Pocket loads it.
+A module: one `.ts` file that default-exports a setup function. [Modules, loading, and errors](../modules.md) tells you how Pia loads it.
 
 ### `default`
 
@@ -77,7 +77,7 @@ default(host: Host, web: Web): Extension | readonly Extension[] | void | Promise
 
 Since 0.1.0 · Stable
 
-Sets up the module. It gets the [host](host.md) and [`web`](web.md). It returns the module's extensions: one, a list, or nothing when the module only adds to the app. It can be async. Pi Pocket 0.14.0 added `web`, async setup, and modules that return nothing.
+Sets up the module. It gets the [host](host.md) and [`web`](web.md). It returns the module's extensions: one, a list, or nothing when the module only adds to the app. It can be async. Pia 0.14.0 added `web`, async setup, and modules that return nothing.
 
 ### `pocketApi`
 
@@ -87,7 +87,7 @@ pocketApi?: number;
 
 Since 0.14.0 · Stable
 
-The version of the extension API that the module needs. A Pi Pocket with an older version does not set up the module. See [API versions](api-versions.md#pocketapi).
+The version of the extension API that the module needs. A Pia with an older version does not set up the module. See [API versions](api-versions.md#pocketapi).
 
 ## Shared types
 
@@ -129,9 +129,9 @@ Since 0.1.0 · Stable
 
 How important a notice is.
 
-## How Pi Pocket keeps the types correct
+## How Pia keeps the types correct
 
-Pi Pocket's checks fail when the types file and its code do not agree:
+Pia's checks fail when the types file and its code do not agree:
 
 - In `npm run check`, `test/public-types.ts` compares the real host, `web`, and command context with the public types, in both directions. It also fails for a new host member that is neither in the types file nor in its list of internal members.
 - In `npm run check`, `test/types-file.ts` checks the types file itself.

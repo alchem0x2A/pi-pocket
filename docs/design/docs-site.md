@@ -8,17 +8,17 @@ Built differently, after the security and quality reviews:
 - Each limit is written once, in `reference/limits.md`; the guides link to it. There is no check of the limits against the guides.
 - The root `npm run check` also checks the reference against `types/pocket.d.ts`.
 - The docs build fails on a symbolic link in `docs/`.
-- Pi Pocket shows no deprecation warnings until the first release that deprecates a member.
+- Pia shows no deprecation warnings until the first release that deprecates a member.
 - Theming ships in 0.14.0, with its own guide and reference page.
 
 ## The decisions
 
-1. **Starlight (Astro) with Pagefind search**, in a new folder `docs-site/` with its own `package.json` and lock. It renders `docs/**/*.md` and `SECURITY.md` where they are, with no copies: the repository's Markdown stays the one source for Pi, GitHub, and the site.
-2. **Split `docs/extensions.md`** (61 KB) into one page per task under `docs/extensions/`. `docs/extensions.md` keeps its path and becomes a short index: what an extension is, the module's shape, the rules that are easy to break, and which page to read for which task. Pi reads it whole, then only the pages its task needs.
-3. **A reference with one heading per member**: its signature, a line `Since 0.14.0 · Stable`, and a short description. This reads well on GitHub and for Pi; the site shows the line as two tags. Today's wide tables do not work on a phone (screenshot 06).
-4. **A public types file, `types/pocket.d.ts`**, for authors' editors and for Pi. A compile-only check in `npm run check` proves that the real host, `web`, and command context fit it. The reference is hand-written; the docs build checks that it names the same members, with the same versions, as the types file. No TypeDoc.
+1. **Starlight (Astro) with Pagefind search**, in a new folder `docs-site/` with its own `package.json` and lock. It renders `docs/**/*.md` and `SECURITY.md` where they are, with no copies: the repository's Markdown stays the one source for the agent, GitHub, and the site.
+2. **Split `docs/extensions.md`** (61 KB) into one page per task under `docs/extensions/`. `docs/extensions.md` keeps its path and becomes a short index: what an extension is, the module's shape, the rules that are easy to break, and which page to read for which task. The agent reads it whole, then only the pages its task needs.
+3. **A reference with one heading per member**: its signature, a line `Since 0.14.0 · Stable`, and a short description. This reads well on GitHub and for the agent; the site shows the line as two tags. Today's wide tables do not work on a phone (screenshot 06).
+4. **A public types file, `types/pocket.d.ts`**, for authors' editors and for the agent. A compile-only check in `npm run check` proves that the real host, `web`, and command context fit it. The reference is hand-written; the docs build checks that it names the same members, with the same versions, as the types file. No TypeDoc.
 5. **GitHub Pages from Actions**: one workflow publishes `site/` at `/pi-pocket/` and the docs at `/pi-pocket/docs/` on each push to `main`. It replaces `npm run site:publish` (`git subtree push`). The `gh-pages` branch stays as it is, for rollback.
-6. **The site shows the latest release only**, with "Since" marks. Each install keeps its own version's docs in `docs/`, and that is what its Pi reads.
+6. **The site shows the latest release only**, with "Since" marks. Each install keeps its own version's docs in `docs/`, and that is what its the agent reads.
 
 ## The sidebar
 
@@ -54,7 +54,7 @@ Reference
   host .............................. extensions/reference/host.md ← the host table, host.ts comments
   web ............................... extensions/reference/web.md ← the web table, request, access values
   pocket ............................ extensions/reference/pocket.md ← the pocket table, the fields of rail, menu,
-                                      launcher, page, sheet, toolCall, the pieces, the CSS names Pi Pocket keeps
+                                      launcher, page, sheet, toolCall, the pieces, the CSS names Pia keeps
   Command context ................... extensions/reference/command-context.md ← ctx, results, scopes
   Gallery entry ..................... extensions/reference/gallery-entry.md ← "What an entry declares", every
                                       field of src/server/gallery/entry.ts
@@ -69,7 +69,7 @@ Policies (written by the extension-guidelines subagent)
   Security for authors .............. extensions/policies/security.md
   Gallery review rules .............. extensions/policies/gallery-review.md
   Security model .................... SECURITY.md (as it is)
-Pi Pocket's own code (closed by default)
+Pia's own code (closed by default)
   Documentation map ................. docs/index.md
   Changing the code ................. docs/self-editing.md
   Project map, Architecture, Features docs/map.md, architecture.md, features.md
@@ -77,14 +77,14 @@ Pi Pocket's own code (closed by default)
 
 Text moves first and is rewritten second, in separate commits, so a review can see that nothing was lost. A limit's number is in its guide and in the limits table, nowhere else. `docs/examples/` stays, so `test/docs-examples.test.ts` does not change. `docs/design/` is not on the site. If the policies land at other paths, phase 2 moves them. The repository has no `CONTRIBUTING.md` yet; if one comes, it goes in the last group.
 
-## What changes for Pi
+## What changes for the agent
 
-Pi finds the docs through the `docs()` section of `src/server/extensions/prompt.ts`, and through the root `AGENTS.md`.
+The agent finds the docs through the `docs()` section of `src/server/extensions/prompt.ts`, and through the root `AGENTS.md`.
 
-- The prompt keeps its files, and `docs/extensions.md` stays the extension entry. Two edits: add "exact types in types/pocket.d.ts", and change "Read a doc completely, and follow its links" to "Read a doc completely before you change anything. index.md and extensions.md list the other pages: follow the links your task needs." Without that, Pi would read all 30 pages for each task. `prompt.ts` reloads without a restart.
+- The prompt keeps its files, and `docs/extensions.md` stays the extension entry. Two edits: add "exact types in types/pocket.d.ts", and change "Read a doc completely, and follow its links" to "Read a doc completely before you change anything. index.md and extensions.md list the other pages: follow the links your task needs." Without that, the agent would read all 30 pages for each task. `prompt.ts` reloads without a restart.
 - `AGENTS.md` links `docs/extensions.md#adding-to-the-app`; it becomes `docs/extensions/app.md`. `index.md`, `customizing.md`, `features.md`, `map.md`, and `self-editing.md` link to anchors that move. The docs build finds each one.
-- What Pi reads for an extension task: today, all of the 61 KB page (about 15,000 tokens). After: the index (about 12 KB) and one to three pages of 3 to 10 KB, or the types file (about 12 KB) for exact shapes.
-- Rejected: one dense page for Pi, split by heading for people at build time. With a tutorial, about 70 reference members, and the policies, that page would pass 100 KB, too much to read whole. And GitHub and the site would then have different pages and anchors.
+- What the agent reads for an extension task: today, all of the 61 KB page (about 15,000 tokens). After: the index (about 12 KB) and one to three pages of 3 to 10 KB, or the types file (about 12 KB) for exact shapes.
+- Rejected: one dense page for the agent, split by heading for people at build time. With a tutorial, about 70 reference members, and the policies, that page would pass 100 KB, too much to read whole. And GitHub and the site would then have different pages and anchors.
 
 ## Tooling and the proof of concept
 
@@ -137,9 +137,9 @@ A second, read-only workflow builds the docs on pull requests that change those 
 
 ## The types file
 
-- `types/pocket.d.ts` has only the public surface: `Host`, `Web` (with requests, access, and commands), `CommandContext`, `Pocket` (with the specs of rail, menu, launcher, page, sheet, and toolCall), and `Module`. Each member has `@since`, and `@experimental` where it applies. It imports Pi Durable's and Pi AI's types by package name, which drop-ins resolve.
-- Members only built-ins use (`pip`, `pipCompaction`, `gallery`, `watches`, `repoWatches`, `approvals`, `guard`, `schedules`, `goals`, `browsers`, `memory`) stay out; the host reference lists them as internal, to change in any release.
-- Authors get it by (1) its absolute path, as docs say now for `host.ts`; (2) a link `_pocket.d.ts` that Pi Pocket makes in the drop-in folder beside `node_modules` (a leading `_` is never loaded), so `import type { Host, Web } from "./_pocket.d.ts"` works on any machine, and in a browser module through JSDoc. It must be `import type`: the gallery's check reads `import { type … }` as an import that runs; (3) a copy at `/pi-pocket/docs/pocket.d.ts`. An npm package can come later, if gallery authors ask.
+- `types/pocket.d.ts` has only the public surface: `Host`, `Web` (with requests, access, and commands), `CommandContext`, `Pocket` (with the specs of rail, menu, launcher, page, sheet, and toolCall), and `Module`. Each member has `@since`, and `@experimental` where it applies. It imports Pi Durable's and the agent AI's types by package name, which drop-ins resolve.
+- Members only built-ins use (`pia`, `piaCompaction`, `gallery`, `watches`, `repoWatches`, `approvals`, `guard`, `schedules`, `goals`, `browsers`, `memory`) stay out; the host reference lists them as internal, to change in any release.
+- Authors get it by (1) its absolute path, as docs say now for `host.ts`; (2) a link `_pocket.d.ts` that Pia makes in the drop-in folder beside `node_modules` (a leading `_` is never loaded), so `import type { Host, Web } from "./_pocket.d.ts"` works on any machine, and in a browser module through JSDoc. It must be `import type`: the gallery's check reads `import { type … }` as an import that runs; (3) a copy at `/pi-pocket/docs/pocket.d.ts`. An npm package can come later, if gallery authors ask.
 - In step: `test/public-types.ts`, compile-only, in `npm run check`, assigns the real `PocketHost`, `ExtensionWeb`, and `CommandContext` to the public types, and the public `Module` to the loader's type; an error names the member that differs. A prototype passes on today's `host.ts`, and fails when the public file adds a member or changes a signature. For `pocket`, which has no types, one assertion in the existing `test/extension-ui.test.ts` compares `Object.keys(pocket)` with `Pocket`'s members. The docs build compares the reference with the types file.
 - "Since" values for today's members come once from history (`git log -S`, `git tag --contains`). After that, a new member gets `@since` in its own change.
 
@@ -154,14 +154,14 @@ Public pages follow ASD-STE100 at about 80%: one instruction to a sentence, at m
 Each phase is one pull request, useful alone.
 
 1. **Site and deploy** (about 1 day): `docs-site/` from the proof of concept, today's docs unchanged, the two workflows, a "Docs" link in `site/index.html`. The owner switches the Pages source.
-2. **The split** (1 to 2 days): the index and guides from today's text, links fixed, `prompt.ts`, `AGENTS.md`, and `index.md` updated. Then a live check: Pi writes an extension, and we see which pages it reads.
+2. **The split** (1 to 2 days): the index and guides from today's text, links fixed, `prompt.ts`, `AGENTS.md`, and `index.md` updated. Then a live check: the agent writes an extension, and we see which pages it reads.
 3. **Types and reference** (about 2 days): the types file, its checks, the reference pages. Optional: the `_pocket.d.ts` link.
 4. **New content** (2 to 3 days): tutorial, testing, limits, glossary, API versions; the policies placed; an STE pass over every public page; themes with the theming work of 0.14.0.
 5. **Later, if wanted**: an npm package for the types, `/docs/next/`, `llms.txt` for other agents, an STE linter (Vale).
 
 ## Risks
 
-- **Pi reads worse** (more files, a link not followed). The index keeps its path; phase 2's live check compares before and after.
+- **the agent reads worse** (more files, a link not followed). The index keeps its path; phase 2's live check compares before and after.
 - **Links from outside break.** GitHub has no redirects; old anchors (the gallery index's CONTRIBUTING, issues) land at the index's top, which links on. Phase 2 checks the gallery index repository.
 - **Astro and Starlight change fast** (Starlight is before 1.0; Sätteri is new). The lock pins versions; the custom part is small, on public APIs, and fits a remark plugin on Astro's `unified()` pipeline too.
 - **The switch breaks the product site.** First deploy by hand, compared with `gh-pages`; rollback is one setting.
@@ -177,7 +177,7 @@ Each phase is one pull request, useful alone.
 4. **Beta docs at `/docs/next/`?** Recommended: not now.
 5. **Folder name: `docs-site/` or `site/docs/`?** Recommended: `docs-site/`; in `site/`, its sources would mix with the published files.
 6. **A read-only docs check on pull requests**, the repository's first CI? Recommended: yes, for those paths only.
-7. **The `_pocket.d.ts` link** (a small change to Pi Pocket's code)? Recommended: yes, in phase 3.
+7. **The `_pocket.d.ts` link** (a small change to Pia's code)? Recommended: yes, in phase 3.
 8. **Map, architecture, self-editing, and features on the site?** Recommended: yes, in a closed group: they cost nothing, and search covers them.
-9. **Title: "Pi Pocket docs" or "Pi Pocket extensions"?** Recommended: "Pi Pocket docs", with "Extend Pi Pocket" on the home page, as the site also has the pages for changes without code.
+9. **Title: "Pia docs" or "Pia extensions"?** Recommended: "Pia docs", with "Extend Pia" on the home page, as the site also has the pages for changes without code.
 10. **A "How to write one" link from Menu → Extensions to the site?** Recommended: yes, in phase 4.

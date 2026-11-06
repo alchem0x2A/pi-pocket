@@ -27,7 +27,7 @@ import { FileLists, type FileListing, type FileView, viewFile } from "./files.ts
 import { displayPath, expandHome } from "./paths.ts";
 import type { ClientEntry } from "./projection.ts";
 
-/** How many sessions' Pi edits are kept between looks at Changes (`#edits`). */
+/** How many sessions' the agent edits are kept between looks at Changes (`#edits`). */
 const EDITS_KEPT = 64;
 
 export class Workspace {
@@ -42,8 +42,8 @@ export class Workspace {
 
     /**
      * The looks at what a conversation's folder changed that are under way, per reach (its folder only, or its
-     * repository). Every tab that shows a session asks (the top bar's count), often together as Pi moves on; those that
-     * ask while a look is under way share it, as each reads the new history for Pi's edits and runs git. One asked after
+     * repository). Every tab that shows a session asks (the top bar's count), often together as the agent moves on; those that
+     * ask while a look is under way share it, as each reads the new history for the agent's edits and runs git. One asked after
      * it ends looks again, so what it says is never older than the question.
      */
     readonly #changesUnderWay = new Map<string, Promise<Changes>>();
@@ -56,7 +56,7 @@ export class Workspace {
 
     /**
      * Where each folder's repository keeps its files, for a minute: views ask on every update. A folder in none is
-     * asked about again after a few seconds, so one Pi has just run `git init` in shows its branch soon.
+     * asked about again after a few seconds, so one the agent has just run `git init` in shows its branch soon.
      */
     readonly #gitDirs = new Map<string, { gitDir: string | undefined; at: number }>();
 
@@ -107,8 +107,8 @@ export class Workspace {
 
     /**
      * Switch a session's folder to another branch: one there already, a new one from what is checked out (`create`),
-     * or a new one following a remote branch (`track`). It changes the files under Pi, so as with moving the session to
-     * another folder it takes the right to drive, someone not invited to one session only, and Pi not working; Pi is
+     * or a new one following a remote branch (`track`). It changes the files under the agent, so as with moving the session to
+     * another folder it takes the right to drive, someone not invited to one session only, and the agent not working; the agent is
      * told with its next message.
      */
     async switchBranch(
@@ -141,7 +141,7 @@ export class Workspace {
         if (this.#app.isBusy(id)) {
             throw new HttpError(
                 409,
-                "Pi is working here: wait for it, or stop it, before switching branches.",
+                "the agent is working here: wait for it, or stop it, before switching branches.",
             );
         }
 
@@ -253,7 +253,7 @@ export class Workspace {
     }
 
     /**
-     * A file a person may load through a conversation. People who can steer reach the whole machine through Pi anyway;
+     * A file a person may load through a conversation. People who can steer reach the whole machine through the agent anyway;
      * viewers and people invited to one session get only files under the conversation's folder or its uploads.
      */
     conversationFile(user: User, id: ConversationId, path: string): string {
@@ -295,8 +295,8 @@ export class Workspace {
 
     /**
      * A file a person may read whole through a session: the viewer, and files sent along with a message. As
-     * `conversationFile`, but Pi's own folder (sign-ins, settings) and this app's data (people, tokens, the database)
-     * are the owner's alone. Uploads, worktrees, and PiP's clones (`repos/`), which sessions use, are not kept back.
+     * `conversationFile`, but the agent's own folder (sign-ins, settings) and this app's data (people, tokens, the database)
+     * are the owner's alone. Uploads, worktrees, and Pia's clones (`repos/`), which sessions use, are not kept back.
      */
     readableFile(user: User, id: ConversationId, path: string): string {
         const file = this.conversationFile(user, id, path);
@@ -352,7 +352,7 @@ export class Workspace {
     }
 
     /**
-     * The files in a conversation's folder, for `@` mentions in the message box: for people who can write to Pi. It lists
+     * The files in a conversation's folder, for `@` mentions in the message box: for people who can write to the agent. It lists
      * names under the folder only, so someone invited to one session sees no more than `conversationFile` lets them load.
      */
     async fileList(id: ConversationId, user: User): Promise<FileListing> {
@@ -395,8 +395,8 @@ export class Workspace {
     }
 
     /**
-     * Undo the uncommitted changes to one file of a session's repository. It changes files under Pi, so it takes the
-     * right to drive and waits until Pi is not working; Pi is told, with its next message.
+     * Undo the uncommitted changes to one file of a session's repository. It changes files under the agent, so it takes the
+     * right to drive and waits until the agent is not working; the agent is told, with its next message.
      */
     async revertChange(id: ConversationId, user: User, path: string): Promise<void> {
         this.#app.requireSee(user, id);
@@ -405,7 +405,7 @@ export class Workspace {
         if (this.#app.isBusy(id)) {
             throw new HttpError(
                 409,
-                "Pi is working here: wait for it, or stop it, before undoing a file.",
+                "the agent is working here: wait for it, or stop it, before undoing a file.",
             );
         }
 
@@ -424,7 +424,7 @@ export class Workspace {
         await this.#app.collab.activity(id, user, what);
     }
 
-    /** What changed in a session's folder: Pi's edits, and the uncommitted changes of its git repository. */
+    /** What changed in a session's folder: the agent's edits, and the uncommitted changes of its git repository. */
     async changes(id: ConversationId, user: User): Promise<Changes> {
         this.#app.requireSee(user, id);
         this.#app.requireSteer(user);

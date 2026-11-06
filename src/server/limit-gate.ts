@@ -1,5 +1,5 @@
 /**
- * The limit gate: a model request that hits a limit waits for it to clear, then goes on, inside the same stream. Pi
+ * The limit gate: a model request that hits a limit waits for it to clear, then goes on, inside the same stream. The agent
  * Durable sees one slow request, not a failure. `install` wraps `models.streamSimple` (as `timing.ts` does), outside
  * the timing wrapper, so each attempt is measured on its own.
  *
@@ -942,11 +942,11 @@ export class LimitGate {
         const resets = `it resets in ${span(verdict.resetAt - now)}${when(verdict.resetAt)}`;
 
         if (verdict.long) {
-            return `${resets}, a limit of days that Pi Pocket does not wait for`;
+            return `${resets}, a limit of days that Pia does not wait for`;
         }
 
         return until > since + maxReset
-            ? `${resets}, and Pi Pocket waits at most ${span(maxReset)}`
+            ? `${resets}, and Pia waits at most ${span(maxReset)}`
             : undefined;
     }
 

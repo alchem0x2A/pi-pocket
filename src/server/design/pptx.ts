@@ -91,15 +91,15 @@ function theme(): string {
     const fill = '<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>';
     const font = '<a:latin typeface="Arial"/><a:ea typeface=""/><a:cs typeface=""/>';
 
-    return `<a:theme xmlns:a="${A}" name="Pi Pocket">
+    return `<a:theme xmlns:a="${A}" name="Pia">
         <a:themeElements>
-            <a:clrScheme name="Pi Pocket">${colors
+            <a:clrScheme name="Pia">${colors
                 .map(([name, color]) => `<a:${name}><a:srgbClr val="${color}"/></a:${name}>`)
                 .join("")}</a:clrScheme>
-            <a:fontScheme name="Pi Pocket">
+            <a:fontScheme name="Pia">
                 <a:majorFont>${font}</a:majorFont><a:minorFont>${font}</a:minorFont>
             </a:fontScheme>
-            <a:fmtScheme name="Pi Pocket">
+            <a:fmtScheme name="Pia">
                 <a:fillStyleLst>${fill.repeat(3)}</a:fillStyleLst>
                 <a:lnStyleLst>${[6350, 12700, 19050]
                     .map((width) => `<a:ln w="${width}">${fill}<a:prstDash val="solid"/></a:ln>`)
@@ -168,13 +168,13 @@ export function pptx(
     );
     addXml(
         "docProps/core.xml",
-        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>Pi Pocket</dc:creator></cp:coreProperties>',
+        '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:creator>Pia</dc:creator></cp:coreProperties>',
         "application/vnd.openxmlformats-package.core-properties+xml",
     );
     addXml(
         "docProps/app.xml",
         `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
-            <Application>Pi Pocket</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat>
+            <Application>Pia</Application><PresentationFormat>On-screen Show (16:9)</PresentationFormat>
             <Slides>${slides.length}</Slides><Notes>${slides.length}</Notes>
         </Properties>`,
         "application/vnd.openxmlformats-officedocument.extended-properties+xml",

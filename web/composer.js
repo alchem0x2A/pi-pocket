@@ -72,7 +72,7 @@ const coarse = matchMedia("(pointer: coarse)").matches;
 let openedByAlt = null;
 
 export const openingByAlt = (id) => (openedByAlt = APPLE ? id : null);
-/** The newest "Send to Pi" text already put into a message box (see `insertIntoComposer`). */
+/** The newest "Send to the agent" text already put into a message box (see `insertIntoComposer`). */
 let insertedUpTo = 0;
 
 /** Pasted text this long goes into the box as a placeholder; the message goes out with the text in its place. */
@@ -117,10 +117,10 @@ const expandPastes = (text, pastes) => text.replace(PASTED, (whole, n) => pastes
  */
 const queuedReports = (item) => item.reports ?? null;
 
-/** How a message can go while Pi works: the value the server takes, its label, and what it does. */
+/** How a message can go while the agent works: the value the server takes, its label, and what it does. */
 const SEND_MODES = [
-    ["steer", "Steer", "Pi reads it now, between steps"],
-    ["followUp", "Queue", "Pi reads it when this run ends"],
+    ["steer", "Steer", "the agent reads it now, between steps"],
+    ["followUp", "Queue", "the agent reads it when this run ends"],
     [
         "interrupt",
         "Interrupt",
@@ -141,7 +141,7 @@ const QUEUED_INTERRUPT_HINT =
  */
 const CONFIRM_INTERRUPT = true;
 
-/** What kind of message waits for Pi: a steer, one queued for after its answer, a note, or subagents' reports. */
+/** What kind of message waits for the agent: a steer, one queued for after its answer, a note, or subagents' reports. */
 function queuedMode(item) {
     const names = queuedReports(item);
 
@@ -152,7 +152,7 @@ function queuedMode(item) {
     return item.mode === "steer" ? "Steer" : item.mode === "followUp" ? "Queue" : "Note";
 }
 
-/** Who sent a message, as the server writes it at the start when several people use Pi (`FROM_PREFIX`). */
+/** Who sent a message, as the server writes it at the start when several people use the agent (`FROM_PREFIX`). */
 const FROM = /^\[from: [^\]\n]{1,60}\] /;
 
 /** What a waiting message says (its row names who sent it); subagents' reports say whose, as their text is long. */
@@ -163,7 +163,7 @@ function queuedText(item) {
         return (item.text ?? "").replace(FROM, "");
     }
 
-    return `from ${names.join(", ")}, on ${names.length === 1 ? "its" : "their"} way to Pi`;
+    return `from ${names.join(", ")}, on ${names.length === 1 ? "its" : "their"} way to the agent`;
 }
 
 /** Take turns: who drives, who asked, and the buttons to hand over, ask, or take the wheel. */
@@ -244,7 +244,7 @@ function DriverBar() {
     </div>`;
 }
 
-/** Plan mode: Pi proposes and changes nothing until someone here approves its plan. */
+/** Plan mode: the agent proposes and changes nothing until someone here approves its plan. */
 function PlanBar({ blocked }) {
     const { view } = store.state;
 
@@ -254,7 +254,7 @@ function PlanBar({ blocked }) {
 
     // A subagent follows its session's plan mode; it is approved there.
     const subagent = view.conversation?.kind === "subagent";
-    // There is a plan to approve once Pi has answered since plan mode went on.
+    // There is a plan to approve once the agent has answered since plan mode went on.
     const proposed =
         view.plan.at === undefined ||
         [...view.entries.values()].some(
@@ -267,7 +267,7 @@ function PlanBar({ blocked }) {
 
     return html`<div class="plan-bar">
         <span class="grow">
-            <strong>Plan mode.</strong> ${subagent ? "This subagent follows its session: it reads, and changes nothing." : "Pi reads and proposes; nothing changes until you approve."}
+            <strong>Plan mode.</strong> ${subagent ? "This subagent follows its session: it reads, and changes nothing." : "the agent reads and proposes; nothing changes until you approve."}
         </span>
         ${
             !blocked &&
@@ -278,7 +278,7 @@ function PlanBar({ blocked }) {
             <button
                 class="button small primary"
                 disabled=${view.live.busy || !proposed}
-                title=${proposed ? undefined : "Pi has not proposed a plan yet."}
+                title=${proposed ? undefined : "the agent has not proposed a plan yet."}
                 onClick=${() => attempt(actions.approvePlan)}
             >
                 Approve plan
@@ -287,7 +287,7 @@ function PlanBar({ blocked }) {
     </div>`;
 }
 
-/** Done when: the check Pi works toward, how many checks it took, and a way to drop it. */
+/** Done when: the check the agent works toward, how many checks it took, and a way to drop it. */
 function GoalBar() {
     const { goal } = store.state.view;
 
@@ -336,7 +336,7 @@ function watchEnded(watch) {
     }
 }
 
-/** A PR watch: which PR, its checks, what it sent Pi; stop it, or dismiss one that ended. */
+/** A PR watch: which PR, its checks, what it sent the agent; stop it, or dismiss one that ended. */
 function WatchBar() {
     const { watch } = store.state.view;
 
@@ -377,7 +377,7 @@ export function Composer() {
     const historyScope = { person: store.state.me?.id, conversation: conversationId };
     const [text, setText] = useState(() => drafts.get(conversationId));
     const [files, setFiles] = useState([]);
-    // How a message goes while Pi works: "steer", "followUp" (Queue), or "interrupt" (stop the run, then send).
+    // How a message goes while the agent works: "steer", "followUp" (Queue), or "interrupt" (stop the run, then send).
     const [sendMode, setSendMode] = useState("steer");
     // The queued message tapped open, wrapped: one line each until then. The queue holds only a message's start.
     const [reading, setReading] = useState(null);
@@ -438,7 +438,7 @@ export function Composer() {
     const busy = view.live.busy;
     const agent = view.agent;
 
-    // An Interrupt is for the run it was chosen in: when Pi stops working, an unused one goes back to Steer, so it does
+    // An Interrupt is for the run it was chosen in: when the agent stops working, an unused one goes back to Steer, so it does
     // not stop the next run. Steer and Queue stay as the person chose.
     useEffect(() => {
         if (!busy) {
@@ -482,7 +482,7 @@ export function Composer() {
             box.current?.focus({ preventScroll: true });
         }
     }, []);
-    // Text sent here from the chat, the notes ("Send to Pi"), or another app (Share) goes after whatever is in the box,
+    // Text sent here from the chat, the notes ("Send to the agent"), or another app (Share) goes after whatever is in the box,
     // once: the message box is made again for every session, and must not add the same text there. Shared files are
     // attached the same way.
     const insert = store.state.composerInsert;
@@ -548,7 +548,7 @@ export function Composer() {
             loadTemplates();
         }
 
-        // A command is not a message to Pi: no "typing to Pi" for it.
+        // A command is not a message to the agent: no "typing to the agent" for it.
         typing(value.trim() === "" || value.startsWith("/") ? null : "pi");
     };
 
@@ -559,7 +559,7 @@ export function Composer() {
     const chosen = suggestions[Math.min(pick, suggestions.length - 1)];
     const parsed = parseCommand(text);
     const template = parsed ? null : parseTemplate(text);
-    // `!command` runs in the session's folder and Pi sees it; `!!command`, only the people here.
+    // `!command` runs in the session's folder and the agent sees it; `!!command`, only the people here.
     const shell = text.startsWith("!")
         ? { context: !text.startsWith("!!"), command: text.replace(/^!!?/, "").trim() }
         : null;
@@ -685,7 +685,7 @@ export function Composer() {
         }
     };
 
-    // Something in the box: on a phone while Pi works, Send takes the mic's place (style.css).
+    // Something in the box: on a phone while the agent works, Send takes the mic's place (style.css).
     const filled = text.trim() !== "" || files.length > 0;
     const uploading = files.some((file) => file.state === "uploading");
     const canSend =
@@ -1069,7 +1069,7 @@ export function Composer() {
               : sendMode === "interrupt"
                 ? "Stop the run and send this now…"
                 : "Queue a message for after this run…"
-          : "Ask Pi anything…";
+          : "Ask anything…";
     const inbox = view.inbox ?? [];
     const { me, users } = store.state;
     const queuedBy = (item) =>
@@ -1115,7 +1115,7 @@ export function Composer() {
                 // How many wait: shown when the queue does not show them all (`dock.js`).
                 inbox.length > 0 &&
                 html`<div class="inbox-count">
-                    ${inbox.length} ${inbox.length === 1 ? "message" : "messages"} waiting for Pi
+                    ${inbox.length} ${inbox.length === 1 ? "message" : "messages"} waiting for the agent
                 </div>`
             }
             ${
@@ -1140,7 +1140,7 @@ export function Composer() {
                                 html`<button
                                     class="icon-button small queued-remove"
                                     aria-label=${queuedReports(item) ? "Discard these reports" : "Withdraw"}
-                                    title=${queuedReports(item) ? "Discard these reports: Pi will not get them" : "Withdraw"}
+                                    title=${queuedReports(item) ? "Discard these reports: the agent will not get them" : "Withdraw"}
                                     onClick=${() => attempt(() => actions.withdraw(item.id))}
                                 >
                                     <${Icon} name="close" size=${13} />
@@ -1208,7 +1208,7 @@ export function Composer() {
                 ? html`${
                       busy &&
                       html`<div class="composer-row stop-only">
-                          <span class="muted small grow">Pi is working…</span>
+                          <span class="muted small grow">the agent is working…</span>
                           <${StopButton} />
                       </div>`
                   }`
@@ -1250,7 +1250,7 @@ export function Composer() {
                 ${
                     shell &&
                     html`<div class="command-hint">
-                        <span class="command-name">${shell.context ? "!" : "!!"}</span> <span class="muted">· runs in this session's folder · ${shell.context ? "Pi sees the output (!! to keep it from Pi)" : "only the people here see the output"}</span>
+                        <span class="command-name">${shell.context ? "!" : "!!"}</span> <span class="muted">· runs in this session's folder · ${shell.context ? "the agent sees the output (!! to keep it from the agent)" : "only the people here see the output"}</span>
                     </div>`
                 }
                 ${
@@ -1266,7 +1266,7 @@ export function Composer() {
                     !searching &&
                     html`<div class="command-hint wraps">
                         <span class="muted">
-                            ${inlineFiles ? "Mentioned files go with the message." : "Pi reads the files you mention."}
+                            ${inlineFiles ? "Mentioned files go with the message." : "the agent reads the files you mention."}
                         </span>
                         ${" "}
                         <button
@@ -1277,7 +1277,7 @@ export function Composer() {
                                 setInlineFiles(!inlineFiles);
                             }}
                         >
-                            ${inlineFiles ? "Let Pi read them" : "Send them along"}
+                            ${inlineFiles ? "Let the agent read them" : "Send them along"}
                         </button>
                     </div>`
                 }
@@ -1351,7 +1351,7 @@ export function Composer() {
                         ${
                             parsed.command.args &&
                             html` <span class="command-args">${parsed.command.args}</span>`
-                        } <span class="muted">· ${parsed.command.description} · not sent to Pi</span>
+                        } <span class="muted">· ${parsed.command.description} · not sent to the agent</span>
                     </div>`
                 }
                 ${
@@ -1362,7 +1362,7 @@ export function Composer() {
                         ${
                             template.args &&
                             html` <span class="command-args">${template.args}</span>`
-                        } <span class="muted">· ${template.skill ? "skill · Pi gets its instructions with your request" : "prompt template · Pi gets it filled in"}</span>
+                        } <span class="muted">· ${template.skill ? "skill · the agent gets its instructions with your request" : "prompt template · the agent gets it filled in"}</span>
                     </div>`
                 }
                 <div
@@ -1568,7 +1568,7 @@ defineItem("composer", {
             class=${`plan-chip ${view.plan?.on ? "on" : ""}`}
             data-part="composer-button plan-chip"
             aria-pressed=${view.plan?.on === true}
-            title="Plan mode: Pi reads and proposes, and changes nothing until you approve"
+            title="Plan mode: the agent reads and proposes, and changes nothing until you approve"
             onMouseDown=${(event) => event.preventDefault()}
             onClick=${() => attempt(() => actions.setPlan(!view.plan?.on))}
         >

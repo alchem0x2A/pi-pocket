@@ -53,7 +53,7 @@ export function useFitHeight(initial, min, max) {
 export function RunFrame({
     source,
     title = "Preview",
-    from = "the page in Pi's reply",
+    from = "the page in the agent's reply",
     artifact = null,
 }) {
     const ref = useRef(null);

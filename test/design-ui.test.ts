@@ -1,5 +1,5 @@
 // The Design workspace in a real Chromium: the panel from the rail, the canvas and its sizes, the picker with a group, the
-// versions and "go back to this one", compare, variations, shared comments and what "Send to Pi" puts in the box, the
+// versions and "go back to this one", compare, variations, shared comments and what "Send to the agent" puts in the box, the
 // artifact viewer's "Open in Design" button, a viewer who cannot write, and the phone's layout. What needs the frame's
 // inspector (pointing, editing, tweaks, slides) runs when this copy has it (`attachBridge` in `web/artifact-bridge.js`).
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -298,7 +298,7 @@ test("a group shows together in the picker, and as a grid of live thumbnails", r
         "Hero B",
     );
 
-    // "Use this one" asks Pi, in the box, and sends nothing.
+    // "Use this one" asks the agent, in the box, and sends nothing.
     const entries = (await app.transcripts.allEntries(session, false)).length;
 
     await setBox("");
@@ -393,7 +393,7 @@ test(
 );
 
 test(
-    "comments are shared: what another person wrote shows, and Send to Pi puts them in the box",
+    "comments are shared: what another person wrote shows, and Send to the agent puts them in the box",
     real,
     async () => {
         await choose("Coffee landing page");
@@ -476,7 +476,7 @@ test(
         assert.match(text, /“Coffee landing page” \(artifact `landing`\)/);
         assert.match(text, /1\. Shorter, please\n\(on version 4, from Gale\)\n```json/);
         assert.doesNotMatch(text, /Bigger/, "only the open ones");
-        // Marking them done after Pi has the new version.
+        // Marking them done after the agent has the new version.
         await pressed(".dsn-dock-foot .dsn-link", "mark them done");
         await until(
             async () =>

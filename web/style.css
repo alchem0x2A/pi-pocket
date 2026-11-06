@@ -1,5 +1,5 @@
 /*
- * Pi Pocket's look: soft tiles over one palette, after Rosé Pine, in a light and a dark half (the --o-* variables
+ * Pia's look: soft tiles over one palette, after Rosé Pine, in a light and a dark half (the --o-* variables
  * below; theme.js picks the half). Everything else mixes from it the way omarchy-shell does: the foreground over the
  * background at a few percent for fills and hairlines. Windows still tile like Hyprland's, with rounded corners, 1px
  * hairlines, and a soft accent ring on the one in focus. Geist sets the words; JetBrains Mono only code, paths,
@@ -15,8 +15,8 @@
  *   Loaders                        the boot screen, the spinner
  *   Layout                         windows on a desktop, the sidebar's edge
  *   Top bar
- *   Transcript                     messages, Pi's replies, code blocks, answer actions, arrivals, chevrons
- *   Tool cards                     what Pi did: activity groups and their timelines, approvals, the live line
+ *   Transcript                     messages, the agent's replies, code blocks, answer actions, arrivals, chevrons
+ *   Tool cards                     what the agent did: activity groups and their timelines, approvals, the live line
  *   Composer                       the queue, slash commands, file mentions, the message box, the bar under it
  *   Extensions                     extension cards, and the switch every sheet uses
  *   Sessions                       the sidebar: tabs, groups, rows, selection, its foot
@@ -152,14 +152,14 @@
     --hl-op: var(--o-cyan);
     --hl-tag: var(--o-red);
     --scrim: color-mix(in srgb, var(--desk) 55%, transparent);
-    /* Shadows: a soft lift (the message box), and what floats over the page (popovers, sheets, the launcher, PiP). */
+    /* Shadows: a soft lift (the message box), and what floats over the page (popovers, sheets, the launcher, Pia). */
     --sh: rgba(0, 0, 0, 0.5);
     --shadow: 0 18px 40px -18px var(--sh), 0 2px 6px -2px var(--sh);
     --pop: 0 24px 60px -16px var(--sh), 0 0 0 1px var(--hair-2);
     /*
      * Corners, from small to large: state squares; inline code, keys, and small tags; a segment in its track; small
      * buttons and list rows; icon buttons, fields, and segmented tracks; cards and primary buttons; windows, approval
-     * cards, and peek tiles; the message box, sheets, and the launcher; PiP. Pills and avatars are round (999px).
+     * cards, and peek tiles; the message box, sheets, and the launcher; Pia. Pills and avatars are round (999px).
      */
     --r-mark: 2px;
     --r-tag: 4px;
@@ -499,11 +499,6 @@ kbd {
     color: var(--err);
 }
 
-.pi {
-    font-family: Georgia, "Times New Roman", serif;
-    color: var(--brand);
-}
-
 /* ─── Motion ───────────────────────────────────────────────── */
 
 /* Hyprland's popin 87%: what opens grows from 87% and fades in. */
@@ -596,7 +591,7 @@ kbd {
 
 /* ─── Loaders, after Omarchy's ───────────────────────────────── */
 
-/* The boot screen: π over a flat square bar (Omarchy's boot screen) that eases toward 70% while it waits. */
+/* The boot screen: the ribbon logo over the progress bar. */
 .boot {
     display: flex;
     flex-direction: column;
@@ -619,12 +614,15 @@ kbd {
 }
 
 .boot-mark {
-    font:
-        4.5rem/1 Georgia,
-        "Times New Roman",
-        serif;
+    display: grid;
+    place-items: center;
     color: var(--brand);
     animation: boot-breathe 2.4s var(--ease-in-out) infinite;
+}
+
+.boot-mark img {
+    width: 64px;
+    height: 64px;
 }
 
 @keyframes boot-breathe {
@@ -847,7 +845,7 @@ kbd {
     padding-right: calc(12px + var(--inset-r));
 }
 
-/* A short screen (a phone on its side): the rail drops its marks (Pi, and the sessions it is on) so its buttons fit,
+/* A short screen (a phone on its side): the rail drops its marks (the agent, and the sessions it is on) so its buttons fit,
  * and the home list puts its search and tabs side by side, so more sessions show (where they fit). */
 @media (max-height: 500px) {
     .rail {
@@ -1415,7 +1413,7 @@ kbd {
     padding-inline: var(--inset-l) var(--inset-r);
 }
 
-/* A column of turns: a person's message, what Pi did, Pi's reply, an approval, the live line. Its text size is
+/* A column of turns: a person's message, what the agent did, the agent's reply, an approval, the live line. Its text size is
  * Appearance's; the cards inside keep fixed sizes. */
 .transcript {
     max-width: var(--transcript-width);
@@ -1446,7 +1444,7 @@ kbd {
     }
 }
 
-/* What arrives while the session is open slides up into place: a message sent, or Pi starting to answer. */
+/* What arrives while the session is open slides up into place: a message sent, or the agent starting to answer. */
 .enter {
     animation: rise-in 0.42s var(--ease-out) backwards;
 }
@@ -1460,8 +1458,8 @@ kbd {
     color: var(--muted);
 }
 
-.empty .pi {
-    font-size: 3.2rem;
+.empty .assistant-logo {
+    color: var(--brand);
     opacity: 0.8;
 }
 
@@ -1599,7 +1597,7 @@ kbd {
     text-wrap: pretty;
 }
 
-/* What a PR watch or a webhook fenced for Pi (a check's log, a post): a block of its own, scrolling past a few lines. */
+/* What a PR watch or a webhook fenced for the agent (a check's log, a post): a block of its own, scrolling past a few lines. */
 .fenced-data {
     margin: 0.4rem 0;
     border: 1px solid var(--hair);
@@ -1633,7 +1631,7 @@ kbd {
     margin-top: 0.35rem;
 }
 
-/* Pi's words: plain prose, without a container. */
+/* the agent's words: plain prose, without a container. */
 .reply {
     display: flex;
     flex-direction: column;
@@ -1949,7 +1947,7 @@ kbd {
     }
 }
 
-/* Under Pi's answers: reactions, then React, Discuss, Pin, Copy, and More. */
+/* Under the agent's answers: reactions, then React, Discuss, Pin, Copy, and More. */
 .answer-actions {
     display: flex;
     flex-wrap: wrap;
@@ -2065,7 +2063,7 @@ kbd {
 
 /* ─── Tool cards ───────────────────────────────────────────── */
 
-/* What Pi did between its words: a card with one line ("Read 2 files, ran 1 command · 18s") that opens into a
+/* What the agent did between its words: a card with one line ("Read 2 files, ran 1 command · 18s") that opens into a
  * timeline. */
 .activity {
     min-width: 0;
@@ -2473,7 +2471,7 @@ pre.diff .del {
     border-color: var(--err-line);
 }
 
-/* Reports that arrived together, as one message to Pi: a card each. */
+/* Reports that arrived together, as one message to the agent: a card each. */
 .report-group {
     display: flex;
     flex-direction: column;
@@ -2574,7 +2572,7 @@ pre.diff .del {
     line-height: 1.5;
 }
 
-/* An extension's question for the person Pi works for (`host.ask`): a field for each value, a thumb's height. */
+/* An extension's question for the person the agent works for (`host.ask`): a field for each value, a thumb's height. */
 .ask-field {
     display: flex;
     flex-direction: column;
@@ -2657,7 +2655,7 @@ pre.diff .del {
     }
 }
 
-/* The live turn's last line: what Pi does now, for how long, and how to stop it. */
+/* The live turn's last line: what the agent does now, for how long, and how to stop it. */
 .live-line {
     display: flex;
     align-items: center;
@@ -3000,7 +2998,7 @@ pre.diff .del {
     gap: 0.5rem;
 }
 
-/* Messages waiting for Pi: a few rows' height at most, so the conversation stays in view; more scroll inside. */
+/* Messages waiting for the agent: a few rows' height at most, so the conversation stays in view; more scroll inside. */
 .inbox {
     display: flex;
     flex-direction: column;
@@ -3011,7 +3009,7 @@ pre.diff .del {
     overscroll-behavior: contain;
 }
 
-/* A message waiting for Pi: Steer or Queue, what it says, and a way to take it back. */
+/* A message waiting for the agent: Steer or Queue, what it says, and a way to take it back. */
 .queued {
     /* Its own height in a queue that scrolls: shrunk, the dock would measure it smaller and let it grow again. */
     flex: none;
@@ -3324,7 +3322,7 @@ pre.diff .del {
     color: var(--warn);
 }
 
-/* A narrow message box (a narrow pane, or a phone) gives up the level first, then, while Pi works and Steer and Queue
+/* A narrow message box (a narrow pane, or a phone) gives up the level first, then, while the agent works and Steer and Queue
  * take room, Plan and the sparkle: the model's name stays. */
 @container composer (max-width: 340px) {
     .model-chip .model-level {
@@ -3350,7 +3348,7 @@ pre.diff .del {
     }
 }
 
-/* Steer, Queue, and Interrupt leave no room for the model on a narrow box while Pi works: it shows again after. */
+/* Steer, Queue, and Interrupt leave no room for the model on a narrow box while the agent works: it shows again after. */
 @container composer (max-width: 480px) {
     .composer.busy .composer-row .model-chip {
         display: none;
@@ -3359,7 +3357,7 @@ pre.diff .del {
 
 /* The buttons that extensions add to the row: any number of them can come. Where they would push Send (or Stop) out of a
  * narrow box (two or more up to 480 px, one up to 340 px), they take a line of their own under the row, where they stay
- * while Pi works. The break is the row's `::after`: a line of no height, so only the buttons' margin parts the lines. A
+ * while the agent works. The break is the row's `::after`: a line of no height, so only the buttons' margin parts the lines. A
  * wrapping row breaks before an item that is too wide, not after shrinking one: the model asks for no room, so Send
  * stays on the first line, then takes what is left, up to its whole name. */
 @container composer (max-width: 480px) {
@@ -3410,7 +3408,7 @@ pre.diff .del {
     }
 }
 
-/* One button, on its line in the row: while Pi works it steps aside on a narrow box, so Steer, Queue, Interrupt, and
+/* One button, on its line in the row: while the agent works it steps aside on a narrow box, so Steer, Queue, Interrupt, and
  * Stop stay inside it. It shows again after. */
 @container composer (340px < width <= 480px) {
     .composer.busy
@@ -3421,8 +3419,8 @@ pre.diff .del {
 }
 
 /* On a screen up to 360 px wide (an iPhone SE is 320 px; a 360 px screen's box is 334 px, and the row needs 335), Steer,
- * Queue, and Interrupt would push Stop out of the box: while Pi works, Attach goes and the three get closer. Attach
- * comes back when Pi stops. */
+ * Queue, and Interrupt would push Stop out of the box: while the agent works, Attach goes and the three get closer. Attach
+ * comes back when the agent stops. */
 @container composer (max-width: 340px) {
     .composer.busy .composer-row .attach-button {
         display: none;
@@ -3526,7 +3524,7 @@ pre.diff .del {
     color: var(--accent);
 }
 
-/* While Pi works: whether a message steers the run or waits for its end. */
+/* While the agent works: whether a message steers the run or waits for its end. */
 .mode-switch {
     flex: none;
     display: flex;
@@ -3771,7 +3769,7 @@ pre.diff .del {
     color: var(--warn);
 }
 
-/* Commands Pi runs in the background: a pill that opens Running now, with a dot that pulses while they run. */
+/* Commands the agent runs in the background: a pill that opens Running now, with a dot that pulses while they run. */
 .status-line .background-now {
     display: inline-flex;
     align-items: center;
@@ -3984,7 +3982,7 @@ pre.diff .del {
     cursor: default;
 }
 
-/* ─── The rail: Pi, the tools, and you; folded, the sessions too ─── */
+/* ─── The rail: the agent, the tools, and you; folded, the sessions too ─── */
 
 .rail {
     width: 56px;
@@ -4126,7 +4124,7 @@ pre.diff .del {
     background: var(--card-2);
 }
 
-/* A tool whose window is open (peek tiles, PiP, the subagents board, an extension's page): the accent's soft fill. */
+/* A tool whose window is open (peek tiles, Pia, the subagents board, an extension's page): the accent's soft fill. */
 .rail-button.open {
     color: var(--accent);
     background: var(--accent-soft);
@@ -4135,7 +4133,7 @@ pre.diff .del {
 .rail-new,
 .rail-running.lit,
 .rail-agents.lit,
-.rail-pip.lit {
+.rail-pia.lit {
     color: var(--accent);
 }
 
@@ -4143,7 +4141,7 @@ pre.diff .del {
     stroke-width: 2.4;
 }
 
-/* How many: sessions where Pi works, or subagents that work or wait. */
+/* How many: sessions where the agent works, or subagents that work or wait. */
 .rail-count {
     position: absolute;
     top: 1px;
@@ -4161,7 +4159,7 @@ pre.diff .del {
     animation: popin var(--t-in) var(--ease-out);
 }
 
-/* A dot at a button's corner: something new in PiP, or a subagent that failed or waits for an approval. */
+/* A dot at a button's corner: something new in Pia, or a subagent that failed or waits for an approval. */
 .rail-trouble,
 .rail-news {
     position: absolute;
@@ -4282,7 +4280,7 @@ pre.diff .del {
     background: linear-gradient(90deg, var(--accent), var(--spark));
 }
 
-/* Commands Pi runs in the background, with the session not working: the same underline, dashed and quiet. */
+/* Commands the agent runs in the background, with the session not working: the same underline, dashed and quiet. */
 .ws.has-background:not(.busy)::after {
     content: "";
     position: absolute;
@@ -4972,7 +4970,7 @@ pre.diff .del {
     opacity: 0.55;
 }
 
-/* Pi Pocket's spinner, in the folder's color: one lit quadrant stepping around the four. */
+/* Pia's spinner, in the folder's color: one lit quadrant stepping around the four. */
 .state-mark.working {
     overflow: hidden;
     --dim: color-mix(in oklab, currentColor 28%, transparent);
@@ -5014,7 +5012,7 @@ pre.diff .del {
     background: linear-gradient(90deg, currentColor 0 3px, transparent 0 5px, currentColor 0);
 }
 
-/* Pi waits for the provider's limit to clear: a hollow square, not dimmed, with a dot at its center. */
+/* the agent waits for the provider's limit to clear: a hollow square, not dimmed, with a dot at its center. */
 .state-mark.limited {
     box-shadow: inset 0 0 0 var(--line-w) currentColor;
     background: radial-gradient(circle at center, currentColor 0 1.25px, transparent 1.5px);
@@ -5169,7 +5167,7 @@ pre.diff .del {
     color: var(--accent);
 }
 
-/* Commands Pi runs in the background there: the same pill, quieter, since nothing waits on them. */
+/* Commands the agent runs in the background there: the same pill, quieter, since nothing waits on them. */
 .session-background {
     display: inline-flex;
     align-items: center;
@@ -5207,7 +5205,7 @@ pre.diff .del {
     font: 500 11px var(--sans);
 }
 
-/* Pi works there. */
+/* the agent works there. */
 .session-working {
     width: 7px;
     height: 7px;
@@ -5600,7 +5598,7 @@ button.session-chip {
     }
 }
 
-/* ─── The home screen on wide screens: a fastfetch for Pi Pocket ─── */
+/* ─── The home screen on wide screens: a fastfetch for Pia ─── */
 
 /* One centered column, 640px at most. */
 .splash {
@@ -5627,9 +5625,15 @@ button.session-chip {
 }
 
 .fetch-logo {
+    width: 112px;
+    aspect-ratio: 1;
     margin: 0;
-    font: 13px / 1.15 var(--mono);
+    display: grid;
+    place-items: center;
+    border-radius: 24px;
     color: var(--brand);
+    background: color-mix(in srgb, var(--accent) 9%, var(--bg));
+    box-shadow: 0 14px 36px color-mix(in srgb, var(--accent) 18%, transparent);
     user-select: none;
     animation: popin 0.6s var(--ease-out) backwards;
 }
@@ -8042,8 +8046,8 @@ button.session-chip {
     gap: 0.8rem;
 }
 
-.signin .pi.big {
-    font-size: 4rem;
+.signin .brand-logo.big {
+    color: var(--brand);
     text-align: center;
 }
 
@@ -8714,7 +8718,7 @@ textarea.notes {
 
 /* ─── Parts of sheets: share, schedules, goals, running now, changes, spend ─── */
 
-/* Share to Pi: what another app shared, before it goes into a message box. */
+/* Share to the agent: what another app shared, before it goes into a message box. */
 .share-text {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -8745,7 +8749,7 @@ textarea.notes {
     flex: 1 1 14rem;
 }
 
-/* A scheduled message in its sheet: what Pi gets, when, and who set it. */
+/* A scheduled message in its sheet: what the agent gets, when, and who set it. */
 .schedule {
     display: flex;
     align-items: center;
@@ -8770,7 +8774,7 @@ textarea.notes {
     border-left: 2px solid var(--accent);
 }
 
-/* Under Pi's memory call: the lesson's state, and Approve and Discard while it waits. */
+/* Under the agent's memory call: the lesson's state, and Approve and Discard while it waits. */
 .lesson-call {
     display: flex;
     flex-wrap: wrap;
@@ -8792,7 +8796,7 @@ textarea.notes {
     flex: 1 1 16rem;
 }
 
-/* Memory: a lesson Pi keeps, who saved it and where, and what can be done with it. */
+/* Memory: a lesson the agent keeps, who saved it and where, and what can be done with it. */
 .lesson {
     display: flex;
     flex-direction: column;
@@ -8872,7 +8876,7 @@ textarea.notes {
     white-space: nowrap;
 }
 
-/* Done when: a goal met, or one Pi gave up on. */
+/* Done when: a goal met, or one the agent gave up on. */
 .goal-bar.met {
     --tone: var(--ok);
 }
@@ -8941,7 +8945,7 @@ textarea.notes {
     text-overflow: ellipsis;
 }
 
-/* Spend: a person or a session, what Pi spent for it, and its limit. */
+/* Spend: a person or a session, what the agent spent for it, and its limit. */
 .spend-total {
     display: flex;
     flex-wrap: wrap;
@@ -9710,7 +9714,7 @@ textarea.notes {
     animation: popin var(--t-in) var(--ease-out);
 }
 
-.empty.hint .pi {
+.empty.hint .assistant-logo {
     animation: boot-breathe 3s var(--ease-in-out) infinite;
 }
 
@@ -10117,12 +10121,9 @@ textarea.notes {
     color: var(--accent);
 }
 
-/* Pi's own words: its mark in Georgia, as everywhere. */
-.peek-mark.pi {
+/* The agent's text mark uses the same ribbon color as the app logo. */
+.peek-mark.agent {
     color: var(--brand);
-    font:
-        13px / 1.5 Georgia,
-        serif;
 }
 
 .peek-text {
@@ -11274,8 +11275,8 @@ textarea.notes {
     text-overflow: ellipsis;
 }
 
-.dr-pi {
-    color: var(--spark);
+.dr-agent {
+    color: var(--brand);
     font-size: 11px;
 }
 
@@ -11321,11 +11322,11 @@ textarea.notes {
     color: var(--muted);
 }
 
-.dr-pionly {
+.dr-agent-only {
     padding: 0 12px 14px;
 }
 
-.dr-pionly .list-item {
+.dr-agent-only .list-item {
     font-size: 0.8rem;
 }
 
@@ -13050,7 +13051,7 @@ textarea.notes {
         flex: 0 1 auto;
         padding-inline: 6px;
     }
-    /* While Pi works, Steer and Queue take the plan chip's place (`/plan` still turns plan mode on or off). */
+    /* While the agent works, Steer and Queue take the plan chip's place (`/plan` still turns plan mode on or off). */
     .composer.busy .plan-chip,
     .composer.busy .model-caret {
         display: none;
@@ -13058,7 +13059,7 @@ textarea.notes {
     .mode-switch button {
         padding-inline: 8px;
     }
-    /* While Pi works the row is full, and Stop holds the end of it: Send shows once there is something to send, in the
+    /* While the agent works the row is full, and Stop holds the end of it: Send shows once there is something to send, in the
        mic's place (the mic stays while it listens, to stop it). */
     .composer.busy:not(.filled):has(.composer-mic) .send-button,
     .composer.busy.filled .composer-mic:not(.listening) {
@@ -13597,7 +13598,7 @@ textarea.notes {
 }
 
 /*
- * Pi's sessions from the terminal. The list: a card per folder, a row per session (its title over how long and how
+ * the agent's sessions from the terminal. The list: a card per folder, a row per session (its title over how long and how
  * recent, a tag when it continues here). One of them: what it worked with, then its last messages as a conversation,
  * then Continue, kept in sight at the foot of the sheet.
  */
@@ -15191,16 +15192,16 @@ textarea.notes {
     }
 }
 
-/* ─── PiP ──────────────────────────────────────────────────── */
+/* ─── Pia ──────────────────────────────────────────────────── */
 
 /*
- * PiP's window: anchored to the bottom right corner, wherever the app is and however tall the message box grows, over
+ * Pia's window: anchored to the bottom right corner, wherever the app is and however tall the message box grows, over
  * the conversation and its panels and under sheets, the launcher, and notices. It never reaches up over a session's top
  * bar (`--topbar-h`, which app.js publishes): on a short screen it is shorter instead. It grows from 92% at its
  * corner. On phones it is a sheet from the bottom edge, over a light scrim.
  */
-.pip-panel {
-    --pip-top: max(
+.pia-panel {
+    --pia-top: max(
         calc(var(--gap-out) + env(safe-area-inset-top)),
         calc(var(--topbar-h, 0px) + 6px)
     );
@@ -15208,8 +15209,8 @@ textarea.notes {
     right: calc(16px + env(safe-area-inset-right));
     bottom: calc(16px + env(safe-area-inset-bottom));
     width: min(420px, calc(100vw - 32px));
-    height: min(620px, calc(100dvh - max(90px, var(--pip-top) + 16px)));
-    max-height: calc(100dvh - var(--pip-top) - 16px - env(safe-area-inset-bottom));
+    height: min(620px, calc(100dvh - max(90px, var(--pia-top) + 16px)));
+    max-height: calc(100dvh - var(--pia-top) - 16px - env(safe-area-inset-bottom));
     z-index: 18;
     display: flex;
     flex-direction: column;
@@ -15219,36 +15220,36 @@ textarea.notes {
     box-shadow: var(--pop);
     font: 14.5px/1.6 var(--sans);
     transform-origin: bottom right;
-    animation: pip-in 0.32s var(--ease-out);
+    animation: pia-in 0.32s var(--ease-out);
 }
 
-@keyframes pip-in {
+@keyframes pia-in {
     from {
         opacity: 0;
         transform: scale(0.92);
     }
 }
 
-.pip-panel.leaving {
+.pia-panel.leaving {
     animation: pop-out var(--t-out) linear forwards;
 }
 
-.pip-resize {
+.pia-resize {
     display: none;
 }
 
 @media (min-width: 768px) {
-    .pip-panel {
-        width: var(--pip-width, 420px);
-        height: var(--pip-height, min(620px, calc(100dvh - 90px)));
+    .pia-panel {
+        width: var(--pia-width, 420px);
+        height: var(--pia-height, min(620px, calc(100dvh - 90px)));
         max-width: min(
             800px,
             calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right))
         );
-        max-height: calc(100dvh - var(--pip-top) - 16px - env(safe-area-inset-bottom));
+        max-height: calc(100dvh - var(--pia-top) - 16px - env(safe-area-inset-bottom));
     }
 
-    .pip-resize {
+    .pia-resize {
         display: block;
         position: absolute;
         touch-action: none;
@@ -15256,7 +15257,7 @@ textarea.notes {
         z-index: 1;
     }
 
-    .pip-resize-left {
+    .pia-resize-left {
         left: -12px;
         top: 12px;
         bottom: 0;
@@ -15264,7 +15265,7 @@ textarea.notes {
         cursor: ew-resize;
     }
 
-    .pip-resize-top {
+    .pia-resize-top {
         top: -12px;
         left: 12px;
         right: 0;
@@ -15272,7 +15273,7 @@ textarea.notes {
         cursor: ns-resize;
     }
 
-    .pip-resize-corner {
+    .pia-resize-corner {
         left: -12px;
         top: -12px;
         width: 24px;
@@ -15282,19 +15283,19 @@ textarea.notes {
 }
 
 @media (min-width: 768px) and (any-pointer: coarse) {
-    .pip-resize-left {
+    .pia-resize-left {
         left: -34px;
         top: 22px;
         width: 44px;
     }
 
-    .pip-resize-top {
+    .pia-resize-top {
         top: -34px;
         left: 22px;
         height: 44px;
     }
 
-    .pip-resize-corner {
+    .pia-resize-corner {
         left: -22px;
         top: -22px;
         width: 44px;
@@ -15302,7 +15303,7 @@ textarea.notes {
     }
 }
 
-.pip-head {
+.pia-head {
     display: grid;
     grid-template-columns: 30px minmax(0, 1fr) auto repeat(4, 40px);
     align-items: center;
@@ -15313,31 +15314,31 @@ textarea.notes {
     border-bottom: 1px solid var(--hair);
 }
 
-.pip-head .grip {
+.pia-head .grip {
     display: none;
 }
 
-.pip-heading {
+.pia-heading {
     min-width: 0;
     margin-left: 8px;
     line-height: 1.3;
 }
 
-.pip-title-line {
+.pia-title-line {
     display: flex;
     align-items: baseline;
     gap: 6px;
     min-width: 0;
 }
 
-.pip-head h2 {
+.pia-head h2 {
     margin: 0;
     font-size: 15px;
     font-weight: 600;
     color: var(--text);
 }
 
-.pip-head .pip-model {
+.pia-head .pia-model {
     display: flex;
     gap: 4px;
     width: 100%;
@@ -15355,23 +15356,23 @@ textarea.notes {
 }
 
 /* A quiet model label with the original thumb-sized target; its extra area covers only the title. */
-.pip-head .pip-model::before {
+.pia-head .pia-model::before {
     content: "";
     position: absolute;
     inset: -18px 0 0;
 }
 
-.pip-model .model-name {
+.pia-model .model-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.pip-model .model-level {
+.pia-model .model-level {
     display: none;
 }
 
-.pip-head > .icon-button {
+.pia-head > .icon-button {
     width: 40px;
     height: 40px;
     min-width: 0;
@@ -15379,23 +15380,23 @@ textarea.notes {
     color: var(--muted);
 }
 
-.pip-head > .icon-button:nth-last-child(4) {
+.pia-head > .icon-button:nth-last-child(4) {
     grid-column: 4;
 }
 
-.pip-head > .icon-button:nth-last-child(3) {
+.pia-head > .icon-button:nth-last-child(3) {
     grid-column: 5;
 }
 
-.pip-head > .icon-button:nth-last-child(2) {
+.pia-head > .icon-button:nth-last-child(2) {
     grid-column: 6;
 }
 
-.pip-head > .icon-button:last-child {
+.pia-head > .icon-button:last-child {
     grid-column: 7;
 }
 
-.pip-status {
+.pia-status {
     min-width: 0;
     color: var(--muted);
     font-size: 11px;
@@ -15404,8 +15405,8 @@ textarea.notes {
     text-overflow: ellipsis;
 }
 
-/* How full PiP's context is, as a session's status line shows it. */
-.pip-context {
+/* How full Pia's context is, as a session's status line shows it. */
+.pia-context {
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -15416,11 +15417,11 @@ textarea.notes {
     white-space: nowrap;
 }
 
-.pip-context .meter {
+.pia-context .meter {
     width: 28px;
 }
 
-.pip-mark {
+.pia-mark {
     display: inline-grid;
     place-items: center;
     width: 30px;
@@ -15430,13 +15431,13 @@ textarea.notes {
     color: var(--accent);
 }
 
-.pip-mark.working .icon,
-.pip-bubble.busy .icon,
-.rail-pip.lit .icon {
+.pia-mark.working .icon,
+.pia-bubble.busy .icon,
+.rail-pia.lit .icon {
     animation: pulse 1.4s ease-in-out infinite;
 }
 
-.pip-body {
+.pia-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -15448,16 +15449,16 @@ textarea.notes {
     gap: 14px;
 }
 
-.pip-body::before {
+.pia-body::before {
     content: "";
     margin-top: auto;
 }
 
-.pip-body > * {
+.pia-body > * {
     flex-shrink: 0;
 }
 
-.pip-you {
+.pia-you {
     align-self: flex-end;
     max-width: 84%;
     padding: 10px 14px;
@@ -15469,13 +15470,13 @@ textarea.notes {
     animation: rise-in var(--t-fade) var(--ease-out);
 }
 
-/* A message of yours that waits while PiP works: dimmed, with what happens to it and a way to take it back. */
-.pip-you.pending {
+/* A message of yours that waits while Pia works: dimmed, with what happens to it and a way to take it back. */
+.pia-you.pending {
     opacity: 0.7;
     border: 1px dashed var(--accent-line);
 }
 
-.pip-pending-line {
+.pia-pending-line {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -15486,28 +15487,28 @@ textarea.notes {
     white-space: normal;
 }
 
-.pip-pending-withdraw {
+.pia-pending-withdraw {
     min-height: 40px;
     padding: 0 4px;
     color: var(--accent);
     font: inherit;
 }
 
-.pip-reply {
+.pia-reply {
     color: var(--body);
     overflow-wrap: anywhere;
 }
 
-.pip-reply .md > :first-child {
+.pia-reply .md > :first-child {
     margin-top: 0;
 }
 
-.pip-reply .md > :last-child {
+.pia-reply .md > :last-child {
     margin-bottom: 0;
 }
 
-.pip-steps,
-.pip-event {
+.pia-steps,
+.pia-event {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -15515,11 +15516,11 @@ textarea.notes {
     font-size: 12.5px;
 }
 
-.pip-steps.working {
+.pia-steps.working {
     color: var(--accent);
 }
 
-.pip-tick {
+.pia-tick {
     width: 16px;
     height: 16px;
     flex: none;
@@ -15530,13 +15531,13 @@ textarea.notes {
     color: var(--ok);
 }
 
-.pip-error {
+.pia-error {
     color: var(--err);
     font-size: 0.85rem;
 }
 
-/* A report from a session PiP follows: three lines until opened. */
-.pip-report {
+/* A report from a session Pia follows: three lines until opened. */
+.pia-report {
     padding: 12px 14px;
     background: var(--card);
     border: 1px solid var(--hair);
@@ -15544,7 +15545,7 @@ textarea.notes {
     color: var(--body);
 }
 
-.pip-report-head {
+.pia-report-head {
     display: flex;
     align-items: center;
     gap: 7px;
@@ -15556,35 +15557,35 @@ textarea.notes {
     font-weight: 500;
 }
 
-.pip-report-head span {
+.pia-report-head span {
     flex: 1;
     text-align: left;
 }
 
-.pip-report-fold {
+.pia-report-fold {
     color: var(--muted);
     transition: transform 300ms var(--ease-out);
 }
 
-.pip-report.open .pip-report-fold {
+.pia-report.open .pia-report-fold {
     transform: rotate(180deg);
 }
 
-.pip-report-text {
+.pia-report-text {
     font-size: 13.5px;
     line-height: 1.55;
 }
 
-.pip-report-text > :first-child {
+.pia-report-text > :first-child {
     margin-top: 0;
 }
 
-.pip-report-text > :last-child {
+.pia-report-text > :last-child {
     margin-bottom: 0;
 }
 
 /* What a webhook posted: as it came, shown once the card is open. */
-.pip-report-data {
+.pia-report-data {
     margin: 6px 0 0;
     padding: 6px 8px;
     max-height: 16rem;
@@ -15597,18 +15598,18 @@ textarea.notes {
     overflow-wrap: anywhere;
 }
 
-.pip-report:not(.open) .pip-report-data {
+.pia-report:not(.open) .pia-report-data {
     display: none;
 }
 
-.pip-report:not(.open) .pip-report-text {
+.pia-report:not(.open) .pia-report-text {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
 
-.pip-welcome {
+.pia-welcome {
     margin-top: auto;
     display: flex;
     flex-direction: column;
@@ -15616,33 +15617,33 @@ textarea.notes {
     padding-top: 40px;
 }
 
-.pip-hello {
+.pia-hello {
     margin: 0;
     font-size: 17px;
     font-weight: 600;
     color: var(--text);
 }
 
-.pip-intro {
+.pia-intro {
     margin: 0;
     color: var(--muted);
     font-size: 13.5px;
     text-wrap: pretty;
 }
 
-.pip-welcome .button {
+.pia-welcome .button {
     min-height: 40px;
     white-space: normal;
 }
 
-.pip-chips {
+.pia-chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 6px;
 }
 
-.pip-chip {
+.pia-chip {
     min-height: 40px;
     padding: 8px 12px;
     border: 1px solid var(--hair-2);
@@ -15652,24 +15653,24 @@ textarea.notes {
     text-align: left;
 }
 
-.pip-chip:disabled {
+.pia-chip:disabled {
     opacity: 0.5;
     cursor: default;
 }
 
 @media (hover: hover) {
-    .pip-chip:not(:disabled):hover {
+    .pia-chip:not(:disabled):hover {
         border-color: var(--accent-line);
         color: var(--text);
     }
 }
 
-.pip-loading {
+.pia-loading {
     margin: auto;
 }
 
-/* A call of PiP's waits for approval, which the panel cannot give: a line that leads to where it can. */
-.pip-approval {
+/* A call of Pia's waits for approval, which the panel cannot give: a line that leads to where it can. */
+.pia-approval {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -15682,17 +15683,17 @@ textarea.notes {
     font-size: 12.5px;
 }
 
-.pip-approval .button {
+.pia-approval .button {
     min-height: 40px;
 }
 
 /* Quick access to the owner's private all-project memory approval queue. */
-.pip-memory {
+.pia-memory {
     flex: none;
     margin: 0 12px 6px;
 }
 
-.pip-memory .button {
+.pia-memory .button {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -15709,29 +15710,29 @@ textarea.notes {
 }
 
 @media (hover: hover) {
-    .pip-memory .button:hover {
+    .pia-memory .button:hover {
         background: var(--card-2);
     }
 }
 
-.pip-memory-count {
+.pia-memory-count {
     flex: none;
     color: var(--muted);
     font: 11.5px var(--mono);
     font-variant-numeric: tabular-nums;
 }
 
-.pip-memory-count.waiting {
+.pia-memory-count.waiting {
     color: var(--accent);
 }
 
-.pip-composer-wrap {
+.pia-composer-wrap {
     flex: none;
     min-width: 0;
     padding: 4px 12px 12px;
 }
 
-.pip-attachments {
+.pia-attachments {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -15741,7 +15742,7 @@ textarea.notes {
     padding-bottom: 6px;
 }
 
-.pip-attachment {
+.pia-attachment {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -15753,22 +15754,22 @@ textarea.notes {
     font-size: 12px;
 }
 
-.pip-attachment .thumb {
+.pia-attachment .thumb {
     flex: none;
 }
 
-.pip-attachment .thumb img {
+.pia-attachment .thumb img {
     width: 48px;
     height: 48px;
     object-fit: cover;
 }
 
-.pip-attachment-remove {
+.pia-attachment-remove {
     min-width: 44px;
     min-height: 44px;
 }
 
-.pip-attachment-name {
+.pia-attachment-name {
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -15776,25 +15777,25 @@ textarea.notes {
     white-space: nowrap;
 }
 
-.pip-attachment > .muted,
-.pip-attachment > .spinner,
-.pip-attachment-remove {
+.pia-attachment > .muted,
+.pia-attachment > .spinner,
+.pia-attachment-remove {
     flex: none;
 }
 
-.pip-you .thumbs,
-.pip-you .attachments {
+.pia-you .thumbs,
+.pia-you .attachments {
     margin-top: 0.3rem;
     max-width: 100%;
     white-space: normal;
 }
 
-.pip-you .attachments .chip {
+.pia-you .attachments .chip {
     max-width: 100%;
     overflow-wrap: anywhere;
 }
 
-.pip-composer {
+.pia-composer {
     display: flex;
     align-items: flex-end;
     min-height: 48px;
@@ -15805,11 +15806,11 @@ textarea.notes {
     background: var(--card);
 }
 
-.pip-composer:focus-within {
+.pia-composer:focus-within {
     border-color: var(--accent-line);
 }
 
-.pip-composer textarea {
+.pia-composer textarea {
     flex: 1;
     min-width: 0;
     max-height: 160px;
@@ -15822,7 +15823,7 @@ textarea.notes {
     font: 15px/1.45 var(--sans);
 }
 
-.pip-composer > .icon-button {
+.pia-composer > .icon-button {
     width: 44px;
     min-width: 44px;
     height: 44px;
@@ -15832,38 +15833,38 @@ textarea.notes {
     background-clip: padding-box;
 }
 
-.pip-composer .pip-send {
+.pia-composer .pia-send {
     background-color: var(--card-2);
     color: var(--faint);
 }
 
-/* iOS zooms into a text field smaller than 16px as it takes focus: PiP's box keeps the app's touch size. */
+/* iOS zooms into a text field smaller than 16px as it takes focus: Pia's box keeps the app's touch size. */
 @media (pointer: coarse) {
-    .pip-composer textarea {
+    .pia-composer textarea {
         font-size: 16px;
     }
 
-    .pip-report-head {
+    .pia-report-head {
         min-height: 40px;
     }
 }
 
-.pip-composer .pip-send:not(:disabled) {
+.pia-composer .pia-send:not(:disabled) {
     color: var(--accent-ink);
     background-color: var(--accent-fill);
 }
 
-.pip-composer .pip-send[aria-label="Stop PiP"] {
+.pia-composer .pia-send[aria-label="Stop Pia"] {
     color: var(--err);
     background-color: var(--err-soft);
 }
 
-.pip-scrim {
+.pia-scrim {
     display: none;
 }
 
-/* The mark in the corner, while PiP works or has something new: above the message box, out of its way. */
-.pip-bubble {
+/* The mark in the corner, while Pia works or has something new: above the message box, out of its way. */
+.pia-bubble {
     position: fixed;
     right: calc(var(--gap-out) + 6px + env(safe-area-inset-right));
     bottom: calc(104px + env(safe-area-inset-bottom));
@@ -15877,14 +15878,14 @@ textarea.notes {
     border: 1px solid var(--hair-2);
     border-radius: 50%;
     box-shadow: var(--shadow);
-    animation: pip-in 0.32s var(--ease-out);
+    animation: pia-in 0.32s var(--ease-out);
 }
 
-.pip-bubble.leaving {
+.pia-bubble.leaving {
     animation: popout var(--t-out) linear forwards;
 }
 
-.pip-dot {
+.pia-dot {
     position: absolute;
     top: 5px;
     right: 5px;
@@ -15895,7 +15896,7 @@ textarea.notes {
 }
 
 @media (max-width: 699px) {
-    .pip-panel {
+    .pia-panel {
         left: 0;
         right: 0;
         bottom: 0;
@@ -15912,56 +15913,56 @@ textarea.notes {
         animation: sheet-up var(--t-in) var(--ease-out);
     }
 
-    .pip-panel.leaving {
+    .pia-panel.leaving {
         animation: sheet-down 0.2s var(--ease-in-out) forwards;
     }
 
-    .pip-head {
+    .pia-head {
         padding: 23px 10px 10px 14px;
         grid-template-columns: 32px minmax(0, 1fr) repeat(4, 40px);
     }
 
-    .pip-head h2 {
+    .pia-head h2 {
         font-size: 16px;
     }
 
-    .pip-context {
+    .pia-context {
         grid-column: 2;
         grid-row: 2;
         margin: 0 0 0 8px;
         justify-self: start;
     }
 
-    .pip-head > .icon-button {
+    .pia-head > .icon-button {
         grid-row: 1 / 3;
     }
 
-    .pip-head > .icon-button:nth-last-child(4) {
+    .pia-head > .icon-button:nth-last-child(4) {
         grid-column: 3;
     }
 
-    .pip-head > .icon-button:nth-last-child(3) {
+    .pia-head > .icon-button:nth-last-child(3) {
         grid-column: 4;
     }
 
-    .pip-head > .icon-button:nth-last-child(2) {
+    .pia-head > .icon-button:nth-last-child(2) {
         grid-column: 5;
     }
 
-    .pip-head > .icon-button:last-child {
+    .pia-head > .icon-button:last-child {
         grid-column: 6;
     }
 
-    .pip-head .grip {
+    .pia-head .grip {
         display: block;
     }
 
     /* Above the message box and the jump to the newest message, both at the bottom right. */
-    .pip-bubble {
+    .pia-bubble {
         bottom: calc(176px + env(safe-area-inset-bottom));
     }
 
-    .pip-scrim {
+    .pia-scrim {
         display: block;
         position: fixed;
         inset: 0;
@@ -15970,12 +15971,12 @@ textarea.notes {
         animation: fade var(--t-fade) var(--ease-almost);
     }
 
-    .pip-scrim.leaving {
+    .pia-scrim.leaving {
         animation: fade-out var(--t-out) linear forwards;
     }
 }
 
-/* A webhook in its sheet: name and where it sends, what Pi is told, its address when just made, and how it was used. */
+/* A webhook in its sheet: name and where it sends, what the agent is told, its address when just made, and how it was used. */
 .hook {
     display: flex;
     flex-direction: column;
@@ -17284,12 +17285,12 @@ pre.gallery-code {
     }
 }
 
-/* Pi's answer, what it did, and reports: quieter, a short rise. */
+/* the agent's answer, what it did, and reports: quieter, a short rise. */
 :root[data-motion="fluid"] :is(.reply, .activity, .report).enter {
     animation: fluid-rise var(--t-glide) var(--ease-glide) backwards;
 }
 
-/* While Pi answers, each new paragraph, list, or code block fades in; what is already there never moves. */
+/* While the agent answers, each new paragraph, list, or code block fades in; what is already there never moves. */
 :root[data-motion="fluid"] .md.streaming > .md-part {
     animation: fluid-fade 320ms var(--ease-glide);
 }
@@ -17514,7 +17515,7 @@ pre.gallery-code {
     animation: fluid-fade var(--t-glide) var(--ease-glide) 80ms both;
 }
 
-/* A page Pi showed in its reply: the card is a code block (`.code.rich`) between the words around it. */
+/* A page the agent showed in its reply: the card is a code block (`.code.rich`) between the words around it. */
 .inline-row {
     min-width: 0;
 }
@@ -17552,7 +17553,7 @@ pre.gallery-code {
     }
 }
 
-/* Restart server (`sheets/restart.js`): whether a restart is needed, Pi's requests, and the restart command. */
+/* Restart server (`sheets/restart.js`): whether a restart is needed, the agent's requests, and the restart command. */
 .restart-state {
     margin: 0;
     font-size: 14px;

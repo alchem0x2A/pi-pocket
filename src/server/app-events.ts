@@ -1,7 +1,7 @@
 /**
  * What happens in the app, for extensions (`host.on`, since 0.22.0, experimental): sessions made, renamed, and
- * archived, messages people send to Pi, and runs that start and end. Each comes after its commit, so what it names is
- * stored. PiP's conversations are private and send none.
+ * archived, messages people send to the agent, and runs that start and end. Each comes after its commit, so what it names is
+ * stored. Pia's conversations are private and send none.
  *
  * A listener runs after the change, never in its way: one that throws or rejects is logged, and the others run.
  */
@@ -19,8 +19,8 @@ export interface AppEvents {
     "session.renamed": { conversationId: number; title: string };
     "session.archived": { conversationId: number; archived: boolean };
     /**
-     * A person sent Pi a message (also a steer or a queued one): who, and its words as stored (hidden values hidden,
-     * attachments left out). `via` names what sent it for them: PiP, a schedule, a webhook.
+     * A person sent the agent a message (also a steer or a queued one): who, and its words as stored (hidden values hidden,
+     * attachments left out). `via` names what sent it for them: Pia, a schedule, a webhook.
      */
     "message.sent": {
         conversationId: number;
@@ -29,7 +29,7 @@ export interface AppEvents {
         text: string;
         via?: string;
     };
-    /** Pi started to work in a conversation: a session's or a subagent's (`session` is its session). */
+    /** the agent started to work in a conversation: a session's or a subagent's (`session` is its session). */
     "run.started": { conversationId: number; session: number };
     "run.ended": { conversationId: number; session: number };
 }

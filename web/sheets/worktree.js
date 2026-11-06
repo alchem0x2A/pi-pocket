@@ -34,7 +34,7 @@ export function WorktreeSheet() {
             This session works on the branch <span class="mono">${worktree.branch}</span>, in a checkout of its own: its changes stay apart from <span class="mono">${shortPath(worktree.source, server?.home)}</span>.
         </p>
         <p class="muted small">
-            Ask Pi to commit, merge, or open a pull request when it is done. Removing the worktree deletes its folder; the branch and its commits stay, and Pi works in the original folder again.
+            Ask the agent to commit, merge, or open a pull request when it is done. Removing the worktree deletes its folder; the branch and its commits stay, and the agent works in the original folder again.
         </p>
         ${
             dirty

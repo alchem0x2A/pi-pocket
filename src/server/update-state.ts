@@ -57,14 +57,14 @@ export type UpdateOutcome = {
     at: number;
 };
 
-/** The migration session Pi Pocket started for a new version: the owner merges its branch by hand. */
+/** The migration session Pia started for a new version: the owner merges its branch by hand. */
 export type MigrationRecord = {
     v: 1;
     tag: string;
     version: string;
     /** The release's commit, as fetched. */
     commit: string;
-    /** The session Pi works on the migration in; undefined when it could not start. */
+    /** The session the agent works on the migration in; undefined when it could not start. */
     conversationId?: number;
     title?: string;
     /** Why the migration session did not start. */
@@ -190,7 +190,7 @@ export function readOutcome(appRoot: string): UpdateOutcome | undefined {
     };
 }
 
-/** The last migration session Pi Pocket started, or undefined. */
+/** The last migration session Pia started, or undefined. */
 export function readMigration(appRoot: string): MigrationRecord | undefined {
     const raw = readJson(updatePaths(appRoot).migration);
     const version = text(raw?.version);
@@ -495,7 +495,7 @@ export function finishNpmPending(
             appRoot,
             pending,
             false,
-            `The npm package changed during the update to ${pending.toVersion}. Pi Pocket started at ${current}, so no package was replaced during recovery.`,
+            `The npm package changed during the update to ${pending.toVersion}. Pia started at ${current}, so no package was replaced during recovery.`,
             now,
         );
     }
@@ -505,7 +505,7 @@ export function finishNpmPending(
             appRoot,
             pending,
             true,
-            `Pi Pocket updated from ${pending.fromVersion} to ${pending.toVersion}.`,
+            `Pia updated from ${pending.fromVersion} to ${pending.toVersion}.`,
             now,
         );
     }
@@ -526,7 +526,7 @@ function rollBackNpm(appRoot: string, pending: PendingUpdate, now: number): Upda
             appRoot,
             pending,
             false,
-            `${to} did not start. Its release notes warn of a step that cannot be undone, so Pi Pocket did not go back to ${from} by itself: read the release notes, and the server's log.`,
+            `${to} did not start. Its release notes warn of a step that cannot be undone, so Pia did not go back to ${from} by itself: read the release notes, and the server's log.`,
             now,
         );
     }
@@ -539,7 +539,7 @@ function rollBackNpm(appRoot: string, pending: PendingUpdate, now: number): Upda
         appRoot,
         pending,
         false,
-        `The update to ${to} did not finish, so Pi Pocket went back to ${from}. The server's log says why.`,
+        `The update to ${to} did not finish, so Pia went back to ${from}. The server's log says why.`,
         now,
     );
 }
@@ -881,7 +881,7 @@ export function rollBackUpdate(appRoot: string, now = Date.now()): string | unde
             appRoot,
             pending,
             false,
-            `Going back from the update to ${pending.toVersion || pending.tag} failed: ${(error as Error).message}. Fix the checkout by hand (\`git status\` in it), then restart Pi Pocket.`,
+            `Going back from the update to ${pending.toVersion || pending.tag} failed: ${(error as Error).message}. Fix the checkout by hand (\`git status\` in it), then restart Pia.`,
             now,
         ).message;
     }
@@ -912,7 +912,7 @@ export function finishPartial(
             appRoot,
             pending,
             false,
-            `The update to ${to} did not finish, so Pi Pocket stays at ${from}.${keptNote(appRoot, kept)}`,
+            `The update to ${to} did not finish, so Pia stays at ${from}.${keptNote(appRoot, kept)}`,
             now,
         );
     } catch (error) {
@@ -920,7 +920,7 @@ export function finishPartial(
             appRoot,
             pending,
             false,
-            `The update to ${to} did not finish, and putting the files of ${from} back failed: ${(error as Error).message}. Fix the checkout by hand (\`git status\` in it, and \`npm ci\`), then restart Pi Pocket. Anything set aside is in ${UPDATE_DIR}/kept/.`,
+            `The update to ${to} did not finish, and putting the files of ${from} back failed: ${(error as Error).message}. Fix the checkout by hand (\`git status\` in it, and \`npm ci\`), then restart Pia. Anything set aside is in ${UPDATE_DIR}/kept/.`,
             now,
         );
     }
@@ -947,7 +947,7 @@ function rollBack(appRoot: string, pending: PendingUpdate, now: number): string 
             appRoot,
             pending,
             false,
-            `${to} did not start, and the checkout is no longer on ${pending.branch ?? "the commit the update left"}, so Pi Pocket did not go back to ${from} by itself.`,
+            `${to} did not start, and the checkout is no longer on ${pending.branch ?? "the commit the update left"}, so Pia did not go back to ${from} by itself.`,
             now,
         ).message;
     }
@@ -958,7 +958,7 @@ function rollBack(appRoot: string, pending: PendingUpdate, now: number): string 
                 appRoot,
                 pending,
                 false,
-                `${to} did not start. Its release notes warn of a step that cannot be undone, so Pi Pocket did not go back to ${from} by itself: read the release notes, and the server's log.`,
+                `${to} did not start. Its release notes warn of a step that cannot be undone, so Pia did not go back to ${from} by itself: read the release notes, and the server's log.`,
                 now,
             ).message;
         }
@@ -991,7 +991,7 @@ function rollBack(appRoot: string, pending: PendingUpdate, now: number): string 
             appRoot,
             pending,
             false,
-            `${to} did not start, so Pi Pocket went back to ${from}. The server's log says why.${keptNote(appRoot, kept)}`,
+            `${to} did not start, so Pia went back to ${from}. The server's log says why.${keptNote(appRoot, kept)}`,
             now,
         ).message;
     }

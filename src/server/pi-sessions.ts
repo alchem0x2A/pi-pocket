@@ -1,15 +1,15 @@
 /**
- * Pi's sessions from the terminal, to continue in Pi Pocket. Pi keeps each in a JSONL file in its sessions folder
+ * the agent's sessions from the terminal, to continue in Pia. The agent keeps each in a JSONL file in its sessions folder
  * (`~/.pi/agent/sessions/`, a folder per project; or the one folder `PI_CODING_AGENT_SESSION_DIR` or `sessionDir` in
- * Pi's settings names), and finds them all with `SessionManager.listAll`, as `pi -r` lists every folder's. Their files
- * are only read, never written: Pi's own loader mends a file whose last line is cut off, and a `pi` still running may be
+ * the agent's settings names), and finds them all with `SessionManager.listAll`, as `pi -r` lists every folder's. Their files
+ * are only read, never written: the agent's own loader mends a file whose last line is cut off, and a `pi` still running may be
  * writing that line.
  *
- * A session continues here as a copy of where Pi left it, its current branch. People get every message of it to read,
- * and Pi gets the context Pi itself builds from the file (`buildSessionProjection`): a compaction becomes Pi Durable's,
- * keeping the same messages, and a context edit edits the same message. Pi's system prompt, its extensions' state, and
- * its model changes stay behind; Pi Pocket's prompt and tools apply. Nothing Pi did runs again: a tool call that never
- * finished gets a result saying so (Pi's says "No result provided"). Where Pi would send a tool result whose call is
+ * A session continues here as a copy of where the agent left it, its current branch. People get every message of it to read,
+ * and the agent gets the context the agent itself builds from the file (`buildSessionProjection`): a compaction becomes Pi Durable's,
+ * keeping the same messages, and a context edit edits the same message. The agent's system prompt, its extensions' state, and
+ * its model changes stay behind; Pia's prompt and tools apply. Nothing the agent did runs again: a tool call that never
+ * finished gets a result saying so (the agent's says "No result provided"). Where the agent would send a tool result whose call is
  * not there (a stray one, or one whose call a context edit took out), Pi Durable leaves it out, as providers refuse it.
  */
 import { readFile, stat } from "node:fs/promises";
@@ -40,11 +40,11 @@ import type { User } from "./config.ts";
 import { FROM_PI_ENTRY, type FromPiData } from "./entry-format.ts";
 import { HttpError } from "./errors.ts";
 
-/** Pi's variable for its sessions folder (`ENV_SESSION_DIR` in its config, which the package does not export). */
+/** the agent's variable for its sessions folder (`ENV_SESSION_DIR` in its config, which the package does not export). */
 const SESSION_DIR_VARIABLE = "PI_CODING_AGENT_SESSION_DIR";
 /** The largest session file read: images make big ones. */
 const MAX_SESSION_BYTES = 32 * 1024 * 1024;
-/** How long a list of Pi's sessions answers "is this one of them?" for a preview or a continue after it. */
+/** How long a list of the agent's sessions answers "is this one of them?" for a preview or a continue after it. */
 const FOUND_FOR_MS = 5_000;
 /** How many sessions a list holds, newest first: a search looks through them all first. */
 const MAX_LISTED = 300;
@@ -52,38 +52,38 @@ const MAX_LISTED = 300;
 const PREVIEW_MESSAGES = 6;
 const PREVIEW_TEXT = 600;
 const TITLE_LENGTH = 80;
-/** What a tool call that never finished in Pi gets as its result. */
-const NOT_RUN = "Not run: the Pi session ended before this call finished.";
+/** What a tool call that never finished in the agent gets as its result. */
+const NOT_RUN = "Not run: the agent session ended before this call finished.";
 
-/** A message of the copy, in order: what it is, and the entry of Pi's it comes from (none for a result made here). */
+/** A message of the copy, in order: what it is, and the entry of the agent's it comes from (none for a result made here). */
 export type PiEntry =
     | { kind: "user" | "assistant" | "toolResult"; from?: string; message: Message }
-    /** `head`: the first entry of Pi's the compaction keeps, or null when it keeps none. */
+    /** `head`: the first entry of the agent's the compaction keeps, or null when it keeps none. */
     | { kind: "compaction"; from: string; head: string | null; message: Message };
 
-/** A Pi session as it continues here. */
+/** an agent session as it continues here. */
 export type PiSession = {
     id: string;
     cwd: string;
     title: string;
-    /** Message entries in the file, as `pi -r` counts them: more later means Pi went on in the terminal. */
+    /** Message entries in the file, as `pi -r` counts them: more later means the agent went on in the terminal. */
     count: number;
     model: { provider: string; modelId: string } | null;
     thinkingLevel: string;
     entries: PiEntry[];
-    /** Pi's context edits on the current branch: the entry of Pi's they change, and its messages for Pi (none: left out). */
+    /** the agent's context edits on the current branch: the entry of the agent's they change, and its messages for the agent (none: left out). */
     edits: { target: string; messages: Message[] }[];
 };
 
-/** One of Pi's sessions as listed: what Pi says of it, and what a search looks through (lower case). */
+/** One of the agent's sessions as listed: what the agent says of it, and what a search looks through (lower case). */
 type Listed = { info: SessionInfo; words: string };
 
-/** A session file Pi Pocket cannot continue, and why, in words for people. */
+/** A session file Pia cannot continue, and why, in words for people. */
 export class PiSessionError extends Error {}
 
 /**
  * The entries from the first to `leafId`, along `parentId`. A file whose entries lead back to one already passed is
- * damaged: Pi's own walk along them, which comes next, would never end.
+ * damaged: the agent's own walk along them, which comes next, would never end.
  */
 function branchTo(entries: readonly SessionEntry[], leafId: string): SessionEntry[] {
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
@@ -97,7 +97,7 @@ function branchTo(entries: readonly SessionEntry[], leafId: string): SessionEntr
     ) {
         if (seen.has(entry.id)) {
             throw new PiSessionError(
-                "This Pi session file is damaged: its entries lead in a circle.",
+                "This the agent session file is damaged: its entries lead in a circle.",
             );
         }
 
@@ -126,7 +126,7 @@ function firstFrom(sorted: readonly number[], from: number): number | undefined 
     return sorted[low];
 }
 
-/** What an entry of Pi's gives the model, as Pi sends it; Pi's system messages stay behind for Pi Pocket's own. */
+/** What an entry of the agent's gives the model, as the agent sends it; the agent's system messages stay behind for Pia's own. */
 function forModel(messages: Parameters<typeof convertToLlm>[0]): Message[] {
     return convertToLlm(messages).filter((message) => message.role !== "system");
 }
@@ -147,20 +147,22 @@ function textOf(message: Message): string {
         .trim();
 }
 
-/** A Pi session's file, read: the conversation on its current branch, and what Pi's context of it is. */
+/** an agent session's file, read: the conversation on its current branch, and what the agent's context of it is. */
 export function readPiSession(text: string): PiSession {
     const file = parseSessionEntries(text);
     const header = file[0];
 
     if (header?.type !== "session" || typeof header.id !== "string") {
-        throw new PiSessionError("This is not a Pi session file.");
+        throw new PiSessionError("This is not an agent session file.");
     }
 
     if ((header.version ?? 1) > CURRENT_SESSION_VERSION) {
-        throw new PiSessionError("A newer Pi wrote this session. Update Pi Pocket to continue it.");
+        throw new PiSessionError(
+            "A newer the agent wrote this session. Update Pia to continue it.",
+        );
     }
 
-    // In memory only: older files get the current format, as Pi gives them when it opens one.
+    // In memory only: older files get the current format, as the agent gives them when it opens one.
     migrateSessionEntries(file);
     const all = file.slice(1) as SessionEntry[];
     const leaf = all.at(-1);
@@ -196,7 +198,7 @@ export function readPiSession(text: string): PiSession {
         if (entry.type === "compaction") {
             const summary = forModel(sessionEntryToContextMessages(entry))[0];
             const start = at.get(entry.firstKeptEntryId) ?? -1;
-            // The first of the kept entries that is a message here, as Pi keeps them up to the compaction.
+            // The first of the kept entries that is a message here, as the agent keeps them up to the compaction.
             const first = start === -1 || start > index ? undefined : firstFrom(copied, start);
             const kept = first === undefined || first >= index ? undefined : path[first];
 
@@ -249,7 +251,7 @@ export function readPiSession(text: string): PiSession {
 
     closeOpen();
 
-    // Where Pi's context of an entry differs from the entry, a context edit changed it: the copy edits it the same way.
+    // Where the agent's context of an entry differs from the entry, a context edit changed it: the copy edits it the same way.
     const edits = projection.entries.flatMap(({ sourceEntry, messages }) => {
         if (sourceEntry.type === "compaction") {
             return [];
@@ -272,7 +274,7 @@ export function readPiSession(text: string): PiSession {
     const title =
         (named?.type === "session_info" ? named.name?.trim() : undefined) ||
         firstText.slice(0, TITLE_LENGTH).trim() ||
-        "Pi session";
+        "the agent session";
 
     return {
         id: header.id,
@@ -286,7 +288,7 @@ export function readPiSession(text: string): PiSession {
     };
 }
 
-/** Write a Pi session's copy into a new conversation, from its `init`: its messages, then where it came from. */
+/** Write an agent session's copy into a new conversation, from its `init`: its messages, then where it came from. */
 export async function writePiSession(
     tx: Tx,
     id: ConversationId,
@@ -300,7 +302,7 @@ export async function writePiSession(
             entry.kind === "compaction"
                 ? await tx.appendEntry(CompactionEntry, id, {
                       model: [entry.message],
-                      // A kept entry is written before its compaction, as Pi keeps them.
+                      // A kept entry is written before its compaction, as the agent keeps them.
                       head: entry.head === null ? "self" : made.get(entry.head)!,
                       data: { reason: "threshold" },
                   })
@@ -332,7 +334,7 @@ export async function writePiSession(
         ];
     });
 
-    // Last, after every entry it edits; it adds nothing for Pi itself.
+    // Last, after every entry it edits; it adds nothing for the agent itself.
     await tx.appendEntry(id, {
         kind: FROM_PI_ENTRY,
         data,
@@ -340,18 +342,18 @@ export async function writePiSession(
     });
 }
 
-/** A Pi session as the list shows it. */
+/** an agent session as the list shows it. */
 export type PiSessionSummary = {
     path: string;
     title: string;
     cwd: string;
     modified: number;
     messages: number;
-    /** The newest session here that continues it, and whether Pi went on in the terminal since. */
+    /** The newest session here that continues it, and whether the agent went on in the terminal since. */
     pocket?: { id: number; behind: boolean };
 };
 
-/** Finding Pi's sessions, and reading one, for the owner. */
+/** Finding the agent's sessions, and reading one, for the owner. */
 export class PiSessions {
     readonly #app: PocketApp;
 
@@ -366,7 +368,7 @@ export class PiSessions {
     #found: { at: number; list: Promise<Listed[]> } | undefined;
 
     /**
-     * Pi's sessions, newest first, as `pi -r` lists them all, each with what a search looks through, in lower case:
+     * the agent's sessions, newest first, as `pi -r` lists them all, each with what a search looks through, in lower case:
      * made once per list, not for every letter typed. `fresh` reads them again.
      */
     #find(fresh = true): Promise<Listed[]> {
@@ -379,7 +381,7 @@ export class PiSessions {
         try {
             configured = this.#app.settings.getSessionDir();
         } catch {
-            // Unreadable settings: Pi's own folder.
+            // Unreadable settings: the agent's own folder.
         }
 
         const folder = process.env[SESSION_DIR_VARIABLE] || configured;
@@ -419,7 +421,7 @@ export class PiSessions {
         return list;
     }
 
-    /** The newest session here that continues each of Pi's, by its id. */
+    /** The newest session here that continues each of the agent's, by its id. */
     #continued(): Map<string, { id: number; count: number }> {
         const found = new Map<string, { id: number; count: number }>();
 
@@ -437,11 +439,11 @@ export class PiSessions {
 
     #requireOwner(user: User): void {
         if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner can continue Pi's sessions here.");
+            throw new HttpError(403, "Only the owner can continue the agent's sessions here.");
         }
     }
 
-    /** Pi's sessions on this machine, newest first; with `query`, those whose title, folder, or words have it. */
+    /** the agent's sessions on this machine, newest first; with `query`, those whose title, folder, or words have it. */
     async list(user: User, query = ""): Promise<{ sessions: PiSessionSummary[] }> {
         this.#requireOwner(user);
         const continued = this.#continued();
@@ -458,7 +460,7 @@ export class PiSessions {
 
                 return {
                     path: info.path,
-                    title: info.name ?? (first || "Pi session"),
+                    title: info.name ?? (first || "the agent session"),
                     cwd: info.cwd,
                     modified: info.modified.getTime(),
                     messages: info.messageCount,
@@ -470,7 +472,7 @@ export class PiSessions {
         };
     }
 
-    /** One of Pi's sessions, read: only a file Pi lists, so nothing else can be read through this. */
+    /** One of the agent's sessions, read: only a file the agent lists, so nothing else can be read through this. */
     async read(user: User, path: string): Promise<PiSession> {
         this.#requireOwner(user);
 
@@ -479,20 +481,23 @@ export class PiSessions {
 
         // The list the sheet just showed, or, for a session new since, the list as it is now.
         if (!(await listed(false)) && !(await listed(true))) {
-            throw new HttpError(404, "Pi has no such session. It may have been deleted.");
+            throw new HttpError(404, "the agent has no such session. It may have been deleted.");
         }
 
-        // Gone since the list was read (it is kept a few seconds), or unreadable: as Pi not having it.
+        // Gone since the list was read (it is kept a few seconds), or unreadable: as the agent not having it.
         const missing = (error: unknown) => {
             if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
-                throw new HttpError(404, "Pi has no such session. It may have been deleted.");
+                throw new HttpError(
+                    404,
+                    "the agent has no such session. It may have been deleted.",
+                );
             }
 
             throw error;
         };
 
         if ((await stat(path).catch(missing)).size > MAX_SESSION_BYTES) {
-            throw new HttpError(413, "This Pi session is too large to continue here.");
+            throw new HttpError(413, "This the agent session is too large to continue here.");
         }
 
         const text = await readFile(path, "utf8").catch(missing);
@@ -508,7 +513,7 @@ export class PiSessions {
         }
     }
 
-    /** One of Pi's sessions, to decide whether to continue it: where it worked, and its last messages. */
+    /** One of the agent's sessions, to decide whether to continue it: where it worked, and its last messages. */
     async preview(user: User, path: string) {
         const session = await this.read(user, path);
         const pocket = this.#continued().get(session.id);

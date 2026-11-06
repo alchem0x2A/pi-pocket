@@ -99,7 +99,7 @@ export const BUILT_IN_COMMANDS: ReadonlySet<string> = new Set([
     "files",
     "changes",
     "branch",
-    "pip",
+    "pia",
     "peek",
     "artifacts",
     "login",
@@ -953,7 +953,7 @@ export class ExtensionWebs {
         };
     }
 
-    /** While an update moves Pi Pocket's checkout, browser modules' edits reach no tab: the restart after it does. */
+    /** While an update moves Pia's checkout, browser modules' edits reach no tab: the restart after it does. */
     #paused = false;
 
     pause(paused: boolean): void {

@@ -3,7 +3,7 @@
  * replaces them in one step: a tool call already running finishes on the old code, the next one uses the new code.
  * Web files only need the browsers to reload.
  *
- * Modules come from two folders: Pi Pocket's own (`src/server/extensions/`), and the owner's drop-ins
+ * Modules come from two folders: Pia's own (`src/server/extensions/`), and the owner's drop-ins
  * (`extensions/` in the data folder), which load after them and stay off until the owner turns them on. The owner
  * can turn modules off and on from the app. A module that is off is not loaded, and turning one off uninstalls what
  * it installed; a tool call already running still finishes. What a module adds to the app (routes, a browser module,
@@ -87,6 +87,8 @@ const OFF_BY_DEFAULT = new Set([
     "anthropic-subscription.ts",
     "session-tags.ts",
     "ask-someone.ts",
+    "subagents.ts",
+    "background.ts",
 ]);
 const TITLES: Record<string, string> = {
     "prompt.ts": "System prompt",
@@ -103,19 +105,19 @@ const TITLES: Record<string, string> = {
     "codemode.ts": "Codemode",
     "memory.ts": "Memory",
     "inbox-notes.ts": "Inbox notes",
-    "pip.ts": "PiP",
+    "pip.ts": "Pia",
     "compaction-review.ts": "Compaction review",
     "triggers.ts": "Triggers",
     "gallery.ts": "Extension gallery",
     "session-tags.ts": "Session tags",
     "ask-someone.ts": "Ask someone",
-    "updates.ts": "Pi Pocket updates",
+    "updates.ts": "Pia updates",
     "restart.ts": "Restart requests",
     "design.ts": "Design",
 };
 
 /**
- * Names Pi Pocket keeps for itself, whether the module that uses them is on or off. Installing an extension, or a tool,
+ * Names Pia keeps for itself, whether the module that uses them is on or off. Installing an extension, or a tool,
  * with a name already taken replaces it in place, so a drop-in that used one would quietly replace a built-in (or be
  * replaced by it when the built-in is turned on), and turning the drop-in off would remove the built-in too.
  */
@@ -157,7 +159,7 @@ export const BUILT_IN_TOOLS: ReadonlySet<string> = new Set([
     "design_system",
 ]);
 
-/** Pi Pocket's own modules, or the owner's from the drop-in folder. */
+/** Pia's own modules, or the owner's from the drop-in folder. */
 export type ModuleSource = "built-in" | "drop-in";
 
 export interface ExtensionInfo {
@@ -214,9 +216,9 @@ function moduleFiles(directory: string): string[] {
 }
 
 /**
- * Make the drop-in folder, with a `node_modules` link to Pi Pocket's own packages. Drop-ins then import
+ * Make the drop-in folder, with a `node_modules` link to Pia's own packages. Drop-ins then import
  * `@earendil-works/pi-durable` and the rest as built-in modules do, and get the very modules the server runs. A
- * `node_modules` folder the owner made there stays as it is; a link to another place is replaced. Where npm split Pi
+ * `node_modules` folder the owner made there stays as it is; a link to another place is replaced. Where npm split the agent
  * Pocket's packages between folders (a local install beside other versions of them), `packageModules` says where each
  * is, and the link leads to a hidden folder with a link to each one instead.
  */
@@ -248,12 +250,12 @@ export function prepareDropInFolder(
     keepLink(join(directory, "node_modules"), target, type);
 }
 
-/** The first line of a copy of the types that Pi Pocket made where it cannot link: it refreshes only such a copy. */
+/** The first line of a copy of the types that Pia made where it cannot link: it refreshes only such a copy. */
 const TYPES_COPY =
-    "// A copy of Pi Pocket's types/pocket.d.ts: Pi Pocket refreshes it at each start. Edits here are lost.\n";
+    "// A copy of Pia's types/pocket.d.ts: Pia refreshes it at each start. Edits here are lost.\n";
 
 /**
- * Link `_pocket.d.ts` in the drop-in folder to Pi Pocket's public types (`types/pocket.d.ts`), so a drop-in imports them
+ * Link `_pocket.d.ts` in the drop-in folder to Pia's public types (`types/pocket.d.ts`), so a drop-in imports them
  * from beside it on any machine. Its leading `_` keeps it from loading as a module. A link that leads to a file that can
  * be read stays as it is, wherever it leads (the owner's own checkout, say); a link to nowhere is made again. A file the
  * owner made stays as it is. Where links cannot be made (Windows, or a file system that refuses them with `EPERM`), it
@@ -668,7 +670,7 @@ export class ExtensionLoader {
 
         if (typeof needs === "number" && Number.isInteger(needs) && needs < OLDEST_POCKET_API) {
             throw new Error(
-                `the module was written for version ${String(needs)} of Pi Pocket's extension API, and this Pi Pocket loads ${OLDEST_POCKET_API} to ${POCKET_API}: update the module`,
+                `the module was written for version ${String(needs)} of Pia's extension API, and this Pia loads ${OLDEST_POCKET_API} to ${POCKET_API}: update the module`,
             );
         }
 
@@ -677,7 +679,7 @@ export class ExtensionLoader {
             (typeof needs !== "number" || !Number.isInteger(needs) || !(needs <= POCKET_API))
         ) {
             throw new Error(
-                `the module needs version ${String(needs)} of Pi Pocket's extension API, and this Pi Pocket has ${POCKET_API}: update Pi Pocket`,
+                `the module needs version ${String(needs)} of Pia's extension API, and this Pia has ${POCKET_API}: update Pia`,
             );
         }
 
@@ -854,7 +856,7 @@ export class ExtensionLoader {
     }
 
     /**
-     * Refuse a drop-in that would take a name Pi Pocket keeps, or one another module installed: installing it would
+     * Refuse a drop-in that would take a name Pia keeps, or one another module installed: installing it would
      * replace that one. Throws before anything is installed, so a version that loaded before keeps running.
      */
     #checkNames(file: string, extensions: readonly Extension[]): void {
@@ -878,7 +880,7 @@ export class ExtensionLoader {
         for (const extension of extensions) {
             if (RESERVED_EXTENSIONS.test(extension.name)) {
                 throw new Error(
-                    `the extension name ${extension.name} is Pi Pocket's own: give it a name of your own`,
+                    `the extension name ${extension.name} is Pia's own: give it a name of your own`,
                 );
             }
 

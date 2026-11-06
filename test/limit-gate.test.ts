@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import {
     type Api,
     createAssistantMessageEventStream,
@@ -11,6 +11,11 @@ import {
     type SimpleStreamOptions,
 } from "@earendil-works/pi-ai";
 import { LimitGate, type LimitTuning } from "../src/server/limit-gate.ts";
+
+// The gate's production timers are unref'ed. Keep this test process alive while its fake streams wait.
+const keepAlive = setInterval(() => {}, 1000);
+
+after(() => clearInterval(keepAlive));
 
 const TUNING: Partial<LimitTuning> = {
     ...{ minWaitMs: 5, resetJitterMs: [0, 0], backoffMs: [30], spacingMs: [30, 30] },

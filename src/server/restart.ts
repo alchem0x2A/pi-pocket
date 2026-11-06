@@ -2,7 +2,7 @@
  * Restarting the server, as the owner asks for it: what changed in the server's code since this process started (so
  * the app can say whether a restart is needed), a check that the new code loads before this process stops, the way to
  * restart (the launcher, or the owner's own command, such as a systemd reload), a restart that waits until no tool call
- * runs, and Pi's requests for a restart, which only the owner can carry out.
+ * runs, and the agent's requests for a restart, which only the owner can carry out.
  */
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -22,7 +22,7 @@ const IDLE_POLL_MS = 2000;
 const MAX_LISTED = 30;
 /** The most characters of the check's or the command's error output kept. */
 const MAX_OUTPUT = 4000;
-/** The most requests from Pi kept at once. */
+/** The most requests from the agent kept at once. */
 const MAX_REQUESTS = 20;
 
 /** The longest restart command, and the longest reason a request may give. */
@@ -57,14 +57,14 @@ export interface RestartStatus {
     commitNow?: string;
     /** A restart that waits for tool calls to end: since when, and how many still run. */
     waiting?: { since: number; tools: number };
-    /** Pi's requests for a restart, newest last. */
+    /** the agent's requests for a restart, newest last. */
     requests: RestartRequest[];
     /** Why the last restart did not happen: the check's output, or the command's. */
     lastError?: string;
 }
 
 export interface RestartOptions {
-    /** Pi Pocket's own folder. */
+    /** Pia's own folder. */
     appRoot: string;
     /** Restart through the launcher (exit code 75); undefined when no launcher runs this server. */
     restart?: () => void;
@@ -360,7 +360,7 @@ export class Restarts {
     }
 
     /**
-     * Pi asks for a restart: the owner gets a button for it. The same `id` (the tool call's) asks once, so a call run
+     * the agent asks for a restart: the owner gets a button for it. The same `id` (the tool call's) asks once, so a call run
      * again after a restart does not ask twice.
      */
     request(id: string, conversationId: number, reason: string): RestartRequest {
@@ -380,7 +380,7 @@ export class Restarts {
         this.#requests = [...this.#requests, request].slice(-MAX_REQUESTS);
         this.#options.notice(
             "info",
-            `Pi asks for a server restart${request.reason ? `: ${request.reason}` : ""}. Menu → Restart server.`,
+            `the agent asks for a server restart${request.reason ? `: ${request.reason}` : ""}. Menu → Restart server.`,
         );
         this.#changed();
 

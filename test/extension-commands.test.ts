@@ -144,7 +144,7 @@ test("a viewer runs no command, and a global command is the owner's alone", asyn
     assert.equal(await runs(id), 1);
 });
 
-test("a card shows in the transcript, never in Pi's context, and does not change whom Pi works for", async () => {
+test("a card shows in the transcript, never in the agent's context, and does not change whom the agent works for", async () => {
     const id = await newSession(app);
     const guest = app.config.addUser("Card guest", "guest").user;
 

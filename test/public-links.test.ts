@@ -1,7 +1,7 @@
 // Public links (`public-links.ts`, `http/link-routes.ts`): pages an extension module shows at `/l/<token>` to anyone with
 // the address, with no sign-in. What every page is sent with, uses that count once and come back when a post is
 // refused, links that close, modules that see only their own, and a module turned off. Then Ask someone
-// (`extensions/ask-someone.ts`), from Pi's draft to an answer through its link.
+// (`extensions/ask-someone.ts`), from the agent's draft to an answer through its link.
 import {
     cleanUp,
     fakeTab,
@@ -31,7 +31,7 @@ let base = "";
 let clock = Date.now();
 const people: Record<string, string> = {};
 
-/** "ask" makes Pi draft a question with ask_someone; anything else is echoed. */
+/** "ask" makes the agent draft a question with ask_someone; anything else is echoed. */
 const route: FauxResponseStep = (request) => {
     const { role, text } = lastText(request as never);
 
@@ -382,7 +382,7 @@ test("while its module is off, a link answers nothing; on again, it is back", as
     assert.equal((await open(link.path)).status, 200);
 });
 
-test("Ask someone: Pi drafts, a person shares it, a stranger answers once", async () => {
+test("Ask someone: the agent drafts, a person shares it, a stranger answers once", async () => {
     const id: ConversationId = await newSession(app);
 
     await say(app, id, "please ask");

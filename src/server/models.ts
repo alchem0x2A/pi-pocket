@@ -13,7 +13,7 @@ import type { AgentState, ModelRef } from "@earendil-works/pi-durable";
 
 import { words } from "./model-names.ts";
 
-// A record, so a level Pi adds fails the type check until it is here too.
+// A record, so a level the agent adds fails the type check until it is here too.
 const LEVELS: Record<ModelThinkingLevel, true> = {
     off: true,
     minimal: true,
@@ -91,7 +91,7 @@ function globPattern(glob: string): RegExp {
 }
 
 /**
- * Whether a model is hidden by Pi Pocket's `hiddenModels` setting: each pattern is a glob that matches `provider/id`,
+ * Whether a model is hidden by Pia's `hiddenModels` setting: each pattern is a glob that matches `provider/id`,
  * or the id alone. Invalid entries are ignored.
  */
 export function hiddenBy(patterns: unknown): (provider: string, id: string) => boolean {
@@ -148,7 +148,23 @@ export function findModel(models: ModelRuntime, spec: string): Model<Api> | unde
         : available.find((model) => model.id === trimmed);
 }
 
-const STOP_WORDS = new Set(["the", "a", "an", "model", "use", "on", "with", "via", "from", "at", "to", "please", "mode", "thinking", "effort"]);
+const STOP_WORDS = new Set([
+    "the",
+    "a",
+    "an",
+    "model",
+    "use",
+    "on",
+    "with",
+    "via",
+    "from",
+    "at",
+    "to",
+    "please",
+    "mode",
+    "thinking",
+    "effort",
+]);
 
 /** The numbers in a model's words, for preferring a newer version among equals. */
 const versionOf = (tokens: readonly string[]) =>
@@ -191,7 +207,16 @@ export function rankModels<T extends { provider: string; id: string; name?: stri
 
         return wanted.length === 0 || matched < wanted.length
             ? []
-            : [{ candidate, order, matched, named, extra: new Set(own).size, version: versionOf(own) }];
+            : [
+                  {
+                      candidate,
+                      order,
+                      matched,
+                      named,
+                      extra: new Set(own).size,
+                      version: versionOf(own),
+                  },
+              ];
     });
 
     scored.sort(
@@ -238,7 +263,7 @@ export function sameModel(spec: string, ref: ModelRef | undefined): boolean {
 
 /**
  * A signed-in model by `provider/id`, or by id alone, whose sign-in works as far as anyone knows. The error names no
- * other models: offered a list, Pi would pick from it, and models are a person's to choose.
+ * other models: offered a list, the agent would pick from it, and models are a person's to choose.
  */
 export function resolveModel(
     models: ModelRuntime,

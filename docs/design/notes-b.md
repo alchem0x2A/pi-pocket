@@ -30,7 +30,7 @@ Only the inspector can send those four: the stand-in `parent` in the page sends 
 
 ### Choices where the plan let me choose
 
-- **Slide numbers are 0-based**, in `pocket-goto` and `pocket-deck`. D: if `design_preview({ slide })` is 1-based for Pi, convert.
+- **Slide numbers are 0-based**, in `pocket-goto` and `pocket-deck`. D: if `design_preview({ slide })` is 1-based for the agent, convert.
 - **Modes are exclusive**: turning inspect on turns text edit off, and the other way round. Pins and tweaks are separate.
 - **`rect` is in page coordinates** (viewport rect plus scroll), in CSS pixels after any transform (a deck's scale is in it).
 - **`before` in `pocket-text-edited` is the first text** the block had (whitespace squashed), not the text before the last edit. The same block can be sent again; keep the last one for each `target.selector`. Putting the old text back is sent too (`after === before`), so a reverted edit can be dropped.
@@ -97,7 +97,7 @@ html`<iframe ref=${frame} key=${`${id}/${version}`} src=${src} sandbox="allow-sc
 
 ## For stream D (the guide, preview, export)
 
-Pi needs to be told, in `designGuide`:
+The agent needs to be told, in `designGuide`:
 
 - **Pids**: `data-pid="hero"` on meaningful elements; a pick or a pin falls back to the nearest one.
 - **Tweaks manifest**: `<script type="application/json" id="pocket-tweaks">[ { "name": "--accent", "label": "Accent", "type": "color", "value": "#3366ff" }, { "name": "--radius", "type": "range", "value": 12, "min": 0, "max": 32, "step": 1, "unit": "px" } ]</script>`. 3 to 8 knobs. Types: `range`, `color`, `select` (with `options`), `toggle`, `text`. The CSS must use the variables (`var(--accent)`). A knob that is not a `--name` is only an event: `addEventListener("pocket:tweak", (e) => e.detail.name / e.detail.value)`.

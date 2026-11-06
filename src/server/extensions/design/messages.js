@@ -1,4 +1,4 @@
-// The messages the canvas puts in the message box for Pi: one for all open comments, one for text edits, one for tweaks
+// The messages the canvas puts in the message box for the agent: one for all open comments, one for text edits, one for tweaks
 // to keep, and one for a chosen variation. They are text only: the person reads one and sends it. Pure functions.
 import { show } from "./tweaks.js";
 
@@ -18,7 +18,7 @@ const code = (text) => `\`${String(text).replace(/`/g, "'")}\``;
 const quoted = (text) => `“${String(text).replace(/\s+/g, " ").trim()}”`;
 
 /**
- * One message with every open comment, each with its element as JSON. Pi makes the next version of the artifact with
+ * One message with every open comment, each with its element as JSON. The agent makes the next version of the artifact with
  * these in mind (`edits` on the latest version, or new content).
  */
 export function commentsMessage({ title, id, version, comments }) {

@@ -1,4 +1,4 @@
-// Memory: the lessons Pi keeps across sessions, for this session's project and for everywhere.
+// Memory: the lessons the agent keeps across sessions, for this session's project and for everywhere.
 import { useEffect, useState } from "preact/hooks";
 import { api, attempt, closeSheet, navigate, notify, store } from "../store.js";
 import { html, Sheet, timeAgo } from "../ui.js";
@@ -15,7 +15,7 @@ const path = (id, rest = "", pendingOnly = false) =>
 let last = null;
 /**
  * The fetch under way for each conversation, `{ rev, promise }`: the sheet, the menu, and each memory call ask once
- * together, PiP's calls and the open session's too.
+ * together, Pia's calls and the open session's too.
  */
 const asking = new Map();
 
@@ -143,7 +143,7 @@ function approval(lesson) {
 /** Who saved a lesson, and where it came from, in a line. */
 function Source({ lesson }) {
     const { me } = store.state;
-    const who = lesson.byPi ? "Pi" : lesson.by === me?.id ? "you" : lesson.byName;
+    const who = lesson.byPi ? "the agent" : lesson.by === me?.id ? "you" : lesson.byName;
 
     const open = (event) => {
         event.preventDefault();
@@ -163,8 +163,8 @@ function Source({ lesson }) {
     </div>`;
 }
 
-/** Where a lesson applies, said where it waits: everywhere's reach every session and PiP. */
-const assistantName = () => store.state.server?.assistant?.name || "PiP";
+/** Where a lesson applies, said where it waits: everywhere's reach every session and Pia. */
+const assistantName = () => store.state.server?.assistant?.name || "Pia";
 const reach = (lesson) =>
     lesson.scope === "everywhere"
         ? `everywhere: every session, and ${assistantName()}`
@@ -222,7 +222,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
             lesson.proposal &&
             html`<div class="lesson-proposal">
                 <span class="muted small">
-                    ${lesson.proposal.byPi ? "Pi" : lesson.proposal.mine ? "You" : lesson.proposal.byName} ${lesson.proposal.forget ? "proposes forgetting it." : "proposes:"}
+                    ${lesson.proposal.byPi ? "the agent" : lesson.proposal.mine ? "You" : lesson.proposal.byName} ${lesson.proposal.forget ? "proposes forgetting it." : "proposes:"}
                 </span>
                 ${lesson.proposal.text && html`<div class="lesson-text">${lesson.proposal.text}</div>`}
             </div>`
@@ -230,7 +230,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
         ${
             (lesson.pending || lesson.proposal) &&
             !data.owner &&
-            html`<div class="muted small">Waits for the owner's approval; until then Pi goes on as before.</div>`
+            html`<div class="muted small">Waits for the owner's approval; until then the agent goes on as before.</div>`
         }
         <div class="lesson-foot">
             <${Source} lesson=${lesson} />
@@ -245,7 +245,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
                                 act(
                                     "/approve",
                                     approval(lesson),
-                                    "Approved: Pi goes by it from its next message.",
+                                    "Approved: the agent goes by it from its next message.",
                                 )}
                         >
                             Approve
@@ -305,7 +305,7 @@ function Group({ title, lessons, data, empty, conversationId, pendingOnly = fals
     </div>`;
 }
 
-/** The lessons Pi keeps: what waits for approval, this project's, and everywhere's; and one added by hand. */
+/** The lessons the agent keeps: what waits for approval, this project's, and everywhere's; and one added by hand. */
 export function MemorySheet({
     draft: initial = "",
     conversationId,
@@ -360,8 +360,8 @@ export function MemorySheet({
             notify(
                 "info",
                 lesson.pending
-                    ? "Saved. Pi uses it once the owner approves it."
-                    : "Saved. Pi gets it from its next message.",
+                    ? "Saved. The agent uses it once the owner approves it."
+                    : "Saved. The agent gets it from its next message.",
             );
         }).finally(() => setBusy(false));
     };
@@ -370,7 +370,7 @@ export function MemorySheet({
         return html`<${Sheet} title=${title} onClose=${closeSheet}>
             <p class="muted small">
                 Memories waiting for your approval, across every project and everywhere.
-                Approve only what you want Pi to keep; until then Pi goes on as before.
+                Approve only what you want the agent to keep; until then the agent goes on as before.
             </p>
             <${Group}
                 title=${`To approve · ${waiting.length}`}
@@ -390,7 +390,7 @@ export function MemorySheet({
             html`<p class="muted small">Memory is off in Extensions. You can still edit its saved lessons here.</p>`
         }
         <p class="muted small">
-            Short lessons Pi keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : `${assistantName()} keeps lessons for everywhere.`} Pi proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
+            Short lessons the agent keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : `${assistantName()} keeps lessons for everywhere.`} the agent proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
         </p>
         ${
             data.canWrite &&
@@ -470,7 +470,7 @@ export function MemorySheet({
 }
 
 /**
- * Under Pi's memory call: what became of the lesson it saved, changed, or forgot, in conversation `conversationId` (the
+ * Under the agent's memory call: what became of the lesson it saved, changed, or forgot, in conversation `conversationId` (the
  * one open when absent). While it waits, the owner reads it and approves or discards it right here, without opening
  * the sheet.
  */
@@ -503,7 +503,7 @@ export function LessonCall({ lessonId, conversationId }) {
     }
 
     if (!lesson.pending && !lesson.proposal) {
-        return html`<div class="lesson-call muted small">In memory: Pi goes by it.</div>`;
+        return html`<div class="lesson-call muted small">In memory: the agent goes by it.</div>`;
     }
 
     const what = lesson.pending
@@ -526,7 +526,7 @@ export function LessonCall({ lessonId, conversationId }) {
                         act(
                             "/approve",
                             approval(lesson),
-                            "Approved: Pi goes by it from its next message.",
+                            "Approved: the agent goes by it from its next message.",
                         )}
                 >
                     Approve

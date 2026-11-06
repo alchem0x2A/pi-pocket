@@ -1,7 +1,7 @@
 /**
  * The project's design system (stream D of design mode): a Markdown file at `<session folder>/.pi/design-system.md`
- * that Pi writes after it reads the codebase or the brand files the person points at, and that guide.ts puts into the
- * prompt before Pi makes a design. The `design_system` tool reads and writes that file.
+ * that the agent writes after it reads the codebase or the brand files the person points at, and that guide.ts puts into the
+ * prompt before the agent makes a design. The `design_system` tool reads and writes that file.
  *
  * The file is bounded UTF-8 text. A write never follows a symlink to the file itself and replaces it atomically: the
  * new bytes go to a temporary file next to it, and a rename puts them in place. A read never follows a symlink either.

@@ -1,5 +1,5 @@
 /**
- * Pi Pocket's own durable documents. They live next to the transcripts in the same storage and change in the same
+ * Pia's own durable documents. They live next to the transcripts in the same storage and change in the same
  * commits, so a crash never leaves them disagreeing with the conversation.
  *
  * Kinds are part of the stored data: rename one and old sessions lose it.
@@ -26,6 +26,8 @@ const rebased = {
         info.deltasSinceBase >= 64,
 };
 
+const LEGACY_ASSISTANT_OWNER = "pip" as const;
+
 export type SessionMeta = {
     title?: string;
     cwd: string;
@@ -37,18 +39,22 @@ export type SessionMeta = {
     forkedFrom?: { id: number; entryId?: number };
     /** The session that started this one (`linked-sessions.ts`): a link only, which gives no access and owns nothing. */
     linkedFrom?: { id: number };
-    /** The most Pi may spend here, in dollars, subagents included. */
+    /** The most the agent may spend here, in dollars, subagents included. */
     budget?: number;
     /** The git worktree the session works in, when it has one of its own. */
     worktree?: Worktree;
-    /** The session of Pi's in the terminal this one continues, and how many messages its file had then. */
+    /** The session of the agent's in the terminal this one continues, and how many messages its file had then. */
     fromPi?: { session: string; count: number };
-    /**
-     * The id of the person whose PiP this is: their assistant, which looks after their other sessions (`pip.ts`). PiP is
-     * kept out of the session list; an older Pi Pocket, which does not know this field, lists it as a session.
-     */
-    pip?: string;
+    /** The id of the person whose assistant this is. New records use this field. */
+    pia?: string;
+    /** Read only for records written before the rebrand. Keep the stored field compatible. */
+    [LEGACY_ASSISTANT_OWNER]?: string;
 };
+
+/** The assistant's owner id, including records written before the rebrand. */
+export function assistantOwner(meta: SessionMeta | undefined): string | undefined {
+    return meta?.pia ?? meta?.[LEGACY_ASSISTANT_OWNER];
+}
 
 /** The catalogue of user-facing sessions: ownerless conversations created by the app. Subagents are not listed. */
 export const SessionsDoc = defineDoc<{ items: Record<string, SessionMeta> }>({
@@ -124,7 +130,7 @@ export const LinkedSessionRelayDoc = defineDoc<{ sent: number }>({
 
 /**
  * What each call to start or message a linked session did, by its key hashed with the session: the session it made or
- * messaged, whom Pi worked for, and when. A call run again finds it, so it acts once. `linked-sessions.ts` keeps them
+ * messaged, whom the agent worked for, and when. A call run again finds it, so it acts once. `linked-sessions.ts` keeps them
  * 30 days, and the newest 1000, as `shell.ts` keeps its requests. (Not a document family: those cannot be pruned.)
  */
 export const LinkedSessionCallsDoc = defineDoc<{
@@ -385,7 +391,7 @@ export type ChatMessage = {
     quote?: { entryId: number; text: string };
 };
 
-/** The people's side chat in one conversation, oldest first, with activity lines. Pi does not see it. */
+/** The people's side chat in one conversation, oldest first, with activity lines. The agent does not see it. */
 export const ChatDoc = defineDoc<{ messages: ChatMessage[] }>({
     kind: "pocket.chat",
     version: 1,
@@ -417,7 +423,7 @@ export type Pin = {
     chatId?: string;
     /** A snippet of what was pinned, taken when pinned. */
     text: string;
-    /** Who wrote the pinned message: a person's name or "Pi". */
+    /** Who wrote the pinned message: a person's name or "the agent". */
     author: string;
     by: string;
     at: number;
@@ -449,7 +455,7 @@ export const NotesDoc = defineDoc<Notes>({
 
 export type Turns = { on: boolean; driver?: string; asks: string[] };
 
-/** Take turns: while on, only the driver sends to Pi or changes its settings. */
+/** Take turns: while on, only the driver sends to the agent or changes its settings. */
 export const TurnsDoc = defineDoc<Turns>({
     kind: "pocket.turns",
     version: 1,
@@ -480,7 +486,7 @@ export const REPORT_PREFIX = "[subagent ";
 /** Why a subagent that was stopped did not answer, in its report and its record. */
 export const STOPPED = "stopped before it answered";
 
-/** Plan mode: while on, Pi reads and proposes, and anything that would change something is blocked. */
+/** Plan mode: while on, the agent reads and proposes, and anything that would change something is blocked. */
 export const PlanDoc = defineDoc<{ on: boolean; by?: string; at?: number }>({
     kind: "pocket.plan",
     version: 1,
@@ -492,20 +498,20 @@ export const PlanDoc = defineDoc<{ on: boolean; by?: string; at?: number }>({
 });
 
 export type Schedule = {
-    /** Short and stable: what people and Pi use to cancel it. */
+    /** Short and stable: what people and the agent use to cancel it. */
     id: string;
     /** What was asked for, as shown in the list. */
     text: string;
-    /** What Pi gets: the text marked as scheduled, with who set it when several people use this server. */
+    /** What the agent gets: the text marked as scheduled, with who set it when several people use this server. */
     content: string;
     /** When it goes out next. */
     next: number;
     every?: Repeat;
     /** The time zone its clock times are in. */
     zone: string;
-    /** Who set it; absent when Pi did. */
+    /** Who set it; absent when the agent did. */
     by?: string;
-    /** For one Pi set up: whom Pi worked for then. It goes out as Pi's, but as their work. */
+    /** For one the agent set up: whom the agent worked for then. It goes out as the agent's, but as their work. */
     requestedBy?: string;
     createdAt: number;
     /** How many times it went out: each time sends with its own request id, so a restart never sends one twice. */
@@ -516,7 +522,7 @@ export type Schedule = {
     key?: string;
 };
 
-/** Messages that go to Pi later, or on repeat. A fork starts without them: they belong to who set them up. */
+/** Messages that go to the agent later, or on repeat. A fork starts without them: they belong to who set them up. */
 export const ScheduleDoc = defineDoc<{ items: Record<string, Schedule> }>({
     kind: "pocket.schedules",
     version: 1,
@@ -527,9 +533,9 @@ export const ScheduleDoc = defineDoc<{ items: Record<string, Schedule> }>({
     initial: () => ({ items: {} }),
 });
 
-/** A command Pi started in the background (`background.ts`), and how it ended. */
+/** A command the agent started in the background (`background.ts`), and how it ended. */
 export type BackgroundTask = {
-    /** Short and stable: what Pi uses to read, stop, or name it. */
+    /** Short and stable: what the agent uses to read, stop, or name it. */
     id: string;
     command: string;
     cwd: string;
@@ -544,16 +550,16 @@ export type BackgroundTask = {
     code?: number;
     /** `split`'s exit code, when writing its log failed (a full disk): its output may stop short. */
     logFailed?: number;
-    /** Why Pi Pocket stopped it, when it did of itself (its output came too fast to keep). */
+    /** Why Pia stopped it, when it did of itself (its output came too fast to keep). */
     why?: string;
     /** Processes it started that left its group and still ran when it ended (a daemon): a stop ends them. */
     left?: number[];
     /** The machine's boot it started in: a task of another boot has no process left. */
     boot?: string;
     endedAt?: number;
-    /** Whether Pi gets a message when it ends. */
+    /** Whether the agent gets a message when it ends. */
     notify: boolean;
-    /** Whom Pi worked for when it started the command: its message goes out as their work. */
+    /** Whom the agent worked for when it started the command: its message goes out as their work. */
     requestedBy?: string;
     /** The durable task that watches it. */
     taskId: TaskId;
@@ -561,11 +567,11 @@ export type BackgroundTask = {
     key?: string;
     /** The size of its log's segments, in bytes: a segment's place in the output follows from its number. */
     segment?: number;
-    /** How much of its output Pi has read, in bytes from its very start (counting what a sweep removed). */
+    /** How much of its output the agent has read, in bytes from its very start (counting what a sweep removed). */
     read: number;
 };
 
-/** Commands Pi runs in the background. A fork starts without them: their processes belong to the session they were started in. */
+/** Commands the agent runs in the background. A fork starts without them: their processes belong to the session they were started in. */
 export const BackgroundDoc = defineDoc<{ items: Record<string, BackgroundTask> }>({
     kind: "pocket.background",
     version: 1,
@@ -580,7 +586,7 @@ export const BackgroundDoc = defineDoc<{ items: Record<string, BackgroundTask> }
 export type GoalCheck = { passed: boolean; code: number; at: number; tail: string };
 
 /**
- * "Done when": Pi keeps working until a check command passes, up to `max` checks. `counted` holds the generation
+ * "Done when": the agent keeps working until a check command passes, up to `max` checks. `counted` holds the generation
  * tasks whose answer was checked already, so an answer replayed after a restart is not counted twice.
  */
 export type Goal = {
@@ -604,7 +610,7 @@ export const GoalDoc = defineDoc<{ goal?: Goal }>({
 });
 
 /**
- * What Pi spent for each person, in dollars: the work goes to whoever asked for it. `counted` is how much of each
+ * What the agent spent for each person, in dollars: the work goes to whoever asked for it. `counted` is how much of each
  * conversation's spend is in `people` already, so every dollar is counted once, also across restarts.
  */
 export const SpendDoc = defineDoc<{
@@ -619,7 +625,7 @@ export const SpendDoc = defineDoc<{
 });
 
 export type Lesson = {
-    /** Short and stable: what Pi and people use to change or remove it. */
+    /** Short and stable: what the agent and people use to change or remove it. */
     id: string;
     text: string;
     /** The project it is for (`memory.ts`: the repository's shared git folder, or the folder); absent: everywhere. */
@@ -628,15 +634,15 @@ export type Lesson = {
     projectName?: string;
     /** The session it came from: a subagent's lesson is its session's. */
     from?: { conversationId: number; title: string };
-    /** Who saved it, or whom Pi worked for when it did. */
+    /** Who saved it, or whom the agent worked for when it did. */
     by: string;
     byPi: boolean;
     createdAt: number;
     updatedAt?: number;
-    /** Saved by Pi, or by someone who is not the owner: unused until the owner approves it. */
+    /** Saved by the agent, or by someone who is not the owner: unused until the owner approves it. */
     pending?: boolean;
     /**
-     * A change to it in force that waits for the owner, as Pi or a guest proposed it: new text, or forgetting it. The
+     * A change to it in force that waits for the owner, as the agent or a guest proposed it: new text, or forgetting it. The
      * lesson stays as it is until then.
      */
     proposal?: { text?: string; forget?: boolean; by: string; byPi: boolean; at: number };
@@ -645,7 +651,7 @@ export type Lesson = {
 };
 
 /**
- * Memory: short lessons Pi keeps across sessions, by id, for one project or everywhere. Pi gets those that apply in
+ * Memory: short lessons the agent keeps across sessions, by id, for one project or everywhere. The agent gets those that apply in
  * its system prompt (`extensions/memory.ts`).
  */
 export const MemoryDoc = defineDoc<{ items: Record<string, Lesson> }>({
@@ -703,7 +709,7 @@ export const ShellRequestsDoc = defineDoc<{ items: Record<string, number> }>({
 });
 
 /**
- * PiP's follows (`pip.ts`), by the key of the tool call that made each, so a call run again finds the follow it made.
+ * Pia's follows (`pip.ts`), by the key of the tool call that made each, so a call run again finds the follow it made.
  * `doneAt` marks one that reported (or was stopped); it stays a day, then goes.
  */
 export const FollowsDoc = defineDoc<{
@@ -719,11 +725,10 @@ export const FollowsDoc = defineDoc<{
 });
 
 /**
- * Which provider pays, as PiP was last told to ask its person (`pip.ts`): the models their words named, at more than one
- * provider, and the newest entry of PiP's conversation then (`at`). Their next message answers it when it is just one of
- * those providers' whole name or id, in the same context.
+ * Historical provider attribution from the earlier model-name conversation. Keep this stored kind for existing records;
+ * current code does not read or write it.
  */
-export const PipAskedDoc = defineDoc<{
+export const PiaAskedDoc = defineDoc<{
     asked?: { models: { provider: string; id: string }[]; at: number };
 }>({
     kind: "pocket.pip-asked",
@@ -750,10 +755,10 @@ export const CompactionReviewDoc = defineDoc<{ counted: number[] }>({
 });
 
 /**
- * PiP's compactions whose summary PiP wrote itself (`pip-compact.ts`), by task id: their cost is in `pi.usage`, added
- * once. The newest few are kept.
+ * Retired accounting data from the earlier private-summary feature. Keep the stored kind defined for existing records;
+ * current code does not read or write this document.
  */
-export const PipCompactionDoc = defineDoc<{ counted: number[] }>({
+export const PiaCompactionDoc = defineDoc<{ counted: number[] }>({
     kind: "pocket.pip-compaction",
     version: 1,
     ...rebased,
@@ -774,16 +779,16 @@ export type PrWatch = {
     url: string;
     title: string;
     branch: string;
-    /** The PR is in another repository than the session's folder: Pi is told to work in a checkout of it. */
+    /** The PR is in another repository than the session's folder: the agent is told to work in a checkout of it. */
     elsewhere?: boolean;
     /**
      * `gh`'s account could not push to the PR's repository when the watch began, so GitHub does not tell it who can
      * write there: members' and collaborators' remarks do not count, only the owner's (and bots' reviews).
      */
     unchecked?: boolean;
-    /** Whose work it is: messages go to Pi for them, and their checks and spend limit apply. */
+    /** Whose work it is: messages go to the agent for them, and their checks and spend limit apply. */
     by: string;
-    /** Pi set it up, for `by`. */
+    /** the agent set it up, for `by`. */
     byPi?: boolean;
     createdAt: number;
     /** The durable task that looks. */
@@ -791,14 +796,14 @@ export type PrWatch = {
     status: WatchStatus;
     /** When it looks next. */
     next: number;
-    /** Messages sent to Pi, and the most it sends. */
+    /** Messages sent to the agent, and the most it sends. */
     sent: number;
     max: number;
     /** Comments older than this were there before the watch: ISO time, as GitHub gives it. */
     since: string;
     /** Comments, reviews, and review comments told already, by id. */
     seen: string[];
-    /** The commit whose failed checks Pi was told about, and the one whose conflicts. */
+    /** The commit whose failed checks the agent was told about, and the one whose conflicts. */
     failedSha?: string;
     conflictSha?: string;
     /** What the last look found, for the bar: the checks of the PR's last commit. */
@@ -824,15 +829,15 @@ export const WatchDoc = defineDoc<{ watch?: PrWatch }>({
     initial: () => ({}),
 });
 
-/** A webhook (`hooks.ts`): an address that turns each post to it into a message to a session's Pi, or to PiP. */
+/** A webhook (`hooks.ts`): an address that turns each post to it into a message to a session's agent, or to Pia. */
 export type Hook = {
     /** In its address, with the secret. */
     id: string;
     secret: string;
     name: string;
-    /** What Pi should do with each post: the message's first part. */
+    /** What the agent should do with each post: the message's first part. */
     instructions: string;
-    /** The session (or PiP) it messages. */
+    /** The session (or Pia) it messages. */
     target: number;
     /**
      * For GitHub: a post gets in only with GitHub's signature made with the secret, which is not in the address, so
@@ -841,7 +846,7 @@ export type Hook = {
     signed?: boolean;
     /**
      * For GitHub: posts about what people outside the repository wrote (not its owner, nor members or collaborators who
-     * can write to it) reach Pi too. Absent: they are dropped. Only a person sets it, in the hooks sheet.
+     * can write to it) reach the agent too. Absent: they are dropped. Only a person sets it, in the hooks sheet.
      */
     anyone?: boolean;
     /** Who made it: posts go as their work, with their checks and spend limit. */
@@ -866,10 +871,10 @@ export type RepoEvent = "issues" | "pulls" | "ci" | "releases" | "mentions";
 
 /**
  * A watch of a GitHub repository `gh`'s account can push to: what happens there (new issues and PRs, CI failing on a
- * branch, releases, @pi mentions) goes, with its person's standing instructions, to PiP or a session.
+ * branch, releases, @pi mentions) goes, with its person's standing instructions, to Pia or a session.
  */
 export type RepoWatch = {
-    /** Short and stable: what PiP and people use to remove it. */
+    /** Short and stable: what Pia and people use to remove it. */
     id: string;
     /** `owner/name`, or `host/owner/name` off github.com, as GitHub spells it. */
     repo: string;
@@ -885,14 +890,14 @@ export type RepoWatch = {
     /**
      * Issues and PRs from anyone, not only from the repository's owner, and members and collaborators who can write to
      * it (and bots' PRs).
-     * Only a person turns it on, in the hooks sheet; PiP cannot.
+     * Only a person turns it on, in the hooks sheet; Pia cannot.
      */
     anyone?: boolean;
-    /** The conversation it messages: its person's PiP, or a session. */
+    /** The conversation it messages: its person's Pia, or a session. */
     target: number;
     /** Whose work it is: messages go for them, with their checks and spend limit. */
     by: string;
-    /** PiP set it up, for `by`. */
+    /** Pia set it up, for `by`. */
     byPi: boolean;
     createdAt: number;
     /** What happened before this (ISO, as GitHub writes times) was there before the watch. */

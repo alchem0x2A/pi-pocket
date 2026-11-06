@@ -1,6 +1,6 @@
 /**
- * Sharing a drop-in: whether it stands on its own (its files are all its own, and it imports only what every Pi Pocket
- * has), and a draft of its index entry, from its doc comment and its files' hashes. Pi Pocket makes no GitHub calls for
+ * Sharing a drop-in: whether it stands on its own (its files are all its own, and it imports only what every Pia
+ * has), and a draft of its index entry, from its doc comment and its files' hashes. Pia makes no GitHub calls for
  * it: the owner opens the pull request.
  */
 import { lstat, readdir, readFile } from "node:fs/promises";
@@ -58,7 +58,7 @@ function packageOf(spec: string): string {
 
 /**
  * What keeps a drop-in from standing on its own, in words: imports of files that are not among its own, of files by
- * where they are on this machine, of code from other sites, or of packages Pi Pocket does not have.
+ * where they are on this machine, of code from other sites, or of packages Pia does not have.
  */
 export function importProblems(
     name: string,
@@ -119,7 +119,7 @@ export function importProblems(
 
             if (!known) {
                 problems.push(
-                    `${file.name} imports the package ${spec}, which Pi Pocket does not have: others cannot load it.`,
+                    `${file.name} imports the package ${spec}, which Pia does not have: others cannot load it.`,
                 );
             }
         }
@@ -249,11 +249,11 @@ async function ownFiles(
 /**
  * Whether one of the owner's drop-ins stands on its own, and a draft of its index entry: its description from its doc
  * comment, its files' sizes and hashes, and, while it is on, what it declares. What only its author knows (where its
- * files are on GitHub) stays to fill in. `version` is this Pi Pocket's.
+ * files are on GitHub) stays to fill in. `version` is this Pia's.
  */
 /**
  * The extension API version a module was written for: the highest `export const pocketApi = N` in its files, else 1
- * (no export counts as 1). Never newer than this Pi Pocket's, so a draft never asks for an API that does not exist.
+ * (no export counts as 1). Never newer than this Pia's, so a draft never asks for an API that does not exist.
  */
 export function apiOf(texts: readonly { text?: string }[]): number {
     // A file that is not text (an image) says nothing.
@@ -318,7 +318,7 @@ export async function shareDraft(options: {
         routes: module.web?.routes ?? [],
         client: module.web?.client ?? null,
         access: module.web?.access ?? "owner",
-        // Only when it has some: a Pi Pocket before 0.14.0 does not read an entry with the field.
+        // Only when it has some: a Pia before 0.14.0 does not read an entry with the field.
         ...((module.web?.commands ?? []).length === 0
             ? {}
             : { commands: module.web!.commands!.map((command) => command.replace(" /", " ")) }),

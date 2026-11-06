@@ -566,7 +566,7 @@ export function CwdSheet({ mode, fromList = false }) {
                         class="link small fp-pi"
                         onClick=${() => openSheet({ type: "pi-sessions" })}
                     >
-                        Continue a Pi session…
+                        Continue a terminal session…
                     </button>`
                 }
             </nav>

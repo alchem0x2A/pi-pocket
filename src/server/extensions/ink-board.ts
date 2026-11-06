@@ -23,7 +23,7 @@ const INSTALL =
     "(set INK_BOARD_PORT to change it). To set it up: gh repo clone alchem0x2A/ink-board ~/Dev/ink-board && " +
     "~/Dev/ink-board/scripts/install.sh, then start it with ~/Dev/ink-board/scripts/ink-board or let this module start it.";
 const pause = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
-// Shared only by adapter versions in this Pi Pocket process. It prevents a
+// Shared only by adapter versions in this Pia process. It prevents a
 // replacement from mistaking its predecessor's child for an external service.
 const ownedKey = Symbol.for("ink-board.pi-pocket.owned-child");
 const shared = globalThis as typeof globalThis & {
@@ -201,7 +201,7 @@ export default function createInkBoard(
     };
 
     // The previous extension owns the port until its cleanup runs. Defer startup
-    // until after this module has returned and Pi Pocket has installed it.
+    // until after this module has returned and Pia has installed it.
     initialTimer = setTimeout(() => {
         void ensure().catch(() => undefined);
     }, 600);

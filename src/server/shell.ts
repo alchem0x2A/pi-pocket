@@ -1,9 +1,9 @@
 /**
- * Commands people run themselves from the message box, as in Pi's terminal app: `!git status` runs in the session's
- * folder and Pi sees what it printed; `!!git status` shows only to the people here. Each command is a background task,
+ * Commands people run themselves from the message box, as in the agent's terminal app: `!git status` runs in the session's
+ * folder and the agent sees what it printed; `!!git status` shows only to the people here. Each command is a background task,
  * so it shows in Running now and can be stopped there. A restart while one runs does not run it again: it may have
  * done part of its work, so its entry says it was cut off. The entry goes in as a write submission, which Pi Durable
- * queues while Pi works and places where a message can go.
+ * queues while the agent works and places where a message can go.
  */
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -36,7 +36,7 @@ export type ShellInput = { command: string; by: string; name: string; context: b
 
 const finished = { status: "terminal", outcome: { status: "completed", result: null } } as const;
 
-/** What Pi gets for a command, as Pi's terminal app words it. */
+/** What the agent gets for a command, as the agent's terminal app words it. */
 function shellMessage(data: ShellData, speaker: (text: string) => string): string {
     const notes: string[] = [];
 
@@ -217,8 +217,8 @@ export class Shell {
                   }
                 : {}),
         };
-        // A command Pi sees is the person's, like a message: Pi works for them from there, so they cannot allow the
-        // calls it leads to where approvals need someone else. One Pi does not see is nobody's.
+        // A command the agent sees is the person's, like a message: the agent works for them from there, so they cannot allow the
+        // calls it leads to where approvals need someone else. One the agent does not see is nobody's.
         const requestId = data.context
             ? ownRequest(data.by, `shell-${data.taskId}`)
             : `shell:${data.taskId}`;
@@ -229,7 +229,7 @@ export class Shell {
 
     /**
      * Run a command someone typed. With Lancet Guard on, a command from anyone but the owner must be one the guard
-     * allows outright: nobody is asked about it, as nobody would be asked about Pi's own call without the guard.
+     * allows outright: nobody is asked about it, as nobody would be asked about the agent's own call without the guard.
      */
     async start(
         id: ConversationId,
@@ -266,7 +266,7 @@ export class Shell {
             if (judged !== undefined && judged.decision.action !== "allow") {
                 throw new HttpError(
                     403,
-                    `Lancet Guard does not allow this command to run unasked: ${judged.decision.reason}. Ask Pi to run it instead.`,
+                    `Lancet Guard does not allow this command to run unasked: ${judged.decision.reason}. Ask the agent to run it instead.`,
                 );
             }
         }

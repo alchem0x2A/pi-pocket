@@ -1,6 +1,6 @@
 // The extension points of 0.22.0 for people's values (`hidden.ts`, `extension-points.ts`): `host.commandEnv` puts a value
 // into a command's environment, `host.hide` keeps it out of the output as it streams and out of every tool's result,
-// `host.ask` asks the person Pi works for on a card whose values reach only the extension, and `host.browser` gives an
+// `host.ask` asks the person the agent works for on a card whose values reach only the extension, and `host.browser` gives an
 // extension the session's page, with a `fill` for a person's value.
 import {
     type App,
@@ -211,7 +211,7 @@ export default (host, web) => {
         }),
     });
 
-    // As the guide shows: Pi's own browser tool never types into a password field; the card fills it.
+    // As the guide shows: the agent's own browser tool never types into a password field; the card fills it.
     const noTypedPasswords = hook(ToolTask, {
         beforeTool: async (call, api) => {
             if (call.name !== "browser" || call.arguments.action !== "type") {
@@ -227,7 +227,7 @@ export default (host, web) => {
             const page = await host.browser(api.conversationId);
             const found = await page?.inspect(at).catch(() => undefined);
 
-            return found?.password ? { block: "A password is filled in from its card, not typed by Pi." } : undefined;
+            return found?.password ? { block: "A password is filled in from its card, not typed by the agent." } : undefined;
         },
     });
 
@@ -388,7 +388,7 @@ test("a command gets the variables a provider gives it, and its output hides the
     assert.equal(output, "[secret TOKEN] yes");
 });
 
-test("Pi's bash uses the value without the model, the transcript, or the result holding it", async () => {
+test("the agent's bash uses the value without the model, the transcript, or the result holding it", async () => {
     const id = await newSession(app);
     const before = sent.length;
 
@@ -407,7 +407,7 @@ test("Pi's bash uses the value without the model, the transcript, or the result 
     assert.ok(sent.slice(before).every((request) => !request.includes(SECRET)));
 });
 
-test("a value pasted into a message to Pi, or into an edit sent again, is hidden before it is stored", async () => {
+test("a value pasted into a message to the agent, or into an edit sent again, is hidden before it is stored", async () => {
     const id = await newSession(app);
     const me = owner(app);
     const before = sent.length;
@@ -457,7 +457,7 @@ test("any tool's result hides the value before it is stored, its details too", a
     assert.doesNotMatch(transcript, new RegExp(SECRET));
 });
 
-test("an ask's card is answered by the person Pi works for, and its values reach only the extension", async () => {
+test("an ask's card is answered by the person the agent works for, and its values reach only the extension", async () => {
     const id = await newSession(app);
     const me = owner(app);
     const guest = app.config.addUser("Gus", "guest").user;
@@ -520,7 +520,7 @@ test("an ask's card is answered by the person Pi works for, and its values reach
 });
 
 test(
-    "an extension drives the session's page and fills a password Pi never sees",
+    "an extension drives the session's page and fills a password the agent never sees",
     real,
     async () => {
         const id = await newSession(app);
@@ -589,51 +589,58 @@ test(
     },
 );
 
-test("a hook can keep Pi's own browser tool from typing into a password field", real, async () => {
-    const id = await newSession(app);
-    const { createHandler } = await import("../src/server/http.ts");
-    const server = createServer(
-        createHandler({ app, listen: { host: "127.0.0.1", port: 0 }, restart: () => {} }),
-    );
+test(
+    "a hook can keep the agent's own browser tool from typing into a password field",
+    real,
+    async () => {
+        const id = await newSession(app);
+        const { createHandler } = await import("../src/server/http.ts");
+        const server = createServer(
+            createHandler({ app, listen: { host: "127.0.0.1", port: 0 }, restart: () => {} }),
+        );
 
-    await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+        await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
 
-    try {
-        const opened = await fetch(
-            `http://127.0.0.1:${(server.address() as { port: number }).port}/api/x/points/open`,
-            {
-                method: "POST",
-                headers: {
-                    authorization: `Bearer ${app.config.ownerToken}`,
-                    "x-pocket": "1",
-                    "content-type": "application/json",
+        try {
+            const opened = await fetch(
+                `http://127.0.0.1:${(server.address() as { port: number }).port}/api/x/points/open`,
+                {
+                    method: "POST",
+                    headers: {
+                        authorization: `Bearer ${app.config.ownerToken}`,
+                        "x-pocket": "1",
+                        "content-type": "application/json",
+                    },
+                    body: JSON.stringify({ id: Number(id), url: `${base}/` }),
                 },
-                body: JSON.stringify({ id: Number(id), url: `${base}/` }),
-            },
-        );
+            );
 
-        assert.equal(opened.status, 200);
-        await app.commands.submit(id, owner(app), {
-            text: "type the password",
-            requestId: crypto.randomUUID(),
-        });
-        await until(async () => (await stored(id)).includes("from its card"), "the block");
-        await app.commands.submit(id, owner(app), {
-            text: "type where the focus is",
-            requestId: crypto.randomUUID(),
-        });
-        await until(async () => (await stored(id)).includes("Name the field"), "the second block");
-        assert.equal(
-            await app.browsers
-                .page(Number(id))!
-                .evaluate(
-                    `[...document.querySelectorAll("input")].map((input) => input.value).join("")`,
-                ),
-            "",
-        );
-    } finally {
-        server.closeAllConnections();
-        server.close();
-        await app.browsers.close(Number(id));
-    }
-});
+            assert.equal(opened.status, 200);
+            await app.commands.submit(id, owner(app), {
+                text: "type the password",
+                requestId: crypto.randomUUID(),
+            });
+            await until(async () => (await stored(id)).includes("from its card"), "the block");
+            await app.commands.submit(id, owner(app), {
+                text: "type where the focus is",
+                requestId: crypto.randomUUID(),
+            });
+            await until(
+                async () => (await stored(id)).includes("Name the field"),
+                "the second block",
+            );
+            assert.equal(
+                await app.browsers
+                    .page(Number(id))!
+                    .evaluate(
+                        `[...document.querySelectorAll("input")].map((input) => input.value).join("")`,
+                    ),
+                "",
+            );
+        } finally {
+            server.closeAllConnections();
+            server.close();
+            await app.browsers.close(Number(id));
+        }
+    },
+);

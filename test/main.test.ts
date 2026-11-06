@@ -1,4 +1,4 @@
-// The server process: how it starts and stops. Each test runs `src/server/main.ts` with its own data and Pi folders.
+// The server process: how it starts and stops. Each test runs `src/server/main.ts` with its own data and the agent folders.
 import assert from "node:assert/strict";
 import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
@@ -146,7 +146,7 @@ test(
         const port = await freePort();
         const { proc, data, output } = server("hup", port);
 
-        await until(() => output().includes("Pi Pocket is running."), "the server to start");
+        await until(() => output().includes("Pia is running."), "the server to start");
         assert.equal((await fetch(`http://127.0.0.1:${port}/`)).status, 200);
         proc.kill("SIGHUP");
         assert.deepEqual(await exit(proc), { code: 0, signal: null });

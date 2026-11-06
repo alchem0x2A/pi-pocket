@@ -1,5 +1,5 @@
 /**
- * What changed in a session's folder, to review on a phone: the files Pi wrote or edited in the session (read from
+ * What changed in a session's folder, to review on a phone: the files the agent wrote or edited in the session (read from
  * its tool calls, so nothing new is stored), and, when the folder is in a git repository, every uncommitted change
  * there, with each file's diff on request.
  */
@@ -20,7 +20,7 @@ export type ChangedFile = {
     /** Lines added and removed; absent for binary files or when a count could not be read. */
     added?: number;
     removed?: number;
-    /** Pi wrote or edited it in this session. */
+    /** the agent wrote or edited it in this session. */
     byPi: boolean;
     /**
      * Changes whenever the file does (its size and modification time), so a browser knows its diff is new even when
@@ -38,7 +38,7 @@ export type Changes = {
     files: ChangedFile[];
     /** Changed files left out of `files`, past the most it lists. */
     more: number;
-    /** Files Pi wrote or edited that git shows no change for (committed since, or no repository), with Pi's last call. */
+    /** Files the agent wrote or edited that git shows no change for (committed since, or no repository), with the agent's last call. */
     piOnly: { path: string; entryId: number }[];
 };
 
@@ -109,7 +109,7 @@ function piEditPath(cwd: string, path: string, canonicalize: boolean): string {
 }
 
 /**
- * The files Pi wrote or edited, by absolute path, with the newest of its replies that did: its own calls that did not
+ * The files the agent wrote or edited, by absolute path, with the newest of its replies that did: its own calls that did not
  * fail, and the ones its codemode scripts made, which their results list.
  */
 function piEdits(
@@ -302,7 +302,7 @@ async function prefixOf(cwd: string): Promise<string> {
 }
 
 /**
- * The changes in a folder's repository, with the files Pi edited according to `entries`. `onlyHere` leaves out the
+ * The changes in a folder's repository, with the files the agent edited according to `entries`. `onlyHere` leaves out the
  * changes outside the folder: someone invited to one session sees its files only.
  */
 export async function changesIn(

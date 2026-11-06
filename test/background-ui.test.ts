@@ -104,7 +104,7 @@ test("a background task's end shows as a card with its last lines", real, async 
         requestId: `go-${id}`,
     });
 
-    // The watch tells Pi within a few seconds of the command ending.
+    // The watch tells the agent within a few seconds of the command ending.
     await see(
         `return JSON.stringify(document.querySelector(".background-report") !== null)`,
         "the background card",
@@ -122,7 +122,7 @@ test("a background task's end shows as a card with its last lines", real, async 
             `return JSON.stringify(document.querySelector(".background-report")?.textContent.replace(/\\s+/g, " ").trim())`,
         );
 
-    // Its command, and the last lines of its output as printed: the rest (and Pi's words about the tool) stay folded.
+    // Its command, and the last lines of its output as printed: the rest (and the agent's words about the tool) stay folded.
     assert.match(await card(), /seq 1000 1200/);
     assert.match(await card(), /1193 1194 1195 1196 1197 1198 1199 1200/);
     assert.doesNotMatch(await card(), /1192/);
@@ -175,7 +175,7 @@ test("output whose own line says it is the end is not taken for a cut one", real
         ),
         "one\nThe end of its output",
     );
-    // All of it reached Pi: no "The end of its output:" label above it.
+    // All of it reached the agent: no "The end of its output:" label above it.
     assert.equal(
         await inPage(`return JSON.stringify(document.querySelector(".background-output .muted"))`),
         null,

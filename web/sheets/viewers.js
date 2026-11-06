@@ -34,7 +34,7 @@ export function ArtifactsSheet() {
         ${
             items.length === 0 &&
             html`<p class="muted">
-                No artifacts yet. Ask Pi to build something you can look at: a chart, a demo, a game.
+                No artifacts yet. Ask the agent to build something you can look at: a chart, a demo, a game.
             </p>`
         }
         <div class="artifact-grid">

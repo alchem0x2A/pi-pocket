@@ -23,6 +23,7 @@ import { MenuSheet, PlacesSheet } from "./sheets/menu.js";
 import { MessageSheet } from "./sheets/message.js";
 import { ModelPicker } from "./sheets/model.js";
 import { InviteSheet, PeopleSheet } from "./sheets/people.js";
+import { ChatSheet } from "./chat.js";
 import { AuthDialog, ProvidersSheet } from "./sheets/providers.js";
 import { RestartSheet } from "./sheets/restart.js";
 import { RunningSheet } from "./sheets/running.js";
@@ -170,7 +171,7 @@ export function Sheets() {
 
     const key = isExtensionHub(sheet)
         ? "extension-hub"
-        : `${sheet.type}:${sheet.entryId ?? sheet.id ?? sheet.pipId ?? ""}`;
+        : `${sheet.type}:${sheet.entryId ?? sheet.id ?? sheet.piaId ?? ""}`;
 
     return html`<div class=${`sheet-host ${leaving ? "leaving" : ""}`} inert=${leaving}>
         <${SheetBack.Provider} value=${trail.length > 1 ? goBack : null}>
@@ -263,6 +264,9 @@ function sheetBody(sheet) {
         case "invite":
             body = html`<${InviteSheet} session=${sheet.session ?? null} />`;
             break;
+        case "chat":
+            body = html`<${ChatSheet} />`;
+            break;
         case "people":
             body = html`<${PeopleSheet} />`;
             break;
@@ -285,8 +289,8 @@ function sheetBody(sheet) {
                 title="Rename"
                 label="Session title"
                 initial=${
-                    view.conversation?.pip
-                        ? (store.state.server?.assistant?.name ?? "PiP")
+                    view.conversation?.pia
+                        ? (store.state.server?.assistant?.name ?? "Pia")
                         : (view.conversation?.title ?? "")
                 }
                 submit=${(value) => actions.updateSession(view.conversation.id, { title: value })}
@@ -359,7 +363,7 @@ function sheetBody(sheet) {
         case "reset":
             body = html`<${TextSheet}
                 title="New context"
-                hint="Pi starts fresh: it no longer sees the messages so far, though everyone here still does."
+                hint="the agent starts fresh: it no longer sees the messages so far, though everyone here still does."
                 label="Handoff note (optional)"
                 placeholder="e.g. We fixed the login bug; next is the signup form."
                 multiline=${true}
@@ -369,8 +373,8 @@ function sheetBody(sheet) {
             break;
         case "instructions":
             body = html`<${TextSheet}
-                title="Instructions for Pi"
-                hint="Pi gets these with every message in this session, after its own instructions. Everyone here can see them. Leave empty for none."
+                title="Instructions for the agent"
+                hint="the agent gets these with every message in this session, after its own instructions. Everyone here can see them. Leave empty for none."
                 label="Instructions"
                 initial=${view.agent?.instructions ?? ""}
                 placeholder="e.g. Use pnpm, not npm. Ask before adding dependencies."
@@ -379,7 +383,7 @@ function sheetBody(sheet) {
             />`;
             break;
         case "compact":
-            body = html`<${CompactSheet} pipId=${sheet.pipId} />`;
+            body = html`<${CompactSheet} piaId=${sheet.piaId} />`;
             break;
         case "name":
             body = html`<${TextSheet}

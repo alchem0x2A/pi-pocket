@@ -1,6 +1,6 @@
 /**
- * Updates of Pi Pocket itself: it looks for a new release every 6 hours and tells the owner. Only when the owner asks
- * (Start a migration session) does it fetch the upstream remote and start a Pi session that reports what changed. The
+ * Updates of Pia itself: it looks for a new release every 6 hours and tells the owner. Only when the owner asks
+ * (Start a migration session) does it fetch the upstream remote and start an agent session that reports what changed. The
  * owner merges by hand: nothing fetches, merges, or installs a version by itself. Its routes and screens are the owner's alone (`updates.ts` does the work).
  */
 import { defineExtension } from "@earendil-works/pi-durable";

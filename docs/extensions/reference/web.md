@@ -61,7 +61,7 @@ conversationRoute(
 
 Since 0.16.0 · Stable
 
-Register a route with an authorized conversation binding. `conversation` names a required path parameter, without `:`: for `"runs/:source"`, use `{ conversation: "source" }`. Registration refuses a name not in the path. All ordinary route access and header checks still apply; people invited to one session cannot use it. Before the handler runs, GET requires seeing the actual source; other methods also require steering and the turn. Missing, invalid, private PiP, or inaccessible sources never reach the handler. Check `typeof web.conversationRoute === "function"` on older servers.
+Register a route with an authorized conversation binding. `conversation` names a required path parameter, without `:`: for `"runs/:source"`, use `{ conversation: "source" }`. Registration refuses a name not in the path. All ordinary route access and header checks still apply; people invited to one session cannot use it. Before the handler runs, GET requires seeing the actual source; other methods also require steering and the turn. Missing, invalid, private Pia, or inaccessible sources never reach the handler. Check `typeof web.conversationRoute === "function"` on older servers.
 
 ### `client`
 
@@ -88,7 +88,7 @@ command(name: string, command: Command): void;
 
 Since 0.14.0 · Stable
 
-Adds the command `/name` to the message box, for the people who can run it. The command runs on the server, and it does not ask Pi.
+Adds the command `/name` to the message box, for the people who can run it. The command runs on the server, and it does not ask the agent.
 
 - [Names](names.md#commands) gives the rules for `name`.
 - [Command context](command-context.md) gives the fields of `command` and what its handler gets and returns.
@@ -102,7 +102,7 @@ publicPage(handle: PublicPageHandler): void;
 
 Since 0.22.0 · Experimental
 
-Draws the module's public pages: what anyone with one of its links sees at `/l/<token>`, with no sign-in. A module has one handler. Pi Pocket sends each page in a sandbox: no script, an opaque origin, and forms that post only to this server. See [`PublicPageHandler`](#publicpagehandler) and [Public pages](../public-pages.md).
+Draws the module's public pages: what anyone with one of its links sees at `/l/<token>`, with no sign-in. A module has one handler. Pia sends each page in a sandbox: no script, an opaque origin, and forms that post only to this server. See [`PublicPageHandler`](#publicpagehandler) and [Public pages](../public-pages.md).
 
 ### `links`
 
@@ -273,7 +273,7 @@ interface WebSession {
 
 Since 0.20.0 · Experimental
 
-A session in a person's session list: its id, a number as in its address (`/s/12`), its title, its folder, whether it is archived, and when it last moved up the list, in milliseconds since 1970. It has no subagents, and no PiP's conversation.
+A session in a person's session list: its id, a number as in its address (`/s/12`), its title, its folder, whether it is archived, and when it last moved up the list, in milliseconds since 1970. It has no subagents, and no Pia's conversation.
 
 ### `ConversationWebRequest`
 
@@ -314,7 +314,7 @@ interface HumanLinkedSessions {
 
 Since 0.16.0 · Stable
 
-`cwd` is since 0.19.0. It names an existing folder for the new session, as in [`host.linkedSessions.start`](host.md#linkedsessions). A blank `cwd` counts as no `cwd`. A relative `cwd` resolves against the folder of the server process, not the folder of the source. An older Pi Pocket ignores it.
+`cwd` is since 0.19.0. It names an existing folder for the new session, as in [`host.linkedSessions.start`](host.md#linkedsessions). A blank `cwd` counts as no `cwd`. A relative `cwd` resolves against the folder of the server process, not the folder of the source. An older Pia ignores it.
 
 - `start` acts as the authenticated person and bound source, never the source's last requester. There is no actor override. Current seeing, steering, turn, plan, spend, team, model allow-list, and provider checks apply. The person must see all sessions to start one.
 - Explicit `thinking` must be a level that the model has; it is never silently lowered. Omission inherits the level of the source, lowered to one that the model has. Use `host.modelInfo` for effective choices.

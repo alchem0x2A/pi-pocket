@@ -352,7 +352,10 @@ test("a hook reads a body only when it may get in, and only so many at once", as
 
     await until(() => readingNow() === 0, "the slow posts to end");
     assert.equal((await github(signed, "push", { ref: "refs/heads/main" })).status, 202);
-    await until(async () => !app.isBusy(id) && (await messages(id)).length === 1, "Pi to answer");
+    await until(
+        async () => !app.isBusy(id) && (await messages(id)).length === 1,
+        "the agent to answer",
+    );
 
     // A post that stalls is cut off: its connection is dropped (no answer reaches it), and its place given back.
     hookReads.timeoutMs = 100;
@@ -377,7 +380,7 @@ test("a hook reads a body only when it may get in, and only so many at once", as
     }
 });
 
-test("GitHub's posts of strangers' words reach Pi only through a hook for anyone", async () => {
+test("GitHub's posts of strangers' words reach the agent only through a hook for anyone", async () => {
     const id = await newSession(app);
     const hook = await app.commands.addHook(owner(app), {
         target: Number(id),
@@ -406,7 +409,7 @@ test("GitHub's posts of strangers' words reach Pi only through a hook for anyone
     const bot = { login: "dependabot[bot]", type: "Bot" };
 
     await github(hook, "issues", { issue: { author_association: "NONE", user: bot } });
-    assert.equal((await messages(id)).length, 0, "nothing for Pi");
+    assert.equal((await messages(id)).length, 0, "nothing for the agent");
     assert.equal((await app.commands.hooks(owner(app))).hooks[0]?.count, 0, "nothing counted");
 
     // A member or a collaborator counts only when GitHub says they can write: a triager does not, nor anyone where gh
@@ -436,10 +439,13 @@ test("GitHub's posts of strangers' words reach Pi only through a hook for anyone
         "Not delivered: from outside the repository, or from someone whose access could not be checked.",
     );
     assert.deepEqual(asked, ["acme/api tess", "acme/api rita", "stranger/api ann"]);
-    assert.equal((await messages(id)).length, 0, "nothing for Pi");
+    assert.equal((await messages(id)).length, 0, "nothing for the agent");
 
     assert.equal((await github(hook, "issue_comment", comment("COLLABORATOR", "ann"))).status, 202);
-    await until(async () => !app.isBusy(id) && (await messages(id)).length === 1, "Pi to answer");
+    await until(
+        async () => !app.isBusy(id) && (await messages(id)).length === 1,
+        "the agent to answer",
+    );
     await github(hook, "pull_request", { pull_request: { author_association: "NONE", user: bot } });
     await until(async () => !app.isBusy(id) && (await messages(id)).length === 2, "the bot's PR");
 
@@ -500,7 +506,10 @@ test("a post that does not go gives its place in the hour back", async () => {
     }
 
     assert.equal((await post()).status, 202);
-    await until(async () => !app.isBusy(id) && (await messages(id)).length === 1, "Pi to answer");
+    await until(
+        async () => !app.isBusy(id) && (await messages(id)).length === 1,
+        "the agent to answer",
+    );
     await app.commands.removeHook(owner(app), hook.id);
 });
 
@@ -519,6 +528,9 @@ test("ids from addresses name only real hooks", async () => {
 
     assert.equal(({} as { secret?: string }).secret, undefined);
     assert.equal((await github(hook, "push", {})).status, 202);
-    await until(async () => !app.isBusy(id) && (await messages(id)).length === 1, "Pi to answer");
+    await until(
+        async () => !app.isBusy(id) && (await messages(id)).length === 1,
+        "the agent to answer",
+    );
     await app.commands.removeHook(owner(app), hook.id);
 });

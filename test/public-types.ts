@@ -61,8 +61,8 @@ import type {
  * types (with `@since`) or here.
  */
 type Internal =
+    | "pia"
     | "pip"
-    | "pipCompaction"
     | "compactionReview"
     | "gallery"
     | "updates"

@@ -23,7 +23,7 @@ import { fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi
 const dataDir = join(root, "data");
 const dropIns = join(dataDir, "extensions");
 
-/** A drop-in that imports Pi Durable and pi-ai by name, offers a tool (with the old `content` result, which Pi Pocket still reads), and blocks bash with a hook. It returns a frozen list. */
+/** A drop-in that imports Pi Durable and pi-ai by name, offers a tool (with the old `content` result, which Pia still reads), and blocks bash with a hook. It returns a frozen list. */
 const shout = (suffix: string) => `/** Shout offers a tool that shouts${suffix}. */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool, hook, ToolTask } from "@earendil-works/pi-durable";
@@ -101,7 +101,7 @@ test("drop-ins are off until the owner turns them on, and cannot replace a built
     assert.equal(seen.dropIns, undefined);
     assert.equal(seen.modules.find((each) => each.file === "shout.ts")?.path, undefined);
     assert.equal((await app.extensions(owner(app))).dropIns, dropIns);
-    // Pi Pocket's types beside the drop-ins: a link to them, never a module.
+    // Pia's types beside the drop-ins: a link to them, never a module.
     assert.equal(
         realpathSync(join(dropIns, "_pocket.d.ts")),
         realpathSync(new URL("../types/pocket.d.ts", import.meta.url)),
@@ -109,7 +109,7 @@ test("drop-ins are off until the owner turns them on, and cannot replace a built
     assert.deepEqual(module("_pocket.d.ts"), []);
 });
 
-test("_pocket.d.ts: a link the owner pointed elsewhere stays, and only Pi Pocket's own copy is refreshed", async () => {
+test("_pocket.d.ts: a link the owner pointed elsewhere stays, and only Pia's own copy is refreshed", async () => {
     const { linkTypes } = await import("../src/server/reload.ts");
     const types = realpathSync(new URL("../types/pocket.d.ts", import.meta.url));
     const folder = join(root, "types-link");
@@ -122,10 +122,10 @@ test("_pocket.d.ts: a link the owner pointed elsewhere stays, and only Pi Pocket
     linkTypes(folder, types);
     assert.equal(realpathSync(link), elsewhere);
 
-    // Where links cannot be made, Pi Pocket keeps a copy: a stale one is refreshed, a file of the owner's is not.
+    // Where links cannot be made, Pia keeps a copy: a stale one is refreshed, a file of the owner's is not.
     rmSync(link);
     const mark =
-        "// A copy of Pi Pocket's types/pocket.d.ts: Pi Pocket refreshes it at each start. Edits here are lost.\n";
+        "// A copy of Pia's types/pocket.d.ts: Pia refreshes it at each start. Edits here are lost.\n";
 
     writeFileSync(link, `${mark}export type Old = 1;\n`);
     linkTypes(folder, types);
@@ -135,7 +135,7 @@ test("_pocket.d.ts: a link the owner pointed elsewhere stays, and only Pi Pocket
     assert.equal(readFileSync(link, "utf8"), "export type Mine = 1;\n");
 });
 
-test("a drop-in that is on gives Pi its tools and hooks, reloads when edited, and goes away when deleted", async () => {
+test("a drop-in that is on gives the agent its tools and hooks, reloads when edited, and goes away when deleted", async () => {
     await app.setExtensionEnabled(owner(app), "shout.ts", true);
     assert.deepEqual(module("shout.ts")[0]?.extensions, [
         {
@@ -204,7 +204,7 @@ export default () =>
 	});
 `;
 
-test("a drop-in cannot take a name Pi Pocket keeps: it is refused", async () => {
+test("a drop-in cannot take a name Pia keeps: it is refused", async () => {
     const refused = async (file: string, source: string, why: RegExp) => {
         writeFileSync(join(dropIns, file), source);
         await assert.rejects(app.setExtensionEnabled(owner(app), file, true), why);
@@ -213,7 +213,7 @@ test("a drop-in cannot take a name Pi Pocket keeps: it is refused", async () => 
 
     // Lancet Guard's name, while the guard is off: turning it on later would replace the drop-in, and the drop-in
     // turned off would remove the guard.
-    await refused("guard-twin.ts", named("pocket-guard"), /pocket-guard is Pi Pocket's own/);
+    await refused("guard-twin.ts", named("pocket-guard"), /pocket-guard is Pia's own/);
     await refused("my-bash.ts", named("my-bash", "bash"), /bash is a built-in tool's/);
 });
 
@@ -252,7 +252,7 @@ test("a drop-in for API 2, 1, or none loads; one for a newer API is refused with
     );
     await assert.rejects(
         app.setExtensionEnabled(owner(app), "api-three.ts", true),
-        /needs version 3 of Pi Pocket's extension API, and this Pi Pocket has 2: update Pi Pocket/,
+        /needs version 3 of Pia's extension API, and this Pia has 2: update Pia/,
     );
     assert.deepEqual(module("api-three.ts")[0]?.extensions, [], "api-three.ts installed nothing");
 
@@ -263,7 +263,7 @@ test("a drop-in for API 2, 1, or none loads; one for a newer API is refused with
     );
     await assert.rejects(
         app.setExtensionEnabled(owner(app), "api-zero.ts", true),
-        /written for version 0 of Pi Pocket's extension API, and this Pi Pocket loads 1 to 2: update the module/,
+        /written for version 0 of Pia's extension API, and this Pia loads 1 to 2: update the module/,
     );
     writeFileSync(
         join(dropIns, "api-half.ts"),
@@ -271,10 +271,10 @@ test("a drop-in for API 2, 1, or none loads; one for a newer API is refused with
     );
     await assert.rejects(
         app.setExtensionEnabled(owner(app), "api-half.ts", true),
-        /needs version 1\.5 of Pi Pocket's extension API/,
+        /needs version 1\.5 of Pia's extension API/,
     );
 
-    // A draft for the gallery says the version that the module was written for, not this Pi Pocket's.
+    // A draft for the gallery says the version that the module was written for, not this Pia's.
     assert.equal((await app.gallery.share("api-none.ts")).entry.pocketApi, 1);
     assert.equal((await app.gallery.share("api-one.ts")).entry.pocketApi, 1);
     assert.equal((await app.gallery.share("api-two.ts")).entry.pocketApi, 2);

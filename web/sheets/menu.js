@@ -71,7 +71,7 @@ const PLACES = [
         id: "core:changes",
         label: "Changes",
         place({ changes }) {
-            // Match the top bar: uncommitted files in a repository, Pi's edits elsewhere, plus any unlisted files.
+            // Match the top bar: uncommitted files in a repository, the agent's edits elsewhere, plus any unlisted files.
             const count = changes
                 ? changes.files.length +
                   (changes.repo ? 0 : changes.piOnly.length) +
@@ -159,7 +159,7 @@ export function PlacesSheet() {
     const conversation = store.state.view.conversation;
 
     return html`<${Sheet}
-        title=${conversation?.pip ? assistantName() : (conversation?.title ?? "Open")}
+        title=${conversation?.pia ? assistantName() : (conversation?.title ?? "Open")}
         onClose=${closeSheet}
         className="places-sheet"
     >
@@ -343,13 +343,13 @@ export function MenuSheet({ places = true }) {
     const instructions = view.agent?.instructions;
     const memory = useMemory();
 
-    return html`<${MenuFrame} title=${conversation?.pip ? assistantName() : (conversation?.title ?? "Menu")}>
+    return html`<${MenuFrame} title=${conversation?.pia ? assistantName() : (conversation?.title ?? "Menu")}>
         ${places && html`<${Places} />`}
         <div class="menu-session">
             ${session && steer && item("Rename", () => openSheet({ type: "rename" }))}
             ${session && extensionMenuItems("session").map((each) => item(each.label, each.run, each.hint))}
             ${conversation && steer && driving && item("Compact context", () => openSheet({ type: "compact" }), "summarize older messages")}
-            ${conversation && steer && driving && item("New context", () => openSheet({ type: "reset" }), "Pi starts fresh; history stays")}
+            ${conversation && steer && driving && item("New context", () => openSheet({ type: "reset" }), "the agent starts fresh; history stays")}
             ${conversation && memoryAvailable() && item("Memory", () => openSheet({ type: "memory" }), memoryHint(memory))}
             ${schedulesAvailable() && item("Scheduled messages", () => openSheet({ type: "schedules" }), view.schedules.length === 0 ? "none" : `${view.schedules.length} coming`)}
             ${
@@ -395,12 +395,12 @@ export function MenuSheet({ places = true }) {
                     "Default model",
                     () => openSheet({ type: "model", id: "default", forDefault: true }),
                     defaultLabel(server?.defaultModel, store.state.models) ||
-                        "project, last picked, then Pi global",
+                        "project, last picked, then the agent global",
                 )
             }
             ${item("Your name", () => openSheet({ type: "name" }), me?.name)}
             ${collab() ? item("People", () => openSheet({ type: "people" }), me?.role === "viewer" ? "you can view" : "") : item("Sign in another device", () => openSheet({ type: "invite" }))}
-            ${collab() && item("Notifications", () => openSheet({ type: "notifications" }), "Pi finished, approvals")}
+            ${collab() && item("Notifications", () => openSheet({ type: "notifications" }), "the agent finished, approvals")}
             ${
                 conversation &&
                 trustAvailable() &&
@@ -411,7 +411,7 @@ export function MenuSheet({ places = true }) {
                 steer &&
                 driving &&
                 item(
-                    "Instructions for Pi",
+                    "Instructions for the agent",
                     () => openSheet({ type: "instructions" }),
                     instructions ? "on" : "none",
                 )
@@ -428,7 +428,7 @@ export function MenuSheet({ places = true }) {
                     shortPath(view.agent?.cwd, server?.home),
                 )
             }
-            ${item("Running now", () => openSheet({ type: "running" }), "everything Pi is doing")}
+            ${item("Running now", () => openSheet({ type: "running" }), "everything the agent is doing")}
             ${item("Spend", () => openSheet({ type: "spend" }), me?.role === "owner" ? "by person and session, limits" : "yours")}
             ${triggersOn() && me?.role !== "viewer" && item("Webhooks and watches", () => openSheet({ type: "hooks" }), "GitHub, other services")}
             ${me?.role === "owner" && item("Providers", () => openSheet({ type: "providers" }))}

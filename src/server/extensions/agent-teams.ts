@@ -1,7 +1,7 @@
-/** Agent Teams lets Pi start linked sessions, each an ordinary session of its own, and send them tasks, questions, and findings. */
+/** Agent Teams lets the agent start linked sessions, each an ordinary session of its own, and send them tasks, questions, and findings. */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
-// At run time this module uses nothing of Pi Pocket's but the host and web, and a pure helper that formats model facts.
+// At run time this module uses nothing of Pia's but the host and web, and a pure helper that formats model facts.
 import type { ExtensionWeb, PocketHost } from "../host.ts";
 import { modelLine } from "../model-facts.ts";
 
@@ -142,8 +142,8 @@ export default function createAgentTeams(host: PocketHost, web?: ExtensionWeb) {
                         key,
                     ));
                 } catch (error) {
-                    // Core says what went wrong; what Pi should do about it is this tool's to say. A first message too
-                    // long started nothing: Pi can send a shorter one.
+                    // Core says what went wrong; what the agent should do about it is this tool's to say. A first message too
+                    // long started nothing: the agent can send a shorter one.
                     const why = error instanceof Error ? error.message : String(error);
                     const status = (error as { status?: unknown } | null)?.status;
 
@@ -173,7 +173,7 @@ export default function createAgentTeams(host: PocketHost, web?: ExtensionWeb) {
                     key,
                 );
             } catch (error) {
-                // A message too long names no session: Pi can send a shorter one.
+                // A message too long names no session: the agent can send a shorter one.
                 if ((error as { status?: unknown } | null)?.status === 413) {
                     throw new Error(`${(error as Error).message} Send a shorter one.`);
                 }

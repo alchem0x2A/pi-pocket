@@ -1,5 +1,5 @@
 {
-  description = "Pi Pocket";
+  description = "Pia";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";

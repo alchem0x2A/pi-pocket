@@ -1,5 +1,5 @@
 /**
- * What people ask of Pi: start and rename sessions, send messages (steer or queue), stop, withdraw, and change the
+ * What people ask of the agent: start and rename sessions, send messages (steer or queue), stop, withdraw, and change the
  * model, thinking level, or folder of a conversation; compact or reset its context and set its instructions; fork it,
  * or send a message again; set plan mode, a goal, or scheduled messages; and remove a session's worktree. Every
  * command checks who may do it, and changes others should know about become activity lines in the session's chat.
@@ -37,6 +37,7 @@ import {
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
 import {
+    assistantOwner,
     AuthorsDoc,
     ChatDoc,
     NotesDoc,
@@ -101,7 +102,7 @@ export interface SubmitRequest {
     mode?: "steer" | "followUp" | "interrupt";
     /** Client-generated, so a retried POST does not submit twice. */
     requestId: string;
-    /** Send the files the message mentions with `@` along with it, so Pi need not read them first. */
+    /** Send the files the message mentions with `@` along with it, so the agent need not read them first. */
     inlineFiles?: boolean;
 }
 
@@ -120,7 +121,7 @@ const IMAGE_MIME: Record<string, string> = {
     ".webp": "image/webp",
 };
 const MAX_TITLE = 120;
-/** A title as stored: one line, so it cannot pass for more lines where it is quoted (PiP's lists, reports). */
+/** A title as stored: one line, so it cannot pass for more lines where it is quoted (Pia's lists, reports). */
 const oneLine = (title: string): string => title.replace(/\s+/g, " ").trim().slice(0, MAX_TITLE);
 /**
  * What a subagent's name drops where it is quoted, to keep its letters, marks, and digits, in every script ("हिन्दी",
@@ -134,7 +135,7 @@ const UNQUOTED = /[^\p{L}\p{M}\p{N}\s._-]|[\u02B0-\u02FF\u0374\u07F4\u07F5\uA78B
 const UNBORNE = /(?<![\p{L}\p{M}\p{N}])\p{M}+/gu;
 
 /**
- * A person's activity line when they dealt with a subagent's failure, in its parent session: Pi named it, so quoted, and
+ * A person's activity line when they dealt with a subagent's failure, in its parent session: the agent named it, so quoted, and
  * isolated (U+2068 … U+2069), so a name that ends in right-to-left letters keeps the closing quote and what follows (the
  * line's clock) after it. It cannot end the isolate itself: such controls are among what it drops.
  */
@@ -148,9 +149,9 @@ export const dealtWith = (name: string): string => {
 type Dismissal = { dismissed: boolean; newer?: true };
 /** The extension that makes plan mode block changes; without it, plan mode would do nothing. */
 const PLAN_EXTENSION = "pocket-plan";
-/** What Pi is told when someone approves its plan. */
+/** What the agent is told when someone approves its plan. */
 const PLAN_APPROVED = "The plan is approved. Go ahead and carry it out.";
-/** Longest handoff note for a new context, and longest instructions for Pi. */
+/** Longest handoff note for a new context, and longest instructions for the agent. */
 const MAX_HANDOFF = 20_000;
 const MAX_INSTRUCTIONS = 8000;
 
@@ -169,7 +170,7 @@ function entryIdOf(value: unknown): number {
 }
 
 /**
- * An image file for the model, at most 2000 pixels a side as Pi's read tool sends images: models refuse bigger ones once
+ * An image file for the model, at most 2000 pixels a side as the agent's read tool sends images: models refuse bigger ones once
  * a conversation holds many, and then every request fails until they leave its context.
  */
 async function modelImage(path: string, mimeType: string): Promise<ImageContent> {
@@ -199,7 +200,7 @@ function checkModel(asked: { provider?: unknown; modelId?: unknown } | undefined
 type Followed = { subagent: number; requestId: string; failure: number; by: string };
 
 /**
- * What a person's run of subagent `id` came to, on its record in its parent's `doc`, kept as its reports keep what Pi's
+ * What a person's run of subagent `id` came to, on its record in its parent's `doc`, kept as its reports keep what the agent's
  * work came to: answered, it is done and needs nobody; unanswered, it failed again (or was stopped), which is its
  * failure now, and needs someone even if the one before was dismissed. Not while its record holds a failure newer than
  * `failure`, the one they wrote to: nobody saw that one. The subagent's name when this cleared its failure.
@@ -313,7 +314,7 @@ export class Commands {
     readonly #app: PocketApp;
     /**
      * Follows a person's message to a failed subagent to its end and settles the failure by it (`settle`): a task of the
-     * parent's, beside its work, so a restart before the run ends still settles it, as the subagent's reports do Pi's
+     * parent's, beside its work, so a restart before the run ends still settles it, as the subagent's reports do the agent's
      * work. It finds the message by its request id, and never sends one (`followed`). Answered, the parent's activity
      * says who dealt with the failure. A message left in the queue by a run that failed ends it, settling nothing.
      */
@@ -437,8 +438,8 @@ export class Commands {
     }
 
     /**
-     * Continue one of Pi's sessions from the terminal here: a new session with its history, in its folder, with its model
-     * when that one is signed in here (`pi-sessions.ts`). The owner's, as Pi's own files are.
+     * Continue one of the agent's sessions from the terminal here: a new session with its history, in its folder, with its model
+     * when that one is signed in here (`pi-sessions.ts`). The owner's, as the agent's own files are.
      */
     async continuePiSession(user: User, path: string): Promise<{ id: ConversationId }> {
         const app = this.#app;
@@ -450,7 +451,7 @@ export class Commands {
         } catch {
             throw new HttpError(
                 400,
-                `The folder this Pi session worked in is not there anymore: ${session.cwd}`,
+                `The folder this the agent session worked in is not there anymore: ${session.cwd}`,
             );
         }
 
@@ -532,7 +533,7 @@ export class Commands {
 
         // Anything at work there would lose its folder: this session's runs, its subagents', or another session's.
         if (app.busyConversations().some((busy) => inside(app.cwdOf(busy)))) {
-            throw new HttpError(409, "Pi is working in the worktree: stop it first.");
+            throw new HttpError(409, "the agent is working in the worktree: stop it first.");
         }
 
         // A fork made without a worktree of its own works in this one.
@@ -579,7 +580,7 @@ export class Commands {
         await app.collab.activity(
             id,
             user,
-            `removed the worktree; the branch ${worktree.branch} stays, and Pi works in ${homePath(cwd)} again`,
+            `removed the worktree; the branch ${worktree.branch} stays, and the agent works in ${homePath(cwd)} again`,
         );
     }
 
@@ -593,7 +594,7 @@ export class Commands {
      * signed in here, or else the owner's default, even when it is not signed in now: the session then shows that, and
      * its first message fails in sight, where another model would spend on what nobody chose for it. Without an owner's
      * default, ordinary sessions consult trusted project defaults in their final cwd, then the last picked model,
-     * then Pi's global default. A no-cwd caller (imports and PiP itself) keeps the legacy default selection. Never
+     * then the agent's global default. A no-cwd caller (imports and Pia itself) keeps the legacy default selection. Never
      * the first model there is: with none chosen, the session starts without a model, and someone picks one.
      */
     #defaultModel(
@@ -628,7 +629,7 @@ export class Commands {
                 ? pick(last?.provider, last?.modelId)
                 : undefined;
         // Ordinary sessions must not inherit a different project's settings from the server's starting folder.
-        // Imported sessions and PiP's own conversation keep their existing selection behavior.
+        // Imported sessions and Pia's own conversation keep their existing selection behavior.
         const global = cwd === undefined ? undefined : defaults.getGlobalSettings();
         const pis =
             chosen === undefined && project === undefined && lastPicked === undefined
@@ -714,7 +715,7 @@ export class Commands {
     }
 
     /**
-     * Send a message to Pi as `user`. With `via`, an assistant (PiP) sends it for them: it is marked as sent through it,
+     * Send a message to the agent as `user`. With `via`, an assistant (Pia) sends it for them: it is marked as sent through it,
      * and is theirs to pay for and steer, but not their own words (`requestFor`). Only server code passes `via`.
      */
     async submit(
@@ -732,15 +733,14 @@ export class Commands {
         app.requireSee(user, id);
         await app.requireDriver(id, user);
 
-        // PiP turned off takes nothing, from its person either: it would run without its rules, and be compacted without
-        // its own summary (`pip-compact.ts`). What else goes to it (reports, schedules, watches) waits meanwhile.
-        if (app.pip.ownerOf(id) !== undefined && !app.pip.available(user)) {
-            throw new HttpError(409, "PiP is turned off in Extensions.");
+        // Pia turned off takes nothing, from its person either: it would run without its rules, and be compacted without
+        if (app.pia.ownerOf(id) !== undefined && !app.pia.available(user)) {
+            throw new HttpError(409, "Pia is turned off in Extensions.");
         }
 
         const conversation = await app.conversation(id);
         const typed = request.text.trim();
-        // `/skill:name request` sends the skill with the request; `/name arguments`, Pi's prompt template of that name.
+        // `/skill:name request` sends the skill with the request; `/name arguments`, the agent's prompt template of that name.
         const expanded = typed.startsWith("/skill:")
             ? (expandSkillCommand(typed, app.skillCommands(id)) ?? typed)
             : typed.startsWith("/")
@@ -843,7 +843,7 @@ export class Commands {
 
         // A retry of a request finds its first submission: it is no new message, and no event goes out for it again.
         const known =
-            app.pip.ownerOf(id) === undefined &&
+            app.pia.ownerOf(id) === undefined &&
             (await app.harness.commit((tx) => tx.submissionByRequest(id, requestId), context)) !==
                 undefined;
         const submission = await conversation
@@ -875,9 +875,9 @@ export class Commands {
             await this.#followFailure(id, user, failure, requestId);
         }
 
-        // For extensions (`host.on`): once for each message (two retries at once, too), never for PiP's conversation,
+        // For extensions (`host.on`): once for each message (two retries at once, too), never for Pia's conversation,
         // which is its person's alone.
-        if (app.pip.ownerOf(id) === undefined && !known && this.#announce(submission.id)) {
+        if (app.pia.ownerOf(id) === undefined && !known && this.#announce(submission.id)) {
             app.events.emit("message.sent", {
                 conversationId: Number(id),
                 by: user.id,
@@ -1030,9 +1030,9 @@ export class Commands {
     }
 
     /**
-     * The files a message mentions with `@`, for Pi: text files as `<file>` blocks, as Pi's terminal app sends files
+     * The files a message mentions with `@`, for the agent: text files as `<file>` blocks, as the agent's terminal app sends files
      * given on its command line, and images as images when the model takes them. Only files this person may load
-     * through the session; anything else stays a mention, which Pi can read itself.
+     * through the session; anything else stays a mention, which the agent can read itself.
      */
     async #mentionedFiles(
         id: ConversationId,
@@ -1102,7 +1102,7 @@ export class Commands {
         return parts;
     }
 
-    /** A message to Pi as the model gets it: with more than one person on this server, it says who is talking. */
+    /** A message to the agent as the model gets it: with more than one person on this server, it says who is talking. */
     messageText(user: Pick<User, "name">, text: string): string {
         return this.#app.config.users.length > 1
             ? `[from: ${user.name.replace(/[[\]]/g, "")}] ${text}`
@@ -1147,8 +1147,8 @@ export class Commands {
     }
 
     /**
-     * A line in the transcript about something a person did that Pi should know about, such as undoing a file's
-     * changes. Pi gets it too, with its next message; while Pi works, it waits for a place in the conversation.
+     * A line in the transcript about something a person did that the agent should know about, such as undoing a file's
+     * changes. The agent gets it too, with its next message; while the agent works, it waits for a place in the conversation.
      */
     async note(id: ConversationId, user: User, text: string): Promise<void> {
         const conversation = await this.#app.conversation(id);
@@ -1160,7 +1160,7 @@ export class Commands {
             },
         ];
 
-        // The person's, as their messages are: Pi works for them from there.
+        // The person's, as their messages are: the agent works for them from there.
         await conversation.submit(
             {
                 type: "write",
@@ -1171,7 +1171,7 @@ export class Commands {
         );
     }
 
-    /** A message Pi could not answer, other than one someone stopped, shows as an error to the people there. */
+    /** A message the agent could not answer, other than one someone stopped, shows as an error to the people there. */
     #reportUnanswered(
         id: ConversationId,
         settled: Promise<{ status: string; reason?: string; detail?: unknown }>,
@@ -1448,7 +1448,7 @@ export class Commands {
         }
 
         if (!moved) {
-            throw new HttpError(409, "That message has already gone to Pi.");
+            throw new HttpError(409, "That message has already gone to the agent.");
         }
 
         if (mode === "interrupt") {
@@ -1463,7 +1463,7 @@ export class Commands {
             model?: { provider: string; modelId: string };
             thinkingLevel?: string;
             cwd?: string;
-            pipPanel?: boolean;
+            piaPanel?: boolean;
         },
     ): Promise<void> {
         const app = this.#app;
@@ -1471,8 +1471,8 @@ export class Commands {
         app.requireSee(user, id);
         await app.requireDriver(id, user);
 
-        if (request.pipPanel === true && app.pip.ownerOf(id) !== user.id) {
-            throw new HttpError(403, "Only your own PiP can use this control.");
+        if (request.piaPanel === true && app.pia.ownerOf(id) !== user.id) {
+            throw new HttpError(403, "Only your own Pia can use this control.");
         }
 
         const asked = request.model as { provider?: unknown; modelId?: unknown } | undefined;
@@ -1524,13 +1524,13 @@ export class Commands {
             ...(cwd === undefined ? {} : { cwd }),
         };
 
-        if (request.pipPanel === true) {
+        if (request.piaPanel === true) {
             // Check and save together: a turn may have started while the picker was open.
             await app.harness.commit(async (tx) => {
                 const live = await tx.doc(LiveDoc, id);
 
                 if (live.run !== undefined || (live.compactions?.length ?? 0) > 0) {
-                    throw new HttpError(409, "PiP is working. Change its model when it is idle.");
+                    throw new HttpError(409, "Pia is working. Change its model when it is idle.");
                 }
 
                 Object.assign(await tx.doc(AgentDoc, id), change);
@@ -1549,7 +1549,7 @@ export class Commands {
             }, context);
         }
 
-        if (ref !== undefined && request.pipPanel !== true) {
+        if (ref !== undefined && request.piaPanel !== true) {
             app.config.lastModel = { provider: ref.provider, modelId: ref.modelId, thinkingLevel };
         }
 
@@ -1579,7 +1579,7 @@ export class Commands {
         }
     }
 
-    /** Start a new context: Pi no longer sees what came before, though everyone still can. An optional note carries over. */
+    /** Start a new context: the agent no longer sees what came before, though everyone still can. An optional note carries over. */
     async reset(id: ConversationId, user: User, note: unknown): Promise<void> {
         const app = this.#app;
 
@@ -1602,7 +1602,7 @@ export class Commands {
     }
 
     /**
-     * Set what Pi is told in every request of a session, after its own system prompt: ground rules everyone here shares.
+     * Set what the agent is told in every request of a session, after its own system prompt: ground rules everyone here shares.
      * Empty text clears them. Subagents keep theirs: they say who the subagent is.
      */
     async setInstructions(id: ConversationId, user: User, text: unknown): Promise<void> {
@@ -1612,7 +1612,7 @@ export class Commands {
         await app.requireDriver(id, user);
 
         if (app.sessionMeta(id) === undefined) {
-            throw new HttpError(400, "Only sessions have instructions for Pi");
+            throw new HttpError(400, "Only sessions have instructions for the agent");
         }
 
         const instructions = (optionalText(text, "instructions") ?? "").trim();
@@ -1634,12 +1634,12 @@ export class Commands {
             id,
             user,
             instructions === ""
-                ? "cleared the instructions for Pi"
-                : "changed the instructions for Pi",
+                ? "cleared the instructions for the agent"
+                : "changed the instructions for the agent",
         );
     }
 
-    /** Turn plan mode on or off: while it is on, Pi reads and proposes a plan, and anything that changes something is blocked. */
+    /** Turn plan mode on or off: while it is on, the agent reads and proposes a plan, and anything that changes something is blocked. */
     async setPlan(id: ConversationId, user: User, on: unknown): Promise<void> {
         const app = this.#app;
 
@@ -1665,7 +1665,7 @@ export class Commands {
         }
     }
 
-    /** Approve Pi's plan: plan mode goes off, and Pi is told to carry the plan out. */
+    /** Approve the agent's plan: plan mode goes off, and the agent is told to carry the plan out. */
     async approvePlan(id: ConversationId, user: User): Promise<{ submissionId: SubmissionId }> {
         const app = this.#app;
 
@@ -1720,7 +1720,7 @@ export class Commands {
         }, context);
     }
 
-    /** Set up a message to Pi for later, or on repeat: `when` is when, then what it says (`in 2h check the deploy`). */
+    /** Set up a message to the agent for later, or on repeat: `when` is when, then what it says (`in 2h check the deploy`). */
     async schedule(
         id: ConversationId,
         user: User,
@@ -1770,7 +1770,7 @@ export class Commands {
         );
     }
 
-    /** Watch the session's pull request (its branch's, or `pr`): Pi hears of failed checks, conflicts, and reviews. */
+    /** Watch the session's pull request (its branch's, or `pr`): the agent hears of failed checks, conflicts, and reviews. */
     async watchPr(id: ConversationId, user: User, pr: unknown): Promise<{ number: number }> {
         const app = this.#app;
 
@@ -1807,7 +1807,7 @@ export class Commands {
     }
 
     /**
-     * The webhooks a person may manage, each with where it sends (a session's title, or PiP), and the address other
+     * The webhooks a person may manage, each with where it sends (a session's title, or Pia), and the address other
      * services reach this server at, when it has a public one.
      */
     async hooks(user: User) {
@@ -1820,16 +1820,16 @@ export class Commands {
                 ...hook,
                 // A session the person can no longer open keeps its title to itself.
                 targetTitle:
-                    meta?.pip !== undefined
-                        ? "PiP"
+                    assistantOwner(meta) !== undefined
+                        ? "Pia"
                         : app.canSee(user, target)
                           ? (meta?.title ?? "New session")
                           : "a session you cannot open",
-                pip: meta?.pip !== undefined,
+                pia: assistantOwner(meta) !== undefined,
             };
         });
 
-        // Repository watches (`repo-watches.ts`), which PiP sets up: shown with the hooks, to see and remove.
+        // Repository watches (`repo-watches.ts`), which Pia sets up: shown with the hooks, to see and remove.
         const repoWatches = (await app.repoWatches.list(user)).map((watch) => {
             const target = watch.target as unknown as ConversationId;
             const meta = app.sessionMeta(target);
@@ -1837,19 +1837,19 @@ export class Commands {
             return {
                 ...watch,
                 targetTitle:
-                    meta?.pip !== undefined
-                        ? "PiP"
+                    assistantOwner(meta) !== undefined
+                        ? "Pia"
                         : app.canSee(user, target)
                           ? (meta?.title ?? "New session")
                           : "a session you cannot open",
-                pip: meta?.pip !== undefined,
+                pia: assistantOwner(meta) !== undefined,
             };
         });
 
         return { hooks, repoWatches, base: app.access?.url ?? null };
     }
 
-    /** Make a webhook that messages a session (or PiP) for this person. */
+    /** Make a webhook that messages a session (or Pia) for this person. */
     async addHook(
         user: User,
         body: {
@@ -1861,10 +1861,10 @@ export class Commands {
         },
     ) {
         const app = this.#app;
-        // "pip": this person's PiP, made now if they have none yet.
+        // "pia": this person's Pia, made now if they have none yet.
         const target =
-            body.target === "pip" && app.pip.available(user)
-                ? Number(await app.pip.ensure(user))
+            body.target === "pia" && app.pia.available(user)
+                ? Number(await app.pia.ensure(user))
                 : Number(body.target);
 
         if (!Number.isSafeInteger(target) || target < 0) {
@@ -1874,7 +1874,7 @@ export class Commands {
         const id = target as unknown as ConversationId;
         const hook = await app.hooks.add(user, id, body);
 
-        if (app.sessionMeta(id)?.pip === undefined) {
+        if (assistantOwner(app.sessionMeta(id)) === undefined) {
             await app.collab.activity(id, user, `made the webhook “${snippet(hook.name, 60)}”`);
         }
 
@@ -1889,7 +1889,7 @@ export class Commands {
         // No line where the remover can no longer go.
         if (
             app.sessionMeta(target) !== undefined &&
-            app.sessionMeta(target)?.pip === undefined &&
+            assistantOwner(app.sessionMeta(target)) === undefined &&
             app.canSee(user, target)
         ) {
             await app.collab.activity(
@@ -1900,7 +1900,7 @@ export class Commands {
         }
     }
 
-    /** Pi keeps working until `command` passes, checked after each of its answers. */
+    /** the agent keeps working until `command` passes, checked after each of its answers. */
     async setGoal(id: ConversationId, user: User, command: unknown): Promise<void> {
         const app = this.#app;
 
@@ -1920,7 +1920,7 @@ export class Commands {
         );
     }
 
-    /** Drop the goal: Pi stops checking. Anyone who can steer may, as with stopping a run. */
+    /** Drop the goal: the agent stops checking. Anyone who can steer may, as with stopping a run. */
     async clearGoal(id: ConversationId, user: User): Promise<void> {
         const app = this.#app;
 
@@ -1955,14 +1955,14 @@ export class Commands {
             throw new HttpError(404, "No such message");
         }
 
-        // A fork goes on from one of Pi's replies. One that called tools would leave the fork waiting for their results.
+        // A fork goes on from one of the agent's replies. One that called tools would leave the fork waiting for their results.
         const reply = entry.model?.[0];
 
         if (
             entry.kind !== "pi.assistant" ||
             (reply?.role === "assistant" && reply.stopReason === "toolUse")
         ) {
-            throw new HttpError(400, "Fork from one of Pi's finished replies.");
+            throw new HttpError(400, "Fork from one of the agent's finished replies.");
         }
 
         return {
@@ -1995,7 +1995,7 @@ export class Commands {
         const entry = await app.transcripts.visibleEntry(id, entryId);
 
         if (entry?.kind !== "pi.user") {
-            throw new HttpError(404, "No such message to Pi");
+            throw new HttpError(404, "No such message to the agent");
         }
 
         app.spend.check(user, id);
@@ -2030,7 +2030,7 @@ export class Commands {
         }
 
         // Sent again, edited or not, the message is from whoever sent it again, with the original's files attached: what
-        // Pi does next is on them.
+        // the agent does next is on them.
         const body = edit ?? written.trim();
         const text = this.messageText(
             user,
@@ -2108,9 +2108,9 @@ export class Commands {
             throw new HttpError(400, "Only sessions can be forked");
         }
 
-        // A fork would carry PiP's tools and none of PiP: they act as PiP's person, which a fork is not.
-        if (app.sessionMeta(id)?.pip !== undefined) {
-            throw new HttpError(400, "PiP's conversation cannot be forked. Start fresh instead.");
+        // A fork would carry Pia's tools and none of Pia: they act as Pia's person, which a fork is not.
+        if (assistantOwner(app.sessionMeta(id)) !== undefined) {
+            throw new HttpError(400, "Pia's conversation cannot be forked. Start fresh instead.");
         }
     }
 
@@ -2278,12 +2278,10 @@ export class Commands {
 
         app.requireSee(user, id);
         await app.requireDriver(id, user);
-        // PiP's summaries are its own, written by its extension's hook with outside text left out: while PiP is off,
-        // there is no hook, and Pi Durable's summary would read what came from outside as it is.
-        const pip = app.pip.ownerOf(id) !== undefined;
+        const assistant = app.pia.ownerOf(id) !== undefined;
 
-        if (pip && !app.pip.available(user)) {
-            throw new HttpError(409, "PiP is turned off in Extensions.");
+        if (assistant && !app.pia.available(user)) {
+            throw new HttpError(409, "Pia is turned off in Extensions.");
         }
 
         // Compacting asks the model for a summary, which costs like any other request.
@@ -2298,9 +2296,9 @@ export class Commands {
             compactionInstructions(instructions, model, user.id),
             context,
         );
-        const done = pip ? "PiP's context compacted." : "Compacted.";
+        const done = assistant ? "Pia's context compacted." : "Compacted.";
 
-        app.notice("info", pip ? "Compacting PiP's context…" : "Compacting…", id);
+        app.notice("info", assistant ? "Compacting Pia's context…" : "Compacting…", id);
         await app.collab.activity(id, user, "started compacting the context", false);
         void app.harness.waitForTask(taskId, context).then(
             (receipt) => {
@@ -2308,19 +2306,10 @@ export class Commands {
 
                 if (outcome.status === "completed") {
                     const { entryId, submissionId } = outcome.result;
-                    // PiP's own summary could not be written: it declined, rather than let Pi Durable write one.
-                    const failed =
-                        app.compactionReview.failure(Number(taskId)) ??
-                        (pip ? app.pipCompaction.failure(Number(taskId)) : undefined);
+                    const failed = app.compactionReview.failure(Number(taskId));
 
                     if (failed !== undefined) {
-                        app.notice(
-                            "error",
-                            pip
-                                ? `PiP's context was not compacted: ${failed}`
-                                : `Context was not compacted: ${failed}`,
-                            id,
-                        );
+                        app.notice("error", `Context was not compacted: ${failed}`, id);
                     } else {
                         app.notice(
                             "info",

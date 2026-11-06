@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <title>Pi Pocket: use the Pi coding agent from your phone or any browser</title>
+        <title>Pia: coding sessions on your phone or any browser</title>
         <meta
             name="description"
-            content="A self-hosted web app for the Pi coding agent. Use it from your phone or any browser, share sessions with other people, and let PiP, its assistant, look after your other sessions. Runs continue after a restart. Built on Pi Durable."
+            content="A self-hosted web app for coding sessions. Use it from your phone or any browser, share work with other people, and let Pia look after your sessions. Runs continue after a restart. Built on Pi Durable."
         />
         <meta name="theme-color" content="#111219" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#f7f8fb" media="(prefers-color-scheme: light)" />
@@ -16,14 +16,11 @@
         <link rel="stylesheet" href="style.css" />
 
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Pi Pocket" />
-        <meta
-            property="og:title"
-            content="Pi Pocket: use the Pi coding agent from your phone or any browser"
-        />
+        <meta property="og:site_name" content="Pia" />
+        <meta property="og:title" content="Pia: coding sessions on your phone or any browser" />
         <meta
             property="og:description"
-            content="A self-hosted web app for the Pi coding agent: shared sessions, an assistant for your other sessions, and runs that continue after a restart. Built on Pi Durable."
+            content="A self-hosted web app for coding sessions: shared work, Pia as your assistant, and runs that continue after a restart. Built on Pi Durable."
         />
         <meta property="og:url" content="https://tannermidd.github.io/pi-pocket/" />
         <meta property="og:image" content="https://tannermidd.github.io/pi-pocket/og.png" />
@@ -31,7 +28,7 @@
         <meta property="og:image:height" content="630" />
         <meta
             property="og:image:alt"
-            content="Pi Pocket's icon and name, with the words: Pi, on your phone and any browser. Beside them, an iPhone shows a session where Lancet Guard waits for approval of git push."
+            content="Pia's ribbon logo and name, with the words: Your coding work, wherever you are. Beside them, an iPhone shows a shared session."
         />
         <meta name="twitter:card" content="summary_large_image" />
     </head>
@@ -40,12 +37,12 @@
 
         <header class="nav">
             <div class="wrap">
-                <a class="logo" href="#top" aria-label="Pi Pocket home"
-                    ><img src="icon.svg" alt="" width="26" height="26" />Pi Pocket</a
+                <a class="logo" href="#top" aria-label="Pia home"
+                    ><img src="icon.svg" alt="" width="26" height="26" />Pia</a
                 >
                 <nav class="nav-links" aria-label="Sections">
                     <a href="#sharing">Sharing</a>
-                    <a href="#pip">PiP</a>
+                    <a href="#pia">Pia</a>
                     <a href="#features">Features</a>
                     <a href="#security">Security</a>
                     <a href="#get-started">Install</a>
@@ -72,11 +69,15 @@
                         <a class="badge" href="https://earendil.com/posts/pi-durable/"
                             ><b>v0.26.0</b>Built on Pi Durable →</a
                         >
-                        <h1>Pi, on your phone.<br /><span class="grad">And any browser.</span></h1>
+                        <h1>
+                            Your coding work, wherever you are.<br /><span class="grad"
+                                >On your phone or any browser.</span
+                            >
+                        </h1>
                         <p class="lead">
-                            Pi Pocket is a self-hosted web app for the Pi coding agent. Start a run
-                            from anywhere, share it with the people you work with, and let it keep
-                            going when the server restarts.
+                            Pia is a self-hosted web app for coding sessions. Start a run from
+                            anywhere, share it with the people you work with, and let it keep going
+                            when the server restarts.
                         </p>
                         <div class="cta">
                             <a class="btn btn-primary" href="#get-started">Get started</a>
@@ -93,7 +94,7 @@
                         </div>
                         <div class="facts">
                             <span>Self-hosted</span>
-                            <span>Uses Pi's sign-ins</span>
+                            <span>Uses your model providers</span>
                             <span>No build step</span>
                             <span>Runs on Android</span>
                             <span>MIT license</span>
@@ -158,7 +159,7 @@
                                         src="shots/session-phone.webp"
                                         width="804"
                                         height="1748"
-                                        alt="Pi Pocket on an iPhone. Pi has fixed a sign-in redirect loop that Alex asked about. Riley asked it to push the branch, and Lancet Guard waits for someone to allow or deny git push. The line under the message box shows 3 people here and guard on."
+                                        alt="Pia on an iPhone. The agent has fixed a sign-in redirect loop that Alex asked about. Riley asked it to push the branch, and Lancet Guard waits for someone to allow or deny git push. The line under the message box shows 3 people here and guard on."
                                     />
                                     <div class="status" aria-hidden="true">
                                         <span>9:41</span>
@@ -296,11 +297,13 @@
                         </p>
                         <ul class="points">
                             <li>
-                                <b>Presence.</b> See who is here, and who is about to write to Pi.
+                                <b>Presence.</b> See who is here, and who is about to write to the
+                                agent.
                             </li>
                             <li>
-                                <b>Side chat.</b> Talk beside the run, where Pi does not see it.
-                                @mention people, quote a reply, or pass a message on to Pi.
+                                <b>Side chat.</b> Talk beside the run, where the agent does not see
+                                it. @mention people, quote a reply, or pass a message on to the
+                                agent.
                             </li>
                             <li>
                                 <b>Take turns.</b> One person drives; the others ask to. Anyone who
@@ -374,37 +377,38 @@
                 </div>
             </section>
 
-            <!-- PiP -->
-            <section class="section" id="pip">
+            <!-- Pia -->
+            <section class="section" id="pia">
                 <div class="wrap split">
                     <div class="split-copy reveal">
-                        <span class="kicker">PiP</span>
-                        <h2>An assistant for your other sessions.</h2>
+                        <span class="kicker">Pia</span>
+                        <h2>Your assistant for every session.</h2>
                         <p>
-                            PiP opens over whatever you are looking at. Ask in plain words, and it
-                            hands the work to a session with the tools to do it.
+                            Pia opens over the work in front of you. Ask it to check your sessions,
+                            start new work, or handle a small task with its own tools.
                         </p>
                         <ul class="points">
                             <li>
-                                <b>Starts work.</b> In a folder, a git worktree, or a GitHub
-                                repository, now or on a schedule.
+                                <b>Gets work done.</b> Pia can work in the shared workspace or hand
+                                larger tasks to a session in a folder, worktree, or GitHub
+                                repository.
                             </li>
                             <li>
-                                <b>Reports back.</b> It follows a run to the end and sums it up in a
-                                line, as a push notification when you are away.
+                                <b>Reports back.</b> Pia follows sessions to the end and tells you
+                                what happened, including by push notification when you are away.
                             </li>
                             <li>
-                                <b>Watches GitHub.</b> "When CI fails on main, fix it and tell me."
+                                <b>Watches GitHub.</b> Ask Pia to act when CI fails, a review
+                                arrives, or a repository changes.
                             </li>
                             <li>
-                                <b>Stays in its lane.</b> It changes no files and runs no commands,
-                                never allows a call that waits for approval, and never picks a
-                                model.
+                                <b>Works safely.</b> Text from sessions and GitHub is data, not an
+                                instruction. Pia can deny an approval request, but never allow one.
                             </li>
                         </ul>
                         <p class="note">
-                            Press Alt+A, tap the orb, or type <code>/pip</code>. Only the owner can
-                            open PiP.
+                            Press Alt+A, tap the ribbon button, or type <code>/pia</code>. Only the
+                            owner can open Pia.
                         </p>
                     </div>
                     <div class="media reveal">
@@ -417,7 +421,7 @@
                                         height="1830"
                                         loading="lazy"
                                         decoding="async"
-                                        alt="PiP open over a session on an Android phone. Riley asked it to start a session in shop-web that adds a regression test, in a worktree. PiP started the session, followed it, and after the report says all 4 tests pass in its worktree and nothing needs Riley there."
+                                        alt="Pia open over a session on an Android phone. Pia started a session in a worktree, followed it, and reported the results."
                                     />
                                     <div class="status" aria-hidden="true">
                                         <span>9:41</span>
@@ -470,9 +474,9 @@
                         <span class="kicker">Wide screens</span>
                         <h2>Room for everything.</h2>
                         <p>
-                            Your sessions, the conversation with each of Pi's edits, and peek tiles
-                            that show your other sessions at work. Answer an approval right from its
-                            tile.
+                            Your sessions, the conversation with each coding agent's edits, and peek
+                            tiles that show your other sessions at work. Answer an approval right
+                            from its tile.
                         </p>
                     </div>
                     <figure class="window reveal">
@@ -494,7 +498,7 @@
                                 height="1800"
                                 loading="lazy"
                                 decoding="async"
-                                alt="Pi Pocket on a wide screen. On the left, the list of sessions. In the middle, a session where Pi added a test: its edit is open in the timeline with the diff, followed by npm test with 4 passed. On the right, peek tiles of other sessions: one waits for approval of git push, with Deny and Allow on the tile; another is still working."
+                                alt="Pia on a wide screen. On the left, the list of sessions. In the middle, a session where the agent added a test: its edit is open in the timeline with the diff, followed by npm test with 4 passed. On the right, peek tiles of other sessions: one waits for approval of git push, with Deny and Allow on the tile; another is still working."
                             />
                         </a>
                     </figure>
@@ -511,13 +515,13 @@
                             <p>
                                 Pi Durable is Earendil's harness for long-running agents. It keeps
                                 conversations, model calls, tool calls, and app state together, and
-                                commits each step before anything is shown. Pi Pocket keeps all of
-                                it in one SQLite file.
+                                commits each step before anything is shown. Pia keeps all of it in
+                                one SQLite file.
                             </p>
                             <ul class="points">
                                 <li>
                                     <b>Runs survive restarts.</b> A tool call that was cut off runs
-                                    again only if that is safe; otherwise Pi is told it was
+                                    again only if that is safe; otherwise the agent is told it was
                                     interrupted.
                                 </li>
                                 <li>
@@ -590,10 +594,10 @@
                 <div class="wrap">
                     <div class="section-head center reveal">
                         <span class="kicker">Features</span>
-                        <h2>All of Pi, and then some.</h2>
+                        <h2>Everything for coding sessions, and then some.</h2>
                         <p>
-                            Pi's tools, models, skills, and prompt templates, with what a browser
-                            and a team add.
+                            The agent's tools, models, skills, and prompt templates, with what a
+                            browser and a team add.
                         </p>
                     </div>
                     <div class="bento">
@@ -611,11 +615,11 @@
                                     <path d="m13 3-9 11h7l-1 7 9-11h-7z" />
                                 </svg>
                             </div>
-                            <h3>Ask Pi to change Pi Pocket</h3>
+                            <h3>Ask for a change to Pia</h3>
                             <p>
                                 There is no build step. Web files reload every open browser,
                                 extensions reinstall while the server runs, and running work resumes
-                                after a restart. Pi knows where the docs are.
+                                after a restart. The code map links to the project docs.
                             </p>
                         </article>
                         <article class="card reveal">
@@ -676,7 +680,9 @@
                                 </svg>
                             </div>
                             <h3>A built-in browser</h3>
-                            <p>Pi drives a real Chromium. You watch and click the same page.</p>
+                            <p>
+                                the agent drives a real Chromium. You watch and click the same page.
+                            </p>
                         </article>
                         <article class="card reveal">
                             <div class="icon">
@@ -734,7 +740,10 @@
                                 </svg>
                             </div>
                             <h3>Memory</h3>
-                            <p>Lessons Pi keeps across sessions, once the owner approves them.</p>
+                            <p>
+                                Lessons the agent keeps across sessions, once the owner approves
+                                them.
+                            </p>
                         </article>
                         <article class="card reveal">
                             <div class="icon">
@@ -753,7 +762,7 @@
                                 </svg>
                             </div>
                             <h3>Plan mode</h3>
-                            <p>Pi reads and proposes. Edits wait for someone's yes.</p>
+                            <p>the agent reads and proposes. Edits wait for someone's yes.</p>
                         </article>
                         <article class="card reveal">
                             <div class="icon">
@@ -795,9 +804,10 @@
                             </div>
                             <h3>Models you choose</h3>
                             <p>
-                                Pi Pocket uses Pi's providers and sign-ins. Pick the model and
-                                thinking level for each session. Pi never picks a model for you. See
-                                what Pi spent per person and per session, and set limits for either.
+                                Pia uses the agent's providers and sign-ins. Pick the model and
+                                thinking level for each session. The agent never picks a model for
+                                you. See what the agent spent per person and per session, and set
+                                limits for either.
                             </p>
                         </article>
                         <article class="card reveal">
@@ -837,7 +847,7 @@
                                 </svg>
                             </div>
                             <h3>Skills and prompts</h3>
-                            <p>Pi's skills and saved prompts, as slash commands.</p>
+                            <p>the agent's skills and saved prompts, as slash commands.</p>
                         </article>
                         <article class="card wide reveal">
                             <div class="icon">
@@ -857,7 +867,7 @@
                             </div>
                             <h3>Extensions</h3>
                             <p>
-                                Pi Pocket's own features are extensions. Drop in your own, or find
+                                Pia's own features are extensions. Drop in your own, or find
                                 reviewed ones in the hub. Each one starts off until the owner turns
                                 it on.
                             </p>
@@ -880,9 +890,9 @@
                         <span class="kicker">While you are away</span>
                         <h2>Work that starts without you.</h2>
                         <p>
-                            A clock, GitHub, or another service can send Pi a message. Each one
-                            counts as the work of the person who set it up, with their access and
-                            spend limit.
+                            A clock, GitHub, or another service can send the agent a message. Each
+                            one counts as the work of the person who set it up, with their access
+                            and spend limit.
                         </p>
                     </div>
                     <div class="grid map">
@@ -897,17 +907,21 @@
                         <article class="card reveal">
                             <code>/until npm test</code>
                             <h3>Done when</h3>
-                            <p>Pi keeps going while the check fails, for five checks at most.</p>
+                            <p>
+                                the agent keeps going while the check fails, for five checks at
+                                most.
+                            </p>
                         </article>
                         <article class="card reveal">
                             <code>/watch</code>
                             <h3>Pull requests</h3>
                             <p>
-                                Failed checks, conflicts, and reviews reach Pi until it is merged.
+                                Failed checks, conflicts, and reviews reach the agent until it is
+                                merged.
                             </p>
                         </article>
                         <article class="card reveal">
-                            <code>PiP</code>
+                            <code>Pia</code>
                             <h3>Repository watches</h3>
                             <p>New issues, failing CI, releases, and @pi mentions start work.</p>
                         </article>
@@ -919,7 +933,10 @@
                         <article class="card reveal">
                             <code>push</code>
                             <h3>Notifications</h3>
-                            <p>When Pi finishes or needs you. Deny a call from the notification.</p>
+                            <p>
+                                When the agent finishes or needs you. Deny a call from the
+                                notification.
+                            </p>
                         </article>
                     </div>
                 </div>
@@ -930,9 +947,9 @@
                 <div class="wrap split">
                     <div class="split-copy reveal">
                         <span class="kicker">Security</span>
-                        <h2>You decide who can make Pi act.</h2>
+                        <h2>You decide who can make the agent act.</h2>
                         <p>
-                            Pi runs commands on your machine as you. Pi Pocket controls who can ask
+                            The agent runs commands on your machine as you. Pia controls who can ask
                             it to, and which calls wait for a person.
                         </p>
                         <ul class="points">
@@ -943,11 +960,11 @@
                             </li>
                             <li>
                                 <b>Roles.</b> Viewers can read, react, and chat, but cannot send to
-                                Pi, approve, or upload.
+                                Pia, approve, or upload.
                             </li>
                             <li>
                                 <b>Text from outside is data.</b> Webhooks, GitHub events, and what
-                                PiP reads reach Pi marked as data, not instructions.
+                                Text from outside reaches Pia marked as data, not instructions.
                             </li>
                             <li>
                                 <b>Sandboxes.</b> Artifacts and the built-in browser cannot reach
@@ -1035,7 +1052,7 @@
                         </div>
                     </div>
                     <p class="note">
-                        Push notifications and dictation need https. Pi Pocket also runs on Android:
+                        Push notifications and dictation need https. Pia also runs on Android:
                         install it in Termux and keep everything on the phone.
                     </p>
                 </div>
@@ -1050,7 +1067,7 @@
                         <ol class="steps">
                             <li>
                                 <span
-                                    ><b>Sign in with Pi</b>Run <code>pi</code> and use
+                                    ><b>Sign in with the agent</b>Run <code>pi</code> and use
                                     <code>/login</code>, or sign in later from the app.</span
                                 >
                             </li>
@@ -1137,9 +1154,9 @@
             <div class="wrap">
                 <div>
                     <a class="logo" href="#top"
-                        ><img src="icon.svg" alt="" width="26" height="26" />Pi Pocket</a
+                        ><img src="icon.svg" alt="" width="26" height="26" />Pia</a
                     >
-                    <small>A self-hosted web app for Pi.</small>
+                    <small>A self-hosted web app for coding sessions.</small>
                     <small
                         >Inspired by
                         <a href="https://x.com/badlogicgames/status/2106452296087302173"

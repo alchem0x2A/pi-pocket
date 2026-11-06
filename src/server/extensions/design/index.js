@@ -241,14 +241,14 @@ export default function setup(pocket) {
         }
     });
 
-    // Pi published or changed something: the server's list (groups, kinds) is read again.
+    // the agent published or changed something: the server's list (groups, kinds) is read again.
     let signature = "";
     let seen = null;
     let later = 0;
     const stopApp = app.subscribe((state) => {
         const list = state.view.artifacts;
 
-        // The app tells this on every change while Pi writes: most leave the list as it was.
+        // The app tells this on every change while the agent writes: most leave the list as it was.
         if (!list || list === seen || state.conversationId !== store.get().conversation) {
             return;
         }

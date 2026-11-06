@@ -1,4 +1,4 @@
-// Pi Pocket web app. No build step: edit a file under web/ and every open browser reloads.
+// Pia web app. No build step: edit a file under web/ and every open browser reloads.
 import { render } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { folderColor } from "./avatar.js";
@@ -32,7 +32,7 @@ import {
     peeksWanted,
     togglePeeks,
 } from "./peeks.js";
-import { assistantName, closePip, openPip, PipHost, pipAvailable, togglePip } from "./pip.js";
+import { assistantName, closePia, openPia, PiaHost, piaAvailable, togglePia } from "./pip.js";
 import { Drawer, RailNav, ResizeHandle, SessionList, toSessions } from "./sessions.js";
 // Loaded for what it does: it gives replies' Markdown the component for pages, images, and diffs in code blocks.
 import "./rich.js";
@@ -79,7 +79,7 @@ import { toggleDictation } from "./voice.js";
 /** What changed in the session's folder: lines added and removed, and how many files. It opens Changes. */
 function ChangesButton() {
     const { changes } = useChanges();
-    // Outside a repository Pi's edits are all there is to review (in one, they are what was committed since).
+    // Outside a repository the agent's edits are all there is to review (in one, they are what was committed since).
     const files = [...(changes?.files ?? []), ...(changes?.repo ? [] : (changes?.piOnly ?? []))];
 
     if (files.length === 0) {
@@ -211,10 +211,10 @@ function Topbar() {
         }),
         [sessions, conversationId],
     );
-    const title = conversation?.pip
+    const title = conversation?.pia
         ? assistantName()
         : (conversation?.title ?? listed ?? (store.state.missing ? "Not found" : "Loading…"));
-    // How far down it reaches: PiP's window on a short wide screen stops below its buttons.
+    // How far down it reaches: Pia's window on a short wide screen stops below its buttons.
     const edge = useEdge("--topbar-h", (rect) => rect.bottom);
 
     return html`<header class="topbar" data-part="topbar" ref=${edge}>
@@ -449,13 +449,13 @@ function App() {
     const state = store.state;
 
     useEffect(() => {
-        const title = state.view.conversation?.pip
+        const title = state.view.conversation?.pia
             ? assistantName()
             : state.view.conversation?.title;
 
-        document.title = title ? `${title} · Pi Pocket` : "Pi Pocket";
+        document.title = title ? `${title} · Pia` : "Pia";
     }, [
-        state.view.conversation?.pip,
+        state.view.conversation?.pia,
         state.view.conversation?.title,
         state.server?.assistant?.name,
     ]);
@@ -554,7 +554,7 @@ function App() {
             panel=${ExtensionPanel}
         />
         <${Drawer} />
-        <${PipHost} />
+        <${PiaHost} />
         <${Sheets} />
         <${LauncherHost} />
         <${Notices} />
@@ -736,15 +736,15 @@ addEventListener("keydown", (event) => {
             return;
         }
 
-        // PiP, the assistant over every screen; not under a sheet, where it would open unseen.
-        if (event.code === "KeyA" && pipAvailable() && !store.state.sheet) {
+        // Pia, the assistant over every screen; not under a sheet, where it would open unseen.
+        if (event.code === "KeyA" && piaAvailable() && !store.state.sheet) {
             event.preventDefault();
-            togglePip();
+            togglePia();
 
             return;
         }
 
-        // Dictation into the message box in view: PiP's while it is open, else the session's.
+        // Dictation into the message box in view: Pia's while it is open, else the session's.
         if (
             event.code === "KeyV" &&
             !store.state.sheet &&
@@ -757,16 +757,16 @@ addEventListener("keydown", (event) => {
         }
     }
 
-    // Esc closes PiP first, unless a sheet or the launcher is over it: those close first.
+    // Esc closes Pia first, unless a sheet or the launcher is over it: those close first.
     if (
         event.key === "Escape" &&
         !event.defaultPrevented &&
-        store.state.pipOpen &&
+        store.state.piaOpen &&
         !store.state.sheet &&
         !store.state.launcher
     ) {
         event.preventDefault();
-        closePip();
+        closePia();
 
         return;
     }
@@ -812,13 +812,13 @@ addEventListener("keydown", (event) => {
         openSheet({ type: "shortcuts" });
     }
 });
-/** When Esc was last pressed while Pi worked: a second press soon after stops it. */
+/** When Esc was last pressed while the agent worked: a second press soon after stops it. */
 let escapedAt = 0;
 /** The notice the first press shows. */
 let escapeNotice = null;
 const ESCAPE_TWICE_MS = 1500;
 
-/** Esc twice stops Pi, as Esc does in other agents' terminals. Twice, since Esc also closes things and leaves fields. */
+/** Esc twice stops the agent, as Esc does in other agents' terminals. Twice, since Esc also closes things and leaves fields. */
 function stopOnSecondEscape() {
     const { view, sheet, launcher, board, page, drawer } = store.state;
 
@@ -837,9 +837,9 @@ function stopOnSecondEscape() {
     }
 
     escapedAt = Date.now();
-    const notice = (escapeNotice = notify("info", "Press Esc again to stop Pi."));
+    const notice = (escapeNotice = notify("info", "Press Esc again to stop the agent."));
 
-    // Up only while a second press stops Pi.
+    // Up only while a second press stops the agent.
     setTimeout(() => dismiss(notice), ESCAPE_TWICE_MS);
 }
 
@@ -904,13 +904,13 @@ store.subscribe(() => {
 });
 render(html`<${App} />`, root);
 
-// PiP's notifications open its panel, over whatever was open: `/?pip=1`. Opened once the server says PiP is here.
-if (new URLSearchParams(location.search).has("pip")) {
+// Pia's notifications open its panel, over whatever was open: `/?pip=1`. Opened once the server says Pia is here.
+if (new URLSearchParams(location.search).has("pia")) {
     replaceAddress(location.pathname);
     const stop = store.subscribe(() => {
         if (store.state.server) {
             stop();
-            openPip();
+            openPia();
         }
     });
 }

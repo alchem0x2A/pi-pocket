@@ -1,4 +1,4 @@
-// Each model's own compaction values (Pi's `compaction.modelOverrides`) reach Pi Durable (src/server/compaction.ts).
+// Each model's own compaction values (the agent's `compaction.modelOverrides`) reach Pi Durable (src/server/compaction.ts).
 import {
     type App,
     cleanUp,
@@ -23,7 +23,7 @@ after(async () => {
     cleanUp();
 });
 
-test("each model's own values are read, and one that Pi refuses is left out once", () => {
+test("each model's own values are read, and one that the agent refuses is left out once", () => {
     const warnings: string[] = [];
     const read = compactionReader(
         SettingsManager.inMemory({
@@ -97,7 +97,7 @@ test("a refused name with a line break stays on one line of the log", () => {
     assert.match(warnings[0]!, /modelOverrides\["bad\\nline\\u001b\[2J"\] is left out/);
 });
 
-test("with no model of its own, the settings are Pi's as before", () => {
+test("with no model of its own, the settings are the agent's as before", () => {
     const read = compactionReader(
         SettingsManager.inMemory({ compaction: { reserveTokens: 9_000 } }),
         () => {},

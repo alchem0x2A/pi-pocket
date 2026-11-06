@@ -1,5 +1,5 @@
-// Pi Pocket's service worker. It shows push notifications (Pi finished, an approval, a chat message), answers an
-// approval from its notification, opens the right session when one is tapped, and hands things shared to Pi Pocket
+// Pia's service worker. It shows push notifications (the agent finished, an approval, a chat message), answers an
+// approval from its notification, opens the right session when one is tapped, and hands things shared to Pia
 // from other apps to the page. Only the fixed offline capture shell is cached.
 const OFFLINE_CACHE = "pocket-offline-shell-v5";
 const OFFLINE_ASSETS = ["/offline.html", "/offline.js", "/offline.css", "/quick-notes.js"];
@@ -46,7 +46,7 @@ self.addEventListener("push", (event) => {
     try {
         data = event.data?.json() ?? {};
     } catch {
-        data = { title: "Pi Pocket", body: event.data?.text() ?? "" };
+        data = { title: "Pia", body: event.data?.text() ?? "" };
     }
 
     const approval = data.approval;
@@ -60,7 +60,7 @@ self.addEventListener("push", (event) => {
 
     event.waitUntil(
         Promise.all([
-            self.registration.showNotification(data.title || "Pi Pocket", {
+            self.registration.showNotification(data.title || "Pia", {
                 body: data.body || "",
                 tag: data.tag,
                 renotify: Boolean(data.tag),
@@ -92,7 +92,7 @@ async function answerApproval(approval, allow, data) {
                 `The server answered ${response.status}.`;
         }
     } catch {
-        problem = "Pi Pocket could not be reached.";
+        problem = "Pia could not be reached.";
     }
 
     if (problem === undefined) {
@@ -110,10 +110,10 @@ async function openUrl(url) {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const open = windows.find((client) => new URL(client.url).origin === self.location.origin);
 
-    // PiP's notifications open its panel over whatever the window shows, rather than take the window elsewhere.
+    // Pia's notifications open its panel over whatever the window shows, rather than take the window elsewhere.
     if (open && new URL(url).searchParams.has("pip")) {
         await open.focus();
-        open.postMessage({ type: "pocket.pip" });
+        open.postMessage({ type: "pocket.pia" });
 
         return;
     }
@@ -147,7 +147,7 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 /**
- * Something shared to Pi Pocket from another app (the manifest's share target) arrives as a form post. Keep it until
+ * Something shared to Pia from another app (the manifest's share target) arrives as a form post. Keep it until
  * the page picks it up, then open the page to choose where it goes. Any website could post a form here too, and
  * nothing tells it apart from a share; it only fills in a message the person still reads and sends themselves.
  */

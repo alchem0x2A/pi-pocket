@@ -145,11 +145,11 @@ export const store = {
         auth: null,
         /** A transcript message the next chat message discusses: `{ entryId, text }`. */
         chatQuote: null,
-        /** Text to put into the message box to Pi: `{ text, n }`, picked up by the composer. */
+        /** Text to put into the message box to the agent: `{ text, n }`, picked up by the composer. */
         composerInsert: null,
-        /** Pi's prompt templates for a conversation's folder: `{ conversationId, at, list }`. */
+        /** the agent's prompt templates for a conversation's folder: `{ conversationId, at, list }`. */
         templates: null,
-        /** Whether Pi trusts a conversation's project, for its own skills (`trust.js`): `{ conversationId, cwd, info }`. */
+        /** Whether the agent trusts a conversation's project, for its own skills (`trust.js`): `{ conversationId, cwd, info }`. */
         trust: null,
         /** The conversation whose subagents bar shows a row for each subagent (`subagents.js`); null for none. */
         subagentsOpen: null,
@@ -186,12 +186,13 @@ export const store = {
         peopleOpen: sessionStorage.getItem("pocket.people") === "1",
         /** The last request to show the People panel: which tab and chat message, and a count that tells requests apart. */
         peopleAsk: { tab: null, highlight: null, n: 0 },
-        /** This person's PiP, as the server last told (`{ id, busy, endedAt }`); null when they have none yet. */
-        pip: null,
-        /** The PiP panel shows; kept per tab, like the browser's, so the reload after a live edit keeps it. */
-        pipOpen: sessionStorage.getItem("pocket.pip") === "1",
-        /** PiP's conversation, while the panel shows. */
-        pipView: emptyView(),
+        /** This person's Pia, as the server last told (`{ id, busy, endedAt }`); null when they have none yet. */
+        pia: null,
+        /** The Pia panel shows; kept per tab, like the browser's, so the reload after a live edit keeps it. */
+        piaOpen:
+            (sessionStorage.getItem("pocket.pia") ?? sessionStorage.getItem("pocket.pip")) === "1",
+        /** Pia's conversation, while the panel shows. */
+        piaView: emptyView(),
     },
     listeners: new Set(),
     /**
@@ -420,7 +421,7 @@ addEventListener("storage", (event) => {
 
 /** Server features the web app may use. `collab` 2 adds roles, take turns, reactions, pins, notes, mentions, push. */
 export const collab = () => (store.state.server?.collab ?? 0) >= 2;
-/** Viewers read and chat; they never steer Pi. */
+/** Viewers read and chat; they never steer the agent. */
 export const canSteer = () => store.state.me?.role !== "viewer";
 
 /**
@@ -627,9 +628,9 @@ function applyView(data) {
     store.set((state) => ({ view: mergeView(state.view, data), missing: null }));
 }
 
-/** PiP's conversation, for its panel (`pip.js`): the same view, from a view of its own beside the session's. */
-function applyPipView(data) {
-    store.set((state) => ({ pipView: mergeView(state.pipView, data) }));
+/** Pia's conversation, for its panel (`pip.js`): the same view, from a view of its own beside the session's. */
+function applyPiaView(data) {
+    store.set((state) => ({ piaView: mergeView(state.piaView, data) }));
 }
 
 /**
@@ -640,7 +641,7 @@ function mergeView(current, data) {
     const same = current.conversation?.id === data.conversation.id;
     const base = data.full || !same ? emptyView() : current;
 
-    // Most updates while Pi writes bring no entries: the same Map then, so what is built from it (the transcript's rows)
+    // Most updates while the agent writes bring no entries: the same Map then, so what is built from it (the transcript's rows)
     // is not built again for each of them.
     const unchanged = !data.full && same && data.entries.length === 0 && !data.order;
     const entries = unchanged
@@ -879,11 +880,11 @@ const handlers = {
     // Every subagent in every session, while this tab shows the subagents board (`subagents-board.js`).
     subagents: (agents) => store.state.board && store.set({ boardAgents: agents }),
     view: applyView,
-    // This person's PiP: its conversation, whether it works, and when it last answered (`pip.js`); null for none.
+    // This person's Pia: its conversation, whether it works, and when it last answered (`pip.js`); null for none.
     // Sent again on each connect, mostly as it was.
-    pip: (pip) => setChanged({ pip: kept(store.state.pip, pip) }),
-    // PiP's conversation, while this tab's PiP panel is open.
-    pipview: applyPipView,
+    pia: (pia) => setChanged({ pia: kept(store.state.pia, pia) }),
+    // Pia's conversation, while this tab's Pia panel is open.
+    piaview: applyPiaView,
     chat: applyChat,
     presence: (data) =>
         data.conversationId === store.state.conversationId && store.set({ presence: data.people }),
@@ -896,11 +897,11 @@ const handlers = {
     peek: (data) =>
         store.set((state) => ({ peeks: { ...state.peeks, [data.conversationId]: data } })),
     users: (users) => setChanged({ users: keptEach(store.state.users, users) }),
-    // The owner's restart status (`sheets/restart.js`): the code changed, Pi asks, or a restart waits for tool calls.
+    // The owner's restart status (`sheets/restart.js`): the code changed, the agent asks, or a restart waits for tool calls.
     restart: (status) =>
         store.state.server &&
         store.set((state) => ({ server: { ...state.server, restart: status } })),
-    // Pi's lessons changed somewhere: a Memory sheet or menu that shows them fetches them again (`sheets/memory.js`).
+    // the agent's lessons changed somewhere: a Memory sheet or menu that shows them fetches them again (`sheets/memory.js`).
     memory: () => store.set((state) => ({ memoryRev: (state.memoryRev ?? 0) + 1 })),
     missing: (data) => store.set({ missing: data.message }),
     // An event an extension module sent its browser module (`extension-ui.js`).
@@ -943,7 +944,7 @@ const handlers = {
  * (`partial`) at first, whole in the update after. The server sends a tab below 3 the whole message with each update,
  * and one whose code names none (as a tab asleep through an update keeps) the queue too.
  */
-const PROTOCOL = 5;
+const PROTOCOL = 6;
 const TRANSPORT_KEY = "pocket.transport";
 const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(location.hostname);
 /** After an event stream stalls on this address, poll for a day, then try the stream again: one slow start is not forever. */
@@ -1300,8 +1301,8 @@ export function revalidateAccount() {
         sessions: [],
         sessionsLoaded: false,
         view: emptyView(),
-        pipView: emptyView(),
-        pip: null,
+        piaView: emptyView(),
+        pia: null,
     });
 
     return start();
@@ -1362,7 +1363,7 @@ export const actions = {
             requestId: uid(),
             ...(inlineFiles ? { inlineFiles } : {}),
         }),
-    /** Run a command in the session's folder (`!`); `context: false` keeps it from Pi (`!!`). */
+    /** Run a command in the session's folder (`!`); `context: false` keeps it from the agent (`!!`). */
     shell: (command, context, requestId = uid()) =>
         api(`c/${current()}/shell`, { command, context, requestId }),
     stopShell: (taskId) => api(`c/${current()}/shell/${taskId}/stop`, {}),
@@ -1371,7 +1372,7 @@ export const actions = {
         api(`c/${current()}/extension-commands`, { commandId, args, requestId }),
     /** A file or folder for the viewer. */
     view: (path) => api(`c/${current()}/view?path=${encodeURIComponent(path)}`),
-    /** What changed in the session's folder: git's uncommitted changes, and Pi's edits. */
+    /** What changed in the session's folder: git's uncommitted changes, and the agent's edits. */
     changes: (id = current()) => api(`c/${id}/changes`),
     branches: () => api(`c/${current()}/branches`),
     switchBranch: (target) => api(`c/${current()}/branch`, target),
@@ -1407,20 +1408,20 @@ export const actions = {
     /** A new session with this one's history through `entryId`. */
     fork: (entryId, { worktree = false } = {}) =>
         api(`c/${current()}/fork`, { entryId, ...(worktree ? { worktree } : {}) }),
-    /** Send a message to Pi again in a fork that ends just before it: `{ text }` edits it, `{ model }` picks another model. */
+    /** Send a message to the agent again in a fork that ends just before it: `{ text }` edits it, `{ model }` picks another model. */
     resend: (entryId, change = {}) => api(`c/${current()}/resend`, { entryId, ...change }),
     setPlan: (on) => api(`c/${current()}/plan`, { on }),
     approvePlan: () => api(`c/${current()}/plan`, { approve: true }),
     prompts: () => api(`c/${current()}/prompts`),
     trust: () => api(`c/${current()}/trust`),
-    /** `trust`, `trust-parent`, or `distrust`, as Pi's `/trust` offers them. */
+    /** `trust`, `trust-parent`, or `distrust`, as the agent's `/trust` offers them. */
     setTrust: (choice) => api(`c/${current()}/trust`, { choice }),
-    /** Pi's sessions from the terminal on this machine; one of them to look at; and one continued as a new session. */
+    /** the agent's sessions from the terminal on this machine; one of them to look at; and one continued as a new session. */
     piSessions: (query = "") =>
         api(query === "" ? "pi-sessions" : `pi-sessions?q=${encodeURIComponent(query)}`),
     piSession: (path) => api(`pi-sessions/preview?path=${encodeURIComponent(path)}`),
     continuePiSession: (path) => api("pi-sessions/continue", { path }),
-    /** `when` says when, then what Pi gets: `in 2h check the deploy`. Clock times are this device's. */
+    /** `when` says when, then what the agent gets: `in 2h check the deploy`. Clock times are this device's. */
     schedule: (when) =>
         api(`c/${current()}/schedules`, {
             when,
@@ -1688,7 +1689,7 @@ export function openSheet(sheet) {
 }
 
 /**
- * Put text into the message box to Pi (after what is there: on a new paragraph, or with `inline`, after a space), and
+ * Put text into the message box to the agent (after what is there: on a new paragraph, or with `inline`, after a space), and
  * files to attach, and close any sheet so it shows.
  */
 export function insertIntoComposer(text, files = [], { inline = false } = {}) {

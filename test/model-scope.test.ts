@@ -22,7 +22,7 @@ after(async () => {
     cleanUp();
 });
 
-test("scope is optional picker metadata and uses Pi patterns without applying thinking", async () => {
+test("scope is optional picker metadata and uses the agent patterns without applying thinking", async () => {
     app.settings.setEnabledModels(["faux/*2:high", "faux/faux-2"]);
     const choices = (await app.hello(owner(app))).models;
 

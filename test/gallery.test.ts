@@ -262,7 +262,7 @@ test("a revoked version is flagged where it is installed, and is never installed
     await app.gallery.install("revoked", await pin("revoked"));
     await app.setExtensionEnabled(owner(app), "revoked.ts", true);
 
-    // The index revokes it, with a fix only a newer Pi Pocket can use, and a reason its strict reading refuses (an
+    // The index revokes it, with a fix only a newer Pia can use, and a reason its strict reading refuses (an
     // emoji's variation selector); and, in another entry, the only version there is.
     await index(
         entry("revoked", { "revoked.ts": clock.replace("now", "later") }, "5".repeat(40), {
@@ -304,7 +304,7 @@ test("an index that still lists themes is read: its extensions are offered, its 
     await assert.rejects(app.gallery.install("paper", "x"), { status: 404 });
 });
 
-test("a config.json from when Pi Pocket had themes still loads, and drops the old default", async () => {
+test("a config.json from when Pia had themes still loads, and drops the old default", async () => {
     const file = join(dataDir, "config.json");
 
     await app.close();

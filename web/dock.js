@@ -15,7 +15,7 @@
 //   up) does the dock stop there, and scroll: the conversation always keeps a few lines.
 //
 // CSS cannot measure the bars, so this sets the queue's and the list's heights. It does so as the dock's content changes
-// (not after every draw of the message box, which comes with each word Pi streams), and whenever the conversation's
+// (not after every draw of the message box, which comes with each word the agent streams), and whenever the conversation's
 // height changes (a window resized, a message box that grew).
 import { useLayoutEffect, useRef } from "preact/hooks";
 

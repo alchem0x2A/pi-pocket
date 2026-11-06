@@ -43,7 +43,7 @@ Since 0.16.0, use a distinct capability for routes that start work from a conver
 
 ```typescript
 if (typeof web.conversationRoute !== "function") {
-    throw new Error("This module needs Pi Pocket 0.16.0. Update it and restart the server.");
+    throw new Error("This module needs Pia 0.16.0. Update it and restart the server.");
 }
 
 web.conversationRoute(
@@ -63,7 +63,7 @@ web.conversationRoute(
 
 `conversation` names a path parameter that must exist at registration. Before the handler runs, the server resolves the actual session and checks seeing; a mutation also needs steering and the turn. Ordinary route `access` still applies. GET can show a preview without taking the turn. `request.conversation` gives `{ id, title, cwd, model?, thinkingLevel }`. Do not take source settings from a browser body as authority; compare expected preview values with this metadata.
 
-`request.linkedSessions.start(request, key)` and `list()` act as the signed-in clicking person and bound source, not whoever last wrote to Pi there. There is no actor override. Starts check current plan, turn, spend, team and model policy; they reject a source folder/model/thinking change while they wait. Explicit thinking is never silently lowered. Give each logical role start a stable, module-namespaced key; another person cannot replay its receipt. The route waits for starts, not model answers. See [Starting and messaging sessions](linked-sessions.md#starts-from-a-human-page) and the [request reference](reference/web.md#conversationwebrequest).
+`request.linkedSessions.start(request, key)` and `list()` act as the signed-in clicking person and bound source, not whoever last wrote to the agent there. There is no actor override. Starts check current plan, turn, spend, team and model policy; they reject a source folder/model/thinking change while they wait. Explicit thinking is never silently lowered. Give each logical role start a stable, module-namespaced key; another person cannot replay its receipt. The route waits for starts, not model answers. See [Starting and messaging sessions](linked-sessions.md#starts-from-a-human-page) and the [request reference](reference/web.md#conversationwebrequest).
 
 Use an ordinary owner-only `web.route` for an app-wide catalog save. Its document commit has no source plan, turn, or spend checks.
 
@@ -78,11 +78,11 @@ Use an ordinary owner-only `web.route` for an app-wide catalog save. Its documen
 The app checks each request before your route gets it:
 
 - The person must be signed in. For a page that people with no account open, use a [public page](public-pages.md).
-- The request must have the `X-Pocket` header. A link or a form on another site cannot send it. Your routes need it for `GET` too, so no other site can make a `GET` to them. `pocket.api` always sends it. Anything else that calls your routes must send it too, for example `curl -H 'X-Pocket: 1'`. Without the header, Pi Pocket looks up nothing.
+- The request must have the `X-Pocket` header. A link or a form on another site cannot send it. Your routes need it for `GET` too, so no other site can make a `GET` to them. `pocket.api` always sends it. Anything else that calls your routes must send it too, for example `curl -H 'X-Pocket: 1'`. Without the header, Pia looks up nothing.
 
 ## Text from outside
 
-A `:name` part is text from outside. Pi Pocket decodes the address before it splits it. So it answers 400 for a part that decodes to `..` (for example `..%2F`), or that has a `\` or a NUL in it. A `.` or `..` written as it is never gets to your route: the address resolves it first. But still check a part before you make a file path from it.
+A `:name` part is text from outside. Pia decodes the address before it splits it. So it answers 400 for a part that decodes to `..` (for example `..%2F`), or that has a `\` or a NUL in it. A `.` or `..` written as it is never gets to your route: the address resolves it first. But still check a part before you make a file path from it.
 
 ## Time
 

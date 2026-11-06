@@ -78,11 +78,11 @@ function sameKey(subscription, publicKey) {
 /** Why this device cannot get notifications, or null when it can. */
 function blocker() {
     if (!isSecureContext) {
-        return "Notifications need a secure (https) address. Open Pi Pocket through the Cloudflare Tunnel, or through tailscale serve, on this device.";
+        return "Notifications need a secure (https) address. Open Pia through the Cloudflare Tunnel, or through tailscale serve, on this device.";
     }
 
     if (!supported) {
-        return "This browser cannot receive notifications. On iPhone and iPad, add Pi Pocket to the home screen first, then open it from there.";
+        return "This browser cannot receive notifications. On iPhone and iPad, add Pia to the home screen first, then open it from there.";
     }
 
     if (Notification.permission === "denied") {
@@ -93,7 +93,7 @@ function blocker() {
 }
 
 const KINDS = [
-    ["done", "Pi finished", "when a run you took part in ends"],
+    ["done", "the agent finished", "when a run you took part in ends"],
     [
         "approval",
         "Approvals",
@@ -190,7 +190,7 @@ export function NotificationsSheet() {
         className="notifications-sheet"
     >
         <p class="muted small">
-            Get a notification on this device when Pi finishes or waits for your approval.
+            Get a notification on this device when the agent finishes or waits for your approval.
         </p>
         ${problem && html`<div class="error-box small">${problem}</div>`}
         ${

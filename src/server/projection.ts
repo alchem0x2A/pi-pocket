@@ -91,13 +91,13 @@ const ROW_KINDS = new Set([
     "fromPi",
 ]);
 
-/** Rows a tab of protocol 4 gets the entries of when it opens a session: those it draws (`TRANSCRIPT_ROWS`), and PiP's. */
+/** Rows a tab of protocol 4 gets the entries of when it opens a session: those it draws (`TRANSCRIPT_ROWS`), and Pia's. */
 export const FIRST_ROWS = 80;
 
 /**
  * Where the turn the entry at `index` is in begins: the row before the answers that run up to it. A tab works out from
  * those rows what was open there (`rowsBefore` in `web/turns.js`), so it gets them with what follows. At most
- * `FIRST_ROWS` rows back: a run of Pi's alone can be thousands of answers.
+ * `FIRST_ROWS` rows back: a run of the agent's alone can be thousands of answers.
  */
 export function turnStart(entries: readonly ClientEntry[], index: number): number {
     let start = index;
@@ -891,7 +891,7 @@ export function snippet(text: string, max = 280): string {
     return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }
 
-/** The visible text of a projected entry, as plain text: what a person or Pi wrote. */
+/** The visible text of a projected entry, as plain text: what a person or the agent wrote. */
 export function entryText(entry: ClientEntry): string {
     if (entry.kind === "user") {
         const [written, files] = splitAttachments(entry.text);
@@ -947,7 +947,7 @@ function peekArgs(args: Record<string, unknown>): Record<string, string | number
 }
 
 /**
- * A session's last few steps as peek lines: what was asked, what Pi said, and its tool calls with how they went, ending
+ * A session's last few steps as peek lines: what was asked, what the agent said, and its tool calls with how they went, ending
  * with what it is doing now. `entries` are the newest projected entries, oldest first; a call's result may follow it.
  */
 export function peekLines(
@@ -971,7 +971,7 @@ export function peekLines(
             } else if (block.type === "toolCall") {
                 const failed = results.get(block.id);
 
-                // A call without a result yet runs while Pi does; once Pi stopped, it was cut off.
+                // A call without a result yet runs while the agent does; once the agent stopped, it was cut off.
                 lines.push({
                     kind: "tool",
                     name: block.name,
@@ -1036,7 +1036,7 @@ export function peekLines(
                 lines.push({ kind: "event", text: "Context cleared" });
                 break;
             case "fromPi":
-                lines.push({ kind: "event", text: "Continued from Pi in the terminal" });
+                lines.push({ kind: "event", text: "Continued from the agent in the terminal" });
                 break;
             default:
                 break;

@@ -2,12 +2,12 @@
 
 The extension gallery reads an index: one JSON file, the `index.json` that the index repository makes. The index has an entry for each extension. An entry names the files of one drop-in at a pinned commit of a GitHub repository, with the SHA-256 of each file. It also declares what the module installs. [Publishing to the gallery](../publishing.md) tells you how to share yours.
 
-Pi Pocket reads the index strictly, because all of it comes from other people. The code is `src/server/gallery/entry.ts`. The index repository's checks use the same code, so Pi Pocket can read each entry that the checks let in.
+Pia reads the index strictly, because all of it comes from other people. The code is `src/server/gallery/entry.ts`. The index repository's checks use the same code, so Pia can read each entry that the checks let in.
 
 - Each text field is one plain line, with no space at its ends. It has no control, invisible, or direction characters.
 - A list has no item two times.
 - A field that is not on this page makes the entry not valid.
-- An entry that Pi Pocket cannot read is left out. An entry for a newer Pi Pocket, or for a newer extension API, is hidden. The gallery says how many it left out.
+- An entry that Pia cannot read is left out. An entry for a newer Pia, or for a newer extension API, is hidden. The gallery says how many it left out.
 
 [Limits](limits.md#gallery) gives each length, count, and size.
 
@@ -21,7 +21,7 @@ format: 1;
 
 Since 0.14.0 · Stable
 
-The format of the index. Pi Pocket reads format 1. For a newer format, it says that you must update Pi Pocket.
+The format of the index. Pia reads format 1. For a newer format, it says that you must update Pia.
 
 ### `name`
 
@@ -51,7 +51,7 @@ extensions: Entry[];
 
 Since 0.14.0 · Stable
 
-The entries: extensions. An older index may also list themes (`kind: "theme"`): Pi Pocket skips them. Two entries cannot have the same `name`.
+The entries: extensions. An older index may also list themes (`kind: "theme"`): Pia skips them. Two entries cannot have the same `name`.
 
 ## An entry
 
@@ -113,7 +113,7 @@ version: string;
 
 Since 0.14.0 · Stable
 
-The author's version, for people: letters, digits, `.`, `+`, and `-`. Pi Pocket goes by the commit, not by this version.
+The author's version, for people: letters, digits, `.`, `+`, and `-`. Pia goes by the commit, not by this version.
 
 ### `source`
 
@@ -158,7 +158,7 @@ pocketApi: number;
 
 Since 0.14.0 · Stable
 
-The version of the extension API that the extension needs, such as `2`. An extension that returns `output` from a tool needs 2. For a newer version than Pi Pocket's, the gallery hides the entry.
+The version of the extension API that the extension needs, such as `2`. An extension that returns `output` from a tool needs 2. For a newer version than Pia's, the gallery hides the entry.
 
 ### `minPocket`
 
@@ -168,7 +168,7 @@ minPocket: string;
 
 Since 0.14.0 · Stable
 
-The oldest Pi Pocket that the extension works with, such as `0.14.0`. For an older Pi Pocket, the gallery hides the entry. A pre-release counts as its release: `0.14.0-beta.3` is `0.14.0`.
+The oldest Pia that the extension works with, such as `0.14.0`. For an older Pia, the gallery hides the entry. A pre-release counts as its release: `0.14.0-beta.3` is `0.14.0`.
 
 ### `declares`
 
@@ -188,7 +188,7 @@ revoked?: { commit: string; reason: string }[];
 
 Since 0.14.0 · Stable
 
-Commits of the extension that people must not use, each with the reason. Where such a commit is installed, the gallery and the Extensions sheet say so, and offer to turn it off. When the entry's own `source.commit` is revoked, the gallery does not offer it. Pi Pocket reads `revoked` also from an entry that is otherwise not valid, or that is for a newer Pi Pocket.
+Commits of the extension that people must not use, each with the reason. Where such a commit is installed, the gallery and the Extensions sheet say so, and offer to turn it off. When the entry's own `source.commit` is revoked, the gallery does not offer it. Pia reads `revoked` also from an entry that is otherwise not valid, or that is for a newer Pia.
 
 ## What an entry declares
 
@@ -202,7 +202,7 @@ extensions: string[];
 
 Since 0.14.0 · Stable
 
-The names of the extensions that the module installs. None can be a name that Pi Pocket keeps.
+The names of the extensions that the module installs. None can be a name that Pia keeps.
 
 ### `tools`
 

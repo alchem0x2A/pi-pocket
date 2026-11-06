@@ -1,6 +1,6 @@
 /**
  * A session as one Markdown file: every message in order, who wrote it, and each tool call folded into a
- * `<details>` block, so it reads well on GitHub or in any Markdown viewer. Pi's thinking is left out.
+ * `<details>` block, so it reads well on GitHub or in any Markdown viewer. The agent's thinking is left out.
  */
 import type { ClientBlock, ClientEntry } from "./projection.ts";
 import { FROM_PREFIX, splitAttachments } from "./entry-format.ts";
@@ -15,7 +15,7 @@ export type ExportInput = {
     exportedAt: Date;
     /** The whole history, oldest first, as `projectEntry(entry, true)` makes it. */
     entries: readonly ClientEntry[];
-    /** The name of whoever wrote each message to Pi, by entry id. */
+    /** The name of whoever wrote each message to the agent, by entry id. */
     authors: Readonly<Record<number, string>>;
 };
 
@@ -128,9 +128,9 @@ export function transcriptMarkdown(input: ExportInput): string {
     const when = input.exportedAt.toISOString().slice(0, 16).replace("T", " ");
     const sections: string[] = [
         `# ${input.title}`,
-        `_Exported from Pi Pocket on ${when} UTC. Folder \`${input.cwd}\`${input.model === undefined ? "" : `, model \`${input.model}\``}._`,
+        `_Exported from Pia on ${when} UTC. Folder \`${input.cwd}\`${input.model === undefined ? "" : `, model \`${input.model}\``}._`,
     ];
-    // One answer is often several model responses with tool calls between them: one "Pi" heading for all of them.
+    // One answer is often several model responses with tool calls between them: one "the agent" heading for all of them.
     let piSpeaking = false;
 
     for (const entry of input.entries) {
@@ -156,7 +156,7 @@ export function transcriptMarkdown(input: ExportInput): string {
             }
 
             if (parts.length > 0) {
-                sections.push([...(piSpeaking ? [] : ["**Pi**"]), ...parts].join("\n\n"));
+                sections.push([...(piSpeaking ? [] : ["**the agent**"]), ...parts].join("\n\n"));
                 piSpeaking = true;
             }
 
@@ -178,16 +178,16 @@ export function transcriptMarkdown(input: ExportInput): string {
         } else if (entry.kind === "note") {
             sections.push(`_${entry.name} ${entry.text}._`);
         } else if (entry.kind === "fromPi") {
-            sections.push(`---\n\n_Continued from Pi in the terminal (${entry.file})._`);
+            sections.push(`---\n\n_Continued from the agent in the terminal (${entry.file})._`);
         } else if (entry.kind === "command") {
             sections.push(
-                `**${entry.name}** ran \`/${entry.command}\` (not shown to Pi):\n\n${fence(entry.output)}`,
+                `**${entry.name}** ran \`/${entry.command}\` (not shown to the agent):\n\n${fence(entry.output)}`,
             );
         } else if (entry.kind === "shell") {
             const fence = entry.output.includes("```") ? "````" : "```";
 
             sections.push(
-                `**${entry.name}** ran \`${entry.command}\`${entry.context ? "" : " (not shown to Pi)"}:\n\n${fence}\n${entry.output.replace(/\s+$/, "")}\n${fence}`,
+                `**${entry.name}** ran \`${entry.command}\`${entry.context ? "" : " (not shown to the agent)"}:\n\n${fence}\n${entry.output.replace(/\s+$/, "")}\n${fence}`,
             );
         }
         // Tool results show inside their calls; system entries are not for people.

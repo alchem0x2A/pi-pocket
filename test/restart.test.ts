@@ -1,6 +1,6 @@
 // Restarting the server (`src/server/restart.ts`), on a small copy of the server's folder made here: what changed since
 // the start, the check that the new code loads, the owner's restart command, a restart that waits for tool calls, and
-// Pi's requests.
+// the agent's requests.
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -21,7 +21,7 @@ after(() => {
     }
 });
 
-/** A folder shaped like Pi Pocket's, with two server modules and an extension module. */
+/** A folder shaped like Pia's, with two server modules and an extension module. */
 function appRoot(): string {
     const root = mkdtempSync(join(tmpdir(), "pi-pocket-restart-"));
 
@@ -230,7 +230,7 @@ test("a wait for tool calls ends at its limit", async () => {
     made.close();
 });
 
-test("Pi's request asks once per call, tells the owner, and a restart clears it", async () => {
+test("the agent's request asks once per call, tells the owner, and a restart clears it", async () => {
     const root = appRoot();
     const { made, notices } = restarts(root);
 

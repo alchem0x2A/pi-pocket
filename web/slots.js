@@ -12,7 +12,7 @@ export const SLOTS = {
     status: { label: "Status line items", extensions: 500 },
     places: { label: "Places", extensions: 1000 },
     composer: { label: "Message box buttons", extensions: 500 },
-    reply: { label: "Under Pi's answers", extensions: 500 },
+    reply: { label: "Under the agent's answers", extensions: 500 },
 };
 
 /**
@@ -81,7 +81,7 @@ function place(list, item, target, after) {
  * Every item of a slot, in the order it shows: `{ item, hidden, hiddenBy }`, `hiddenBy` naming the extension that hid it
  * when the person made no choice of their own. Items that show nothing now (no artifacts yet, say) are here too: the
  * Layout settings list them all. Worked out again only when the items, what extensions arranged, or the person's
- * layout changed: the top bar, the message box, the status line, and each of Pi's answers ask on every draw.
+ * layout changed: the top bar, the message box, the status line, and each of the agent's answers ask on every draw.
  */
 export function arranged(slot) {
     return keptFor(slot).list;

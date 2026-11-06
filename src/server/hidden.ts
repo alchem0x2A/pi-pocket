@@ -1,11 +1,11 @@
 /**
- * What extensions add to the commands Pi runs, and hide from what comes back (since 0.22.0, experimental):
+ * What extensions add to the commands the agent runs, and hide from what comes back (since 0.22.0, experimental):
  *
  * - `CommandEnvs`: environment variables an extension gives one command, by what it runs and where (`host.commandEnv`).
- *   A secrets extension puts a key into `$NAME` for the commands that name it, so the value never goes through Pi.
- * - `HiddenValues`: values core takes out of what Pi and people read (`host.hide`): the output of commands as it streams
+ *   A secrets extension puts a key into `$NAME` for the commands that name it, so the value never goes through the agent.
+ * - `HiddenValues`: values core takes out of what the agent and people read (`host.hide`): the output of commands as it streams
  *   (in the tool's live output, its result, and a `!` command's card), every tool's result, before it is stored, and
- *   people's messages to Pi (`Commands.submit`, `resend`).
+ *   people's messages to the agent (`Commands.submit`, `resend`).
  *   Each becomes `[label]`. A value split across two chunks of output is held back until it can be told apart.
  *
  * Both act through the execution environment the harness builds for each conversation (`wrapEnv`), so the bash tool,

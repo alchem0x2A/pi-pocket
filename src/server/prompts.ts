@@ -1,13 +1,13 @@
 /**
- * Pi's prompt templates as slash commands: `/review src/auth.ts` sends the `review.md` template with its arguments
- * filled in. Templates load the way Pi loads them: `prompts/` in Pi's folder, then `.pi/prompts/` in the session's
- * folder, then the paths in Pi's settings; the first with a name wins. Each is a Markdown file whose name is the
+ * the agent's prompt templates as slash commands: `/review src/auth.ts` sends the `review.md` template with its arguments
+ * filled in. Templates load the way the agent loads them: `prompts/` in the agent's folder, then `.pi/prompts/` in the session's
+ * folder, then the paths in the agent's settings; the first with a name wins. Each is a Markdown file whose name is the
  * command, with an optional `description` and `argument-hint` in its front matter.
  *
  * This follows `dist/core/prompt-templates.js` in @earendil-works/pi-coding-agent, which the package does not export:
- * check it against that file when updating Pi.
+ * check it against that file when updating the agent.
  *
- * Skills are commands too, as `/skill:name [what to do]`: the skill's instructions go to Pi with the request, as
+ * Skills are commands too, as `/skill:name [what to do]`: the skill's instructions go to the agent with the request, as
  * `_expandSkillCommand` in `dist/core/agent-session.js` writes them.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -88,8 +88,8 @@ function templatesIn(directory: string): PromptTemplate[] {
 }
 
 /**
- * The templates a session in `cwd` offers, first of each name only. `paths` are Pi's configured extra ones. `project`
- * false leaves out the project's own `.pi/prompts`, for a project Pi was told not to trust.
+ * The templates a session in `cwd` offers, first of each name only. `paths` are the agent's configured extra ones. `project`
+ * false leaves out the project's own `.pi/prompts`, for a project the agent was told not to trust.
  */
 export function loadPromptTemplates(
     cwd: string,
@@ -222,10 +222,10 @@ export function expandPromptTemplate(
         : fillTemplate(template.content, parseArguments(match[2] ?? ""));
 }
 
-/** A skill Pi has in a session's folder (`skills.ts` finds them), to run as `/skill:name`. */
+/** A skill the agent has in a session's folder (`skills.ts` finds them), to run as `/skill:name`. */
 export type SkillCommand = { name: string; description: string; path: string; baseDir: string };
 
-/** `/skill:name request` with the skill's instructions, as Pi sends it; undefined when the text is not one. */
+/** `/skill:name request` with the skill's instructions, as the agent sends it; undefined when the text is not one. */
 export function expandSkillCommand(
     text: string,
     skills: readonly SkillCommand[],

@@ -129,7 +129,7 @@ function fromBuiltin(info: DiscoveredClaudeModel, id: string, builtin: Model<"an
   };
 }
 
-/** Convert a Claude Code catalog row into Pi's built-in Anthropic naming and pricing. */
+/** Convert a Claude Code catalog row into the agent's built-in Anthropic naming and pricing. */
 export function modelFromDiscovery(info: DiscoveredClaudeModel): ClaudeCodeModel {
   const id = canonicalModelId(info);
   const builtinId = id === "default" ? withoutContextSuffix(info.resolvedModel || "") : id;

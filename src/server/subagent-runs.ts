@@ -1,5 +1,5 @@
 /**
- * How a subagent's run ended, in the words its record keeps: shared by the subagent tool's reports of Pi's work
+ * How a subagent's run ended, in the words its record keeps: shared by the subagent tool's reports of the agent's work
  * (`extensions/subagents.ts`) and a person's own messages to a failed subagent (`commands.ts`).
  */
 import { STOPPED } from "./docs.ts";

@@ -1,6 +1,6 @@
-# Pi Pocket docs site
+# Pia docs site
 
-The site at https://tannermidd.github.io/pi-pocket/docs/. It renders the repository's `docs/**/*.md`, `SECURITY.md`, and `CONTRIBUTING.md` where they are, with [Starlight](https://starlight.astro.build): there is no copy of any page here. Pi reads the same files, so they stay plain Markdown, without front matter.
+The site at https://tannermidd.github.io/pi-pocket/docs/. It renders the repository's `docs/**/*.md`, `SECURITY.md`, and `CONTRIBUTING.md` where they are, with [Starlight](https://starlight.astro.build): there is no copy of any page here. The agent reads the same files, so they stay plain Markdown, without front matter.
 
 This folder has its own dependencies. Install them here, never at the repository's root:
 

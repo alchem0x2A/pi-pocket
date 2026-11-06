@@ -220,7 +220,7 @@ afterEach(async () => {
         ).length);
     `);
 
-    assert.equal(forbidden, 0, "no conversation, PiP/Pia, Continue, or submission mutations");
+    assert.equal(forbidden, 0, "no conversation, Pia/Pia, Continue, or submission mutations");
     assert.equal(
         await sessionCount(),
         sessionsBefore,

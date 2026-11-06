@@ -1,5 +1,5 @@
 /**
- * Scheduled messages go to Pi later, or on repeat: people set them up with /schedule, and Pi with its schedule tool,
+ * Scheduled messages go to the agent later, or on repeat: people set them up with /schedule, and the agent with its schedule tool,
  * to check back on something slow or for a regular job. While this is off, no scheduled message goes out; they wait
  * until it is on again.
  */
@@ -7,7 +7,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import type { Schedule } from "../docs.ts";
 import type { ExtensionWeb, PocketHost } from "../host.ts";
-import type { Pip } from "../pip.ts";
+import type { Pia } from "../pip.ts";
 import { DEFAULT_SCHEDULE_LIMITS, SCHEDULED_PREFIX, SCHEDULES_EXTENSION } from "../schedules.ts";
 import { describeMoment, describeRepeat, WHEN_HELP } from "../when.ts";
 
@@ -143,12 +143,12 @@ export default function createSchedules(host: PocketHost, web: ExtensionWeb) {
                 ...(requestedBy === undefined ? {} : { requestedBy }),
             };
             const make = () => host.schedules.add(api.conversationId, request);
-            // PiP's own schedules count toward its hourly actions. A server started before PiP counted them has no
+            // Pia's own schedules count toward its hourly actions. A server started before Pia counted them has no
             // countSchedule: it schedules as before until its restart.
-            const pip = host.pip as Partial<Pick<Pip, "countSchedule">>;
+            const pia = host.pia as Partial<Pick<Pia, "countSchedule">>;
             const added =
-                typeof pip.countSchedule === "function"
-                    ? await pip.countSchedule(api.conversationId, key, make)
+                typeof pia.countSchedule === "function"
+                    ? await pia.countSchedule(api.conversationId, key, make)
                     : await make();
 
             return reply(`Scheduled ${line(added)}`);

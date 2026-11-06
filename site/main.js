@@ -1,4 +1,4 @@
-// Pi Pocket site: copy buttons, the install tabs, and sections that rise into view. The page works without this
+// Pia site: copy buttons, the install tabs, and sections that rise into view. The page works without this
 // script: the `js` class is what hides a section until it arrives.
 
 const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

@@ -6,7 +6,7 @@ One word for each thing. The extension docs and the policies use these words. Wh
 
 ### owner
 
-The person who runs Pi Pocket on their machine. The owner can do all things. Only the owner turns modules on and off. Code: the role `"owner"`.
+The person who runs Pia on their machine. The owner can do all things. Only the owner turns modules on and off. Code: the role `"owner"`.
 
 ### guest
 
@@ -18,29 +18,29 @@ A person who can see sessions, but cannot steer them. Code: the role `"viewer"`.
 
 ### person
 
-Anyone who signs in to Pi Pocket: the owner, a guest, or a viewer. Code: `user`, as in `request.user`. Say "person" and "people", not "user".
+Anyone who signs in to Pia: the owner, a guest, or a viewer. Code: `user`, as in `request.user`. Say "person" and "people", not "user".
 
 ### steer
 
-To send messages to Pi in a session, and to stop Pi there. The owner and guests can steer. Code: the access `"steer"`.
+To send messages to the agent in a session, and to stop the agent there. The owner and guests can steer. Code: the access `"steer"`.
 
 ### the turn
 
-When people take turns in a session, the person who has the turn is the only person who can send messages to Pi. Other pages say "drive" for this.
+When people take turns in a session, the person who has the turn is the only person who can send messages to the agent. Other pages say "drive" for this.
 
-### the person Pi works for
+### the person the agent works for
 
-The person whose message started Pi's current work in a session. Pi acts for this person, with this person's rights. Code: `host.requesterOf`.
+The person whose message started the agent's current work in a session. The agent acts for this person, with this person's rights. Code: `host.requesterOf`.
 
 ## Sessions
 
 ### session
 
-One conversation with Pi, with its folder, its history, and its settings. Code: a session's id is a `conversationId`. Say "session", not "conversation" or "chat".
+One conversation with the agent, with its folder, its history, and its settings. Code: a session's id is a `conversationId`. Say "session", not "conversation" or "chat".
 
 ### folder
 
-The folder where Pi works in a session. Code: `cwd`.
+The folder where the agent works in a session. Code: `cwd`.
 
 ### transcript
 
@@ -48,7 +48,7 @@ The messages and tool calls of a session, as the app shows them.
 
 ### card
 
-Plain text that a command puts in a session's transcript, for all the people who see the session. Pi does not get it.
+Plain text that a command puts in a session's transcript, for all the people who see the session. The agent does not get it.
 
 ### linked session
 
@@ -68,11 +68,11 @@ A session and all the sessions linked to it.
 
 ### subagent
 
-A session that Pi starts for a part of its work. The subagent reports to the session that started it.
+A session that the agent starts for a part of its work. The subagent reports to the session that started it.
 
 ### spend limit
 
-A limit on what Pi can spend: for a session, or for a person. Code: `host.heldBack` says when one stops work.
+A limit on what the agent can spend: for a session, or for a person. Code: `host.heldBack` says when one stops work.
 
 ### budget
 
@@ -80,7 +80,7 @@ The spend limit of a session. A team uses the budget of the session that started
 
 ### plan mode
 
-A mode of a session where Pi makes a plan and does not change files. Only tools that only read can run.
+A mode of a session where the agent makes a plan and does not change files. Only tools that only read can run.
 
 ## Modules
 
@@ -94,15 +94,15 @@ What a module returns: a name, with tools, prompt sections, hooks, and tasks. Pi
 
 ### drop-in
 
-A module in the drop-in folder. It is the owner's. It stays when Pi Pocket updates, and it is off until the owner turns it on.
+A module in the drop-in folder. It is the owner's. It stays when Pia updates, and it is off until the owner turns it on.
 
 ### built-in
 
-A module in `src/server/extensions/`. It is part of Pi Pocket.
+A module in `src/server/extensions/`. It is part of Pia.
 
 ### data folder
 
-Pi Pocket's folder for its data: `~/.pi-pocket` by default. Code: `host.dataDir`.
+Pia's folder for its data: `~/.pi-pocket` by default. Code: `host.dataDir`.
 
 ### drop-in folder
 
@@ -134,19 +134,19 @@ The argument of a browser module's default export. See [pocket](pocket.md).
 
 ### tool
 
-A function that Pi can call. A module defines it with `defineTool`.
+A function that the agent can call. A module defines it with `defineTool`.
 
 ### tool call
 
-One call of a tool by Pi, with its arguments and its result. See [How tool calls show](../tool-calls.md).
+One call of a tool by the agent, with its arguments and its result. See [How tool calls show](../tool-calls.md).
 
 ### prompt section
 
-A part of Pi's system prompt that a module adds.
+A part of the agent's system prompt that a module adds.
 
 ### hook
 
-A function that checks or changes Pi's tool calls and answers.
+A function that checks or changes the agent's tool calls and answers.
 
 ### route
 
@@ -162,7 +162,7 @@ Data that a module sends from the server to its browser module, with `web.send`.
 
 ### command
 
-A command that a person types in the message box, as `/name`. It runs on the server, and it does not ask Pi. Also called a slash command.
+A command that a person types in the message box, as `/name`. It runs on the server, and it does not ask the agent. Also called a slash command.
 
 ### cleanup
 
@@ -218,7 +218,7 @@ A tab opened with `?noext=1` at the end of the app's address loads no browser mo
 
 ### Pi Durable
 
-The library that runs Pi's sessions as durable work. Pi Pocket is built on it. Extensions are Pi Durable's.
+The library that runs the agent's sessions as durable work. Pia is built on it. Extensions are Pi Durable's.
 
 ### task
 
@@ -270,11 +270,11 @@ The version of the extension API: `web.api` and `pocket.version`. See [API versi
 
 ### Since
 
-The first release of Pi Pocket that has a member.
+The first release of Pia that has a member.
 
 ### release
 
-A version of Pi Pocket, such as 0.14.0. It is not the API version. "Since 0.14.0" names the first release that has a member.
+A version of Pia, such as 0.14.0. It is not the API version. "Since 0.14.0" names the first release that has a member.
 
 ### Stable
 
@@ -286,25 +286,25 @@ A member that can change, or go, in any minor release, but never in a patch rele
 
 ### Internal
 
-A member of the host that only Pi Pocket's built-in modules use. It is not in the types file.
+A member of the host that only Pia's built-in modules use. It is not in the types file.
 
 ## Other names
 
-### Pi
+### the agent
 
 The agent: the AI that works in sessions.
 
-### Pi Pocket
+### Pia
 
-This app, which runs Pi in a browser, for one or more people.
+This app, which runs the agent in a browser, for one or more people.
 
-### PiP
+### Pia
 
-The owner's assistant in Pi Pocket, which runs the owner's other sessions.
+The owner's assistant in Pia, which runs the owner's other sessions.
 
 ### Lancet Guard
 
-A built-in module that asks a person before Pi runs a tool call that could be risky.
+A built-in module that asks a person before the agent runs a tool call that could be risky.
 
 ### approval
 

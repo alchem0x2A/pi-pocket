@@ -1,7 +1,7 @@
 /**
- * Who Pi works for. Each message to Pi carries its person in its request id (`requests.ts`); as messages enter, this
+ * Who the agent works for. Each message to the agent carries its person in its request id (`requests.ts`); as messages enter, this
  * notes who wrote each one, or whose work it is, in the conversation's authors document, and who queued each
- * submission. Pi works for whoever wrote the newest message. At startup it is read back, and what a crash kept out of
+ * submission. The agent works for whoever wrote the newest message. At startup it is read back, and what a crash kept out of
  * the authors documents is recovered from Pi Durable's records.
  */
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -43,10 +43,10 @@ export class Attribution {
     readonly #app: PocketApp;
     /** The messages (`conversation:entry`) whose person is noted already: each is noted once. */
     readonly #authored = new Set<string>();
-    /** Who wrote to Pi last in each conversation: whoever asked for what Pi is doing there now. */
+    /** Who wrote to the agent last in each conversation: whoever asked for what the agent is doing there now. */
     readonly #lastAuthor = new Map<ConversationId, string>();
     /**
-     * The entry `#lastAuthor` comes from. Pi works for whoever wrote the newest message: an older one that settles
+     * The entry `#lastAuthor` comes from. The agent works for whoever wrote the newest message: an older one that settles
      * later (after a restart, say) does not take that back.
      */
     readonly #lastAuthorEntry = new Map<ConversationId, number>();
@@ -60,7 +60,7 @@ export class Attribution {
     }
 
     /**
-     * Read back at startup who Pi works for in a conversation, from its authors document and, for the messages that
+     * Read back at startup who the agent works for in a conversation, from its authors document and, for the messages that
      * misses, from Pi Durable's records. Returns the ones it missed, for `repair`.
      */
     async recover(
@@ -156,7 +156,7 @@ export class Attribution {
             );
 
             for (const record of page.items) {
-                // Writes too: a `!` command Pi sees, or a note, is its person's (`shell.ts`, `Commands.note`).
+                // Writes too: a `!` command the agent sees, or a note, is its person's (`shell.ts`, `Commands.note`).
                 const entry = record.entry;
                 const person = requestPerson(record.requestId);
 
@@ -175,7 +175,7 @@ export class Attribution {
         return missing;
     }
 
-    /** A message or write to Pi was placed or settled: who sent it, and whose work it is. */
+    /** A message or write to the agent was placed or settled: who sent it, and whose work it is. */
     submissionCommitted(record: SubmissionRecord): void {
         const person = requestPerson(record.requestId);
 
@@ -184,7 +184,7 @@ export class Attribution {
         }
 
         // A message's submission changes as it is placed and answered; its author is noted once, when it enters.
-        // A write that is a person's (a `!` command Pi sees, a note) counts as theirs too: it speaks to Pi.
+        // A write that is a person's (a `!` command the agent sees, a note) counts as theirs too: it speaks to the agent.
         const key = `${record.conversationId}:${String(record.entry)}`;
 
         if (
@@ -269,7 +269,7 @@ export class Attribution {
     }
 
     /**
-     * Who Pi works for in a conversation: the last person who wrote to it, or, for a subagent, whoever its parent worked
+     * Who the agent works for in a conversation: the last person who wrote to it, or, for a subagent, whoever its parent worked
      * for when it sent the subagent its last message.
      */
     requesterOf(id: ConversationId): string | undefined {

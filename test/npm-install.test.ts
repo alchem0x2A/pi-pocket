@@ -78,7 +78,7 @@ test("only the exact global npm root can update; local and npx installs show the
                 const blocked = await oldLauncher.check();
 
                 assert.equal(blocked.rollback, false);
-                assert.match(blocked.blockers.join("\n"), /Quit Pi Pocket and start it again/);
+                assert.match(blocked.blockers.join("\n"), /Quit Pia and start it again/);
                 await assert.rejects(oldLauncher.apply(), { status: 409 });
             } else {
                 assert.ok(status.blockers.some((line) => line.includes(command)));

@@ -1,4 +1,4 @@
-// Background tasks: commands Pi starts without waiting, read later, and stops; a message when one ends; across restarts.
+// Background tasks: commands the agent starts without waiting, read later, and stops; a message when one ends; across restarts.
 import {
     type App,
     cleanUp,
@@ -34,7 +34,7 @@ import { runningNow } from "../src/server/running.ts";
 
 const skip = existsSync("/proc/self/stat") ? false : "no /proc on this machine";
 
-/** Pi runs the background tool as the last message asks: `bg <json args>`. */
+/** the agent runs the background tool as the last message asks: `bg <json args>`. */
 const route: FauxResponseStep = (request) => {
     const { role, text } = lastText(request as never);
 
@@ -116,7 +116,7 @@ async function entries(id: ConversationId, kind: string): Promise<string[]> {
 }
 
 const userTexts = (id: ConversationId) => entries(id, "pi.user");
-/** Pi's answers, which say what the tool said. */
+/** the agent's answers, which say what the tool said. */
 const answers = async (id: ConversationId) => (await entries(id, "pi.assistant")).join("\n");
 
 const items = async (id: ConversationId): Promise<BackgroundTask[]> =>
@@ -176,7 +176,7 @@ function memo(): (range: ByteRange) => Promise<ByteRange> {
 }
 
 test(
-    "Pi starts a command in the background, reads it, and gets a message when it ends",
+    "the agent starts a command in the background, reads it, and gets a message when it ends",
     { skip },
     async () => {
         const id = await session();
@@ -188,7 +188,7 @@ test(
         const item = await one(id);
 
         assert.equal(item.status, "running");
-        assert.equal(item.requestedBy, owner(app).id, "Pi works for whom asked");
+        assert.equal(item.requestedBy, owner(app).id, "the agent works for whom asked");
 
         await until(async () => (await one(id)).status !== "running", "the command to end");
         const ended = await one(id);
@@ -198,14 +198,14 @@ test(
 
         await until(
             async () => (await userTexts(id)).some((text) => text.includes("[background] Task")),
-            "Pi's message about it",
+            "the agent's message about it",
         );
         const message = (await userTexts(id)).find((text) => text.includes("[background] Task"))!;
 
         assert.match(message, /exited with code 3/);
         assert.match(message, /<background-output>\\none\\ntwo\\n<\/background-output>/);
 
-        await until(() => !app.isBusy(id), "Pi to answer the message");
+        await until(() => !app.isBusy(id), "the agent to answer the message");
         assert.equal((await app.background.read(id, ended.id))?.text, "one\ntwo\n");
         assert.equal((await app.background.read(id, ended.id))?.text, "", "nothing new since");
     },
@@ -358,7 +358,7 @@ test(
         assert.equal((await one(id)).code, 0, "its exit code, from the wrapper's file");
         await until(
             async () => (await userTexts(id)).some((text) => text.includes("released")),
-            "Pi's message with its output",
+            "the agent's message with its output",
         );
     },
 );
@@ -403,7 +403,7 @@ test(
         await until(async () => (await one(id)).status === "exited", "its end");
         await until(
             async () => (await userTexts(id)).some((text) => text.includes("adopted")),
-            "Pi's message",
+            "the agent's message",
         );
     },
 );
@@ -431,7 +431,7 @@ test("a cut-off start that ran and ended is told with its exit code", { skip }, 
     assert.equal((await one(id)).code, 4);
     await until(
         async () => (await userTexts(id)).some((text) => text.includes("done early")),
-        "Pi's message, with its output",
+        "the agent's message, with its output",
     );
 });
 
@@ -443,7 +443,7 @@ test("a cut-off start with no process and no exit code is told as unknown", { sk
     await until(async () => (await one(id)).status === "lost", "the watch to give it up");
     await until(
         async () => (await userTexts(id)).some((text) => text.includes("unknown outcome")),
-        "Pi's message",
+        "the agent's message",
     );
 });
 
@@ -528,7 +528,7 @@ test(
         assert.equal(running(daemon), true);
         await until(
             async () => (await userTexts(id)).some((text) => text.includes(`pid ${daemon}`)),
-            "Pi told what it left",
+            "the agent told what it left",
         );
 
         await app.background.stop(id, item.id);
@@ -567,7 +567,7 @@ test("a daemon that ended of itself is no longer said to run", { skip }, async (
 });
 
 test(
-    "a command that writes faster than its log can be kept is stopped, and Pi is told why",
+    "a command that writes faster than its log can be kept is stopped, and the agent is told why",
     { skip },
     async () => {
         const id = await session();
@@ -589,9 +589,8 @@ test(
             assert.equal(app.background.alive(id, item), false);
             assert.match((await one(id)).why ?? "", /faster than its log can be kept/);
             await until(
-                async () =>
-                    (await userTexts(id)).some((text) => text.includes("stopped by Pi Pocket")),
-                "Pi told why",
+                async () => (await userTexts(id)).some((text) => text.includes("stopped by Pia")),
+                "the agent told why",
             );
         } finally {
             sizes.runaway = was;
@@ -675,7 +674,7 @@ test(
         const first = await app.background.start(id, { command: "sleep 300", notify: false });
 
         await app.background.start(id, { command: "sleep 300", notify: false });
-        // The status line and the rail show it after Pi's answer ends: the count comes from the task, not the run.
+        // The status line and the rail show it after the agent's answer ends: the count comes from the task, not the run.
         await until(() => listed() === 2, "2 listed");
         await app.background.stop(id, first.id);
         await until(() => listed() === 1, "1 listed");
@@ -789,7 +788,7 @@ test("a start cut off before its process is told, also after a restart", { skip 
     await until(async () => (await one(id)).status === "lost", "the watch to give it up");
     await until(
         async () => (await userTexts(id)).some((text) => text.includes("unknown outcome")),
-        "Pi's message",
+        "the agent's message",
     );
     assert.equal(
         (await app.background.read(id, (await one(id)).id))?.text,
@@ -904,7 +903,7 @@ test("a start cancelled while its environment is made runs nothing", { skip }, a
 });
 
 test(
-    "Pi's message quotes the command, and keeps tags and hidden values out",
+    "the agent's message quotes the command, and keeps tags and hidden values out",
     { skip },
     async () => {
         const id = await session();
@@ -957,7 +956,7 @@ test("a log that fails is told, not hidden behind the command's code", { skip },
         assert.equal((await one(id)).logFailed, 3);
         await until(
             async () => (await userTexts(id)).some((text) => text.includes("its log failed")),
-            "Pi told the log failed",
+            "the agent told the log failed",
         );
 
         // Without a message too: list and output say so.
@@ -967,7 +966,7 @@ test("a log that fails is told, not hidden behind the command's code", { skip },
             async () => (await items(id)).every((each) => each.status !== "running"),
             "end",
         );
-        await until(() => !app.isBusy(id), "Pi to answer");
+        await until(() => !app.isBusy(id), "the agent to answer");
         await say(id, `bg ${JSON.stringify({ action: "list" })}`);
         await say(id, `bg ${JSON.stringify({ action: "output", id: quiet.id })}`);
         assert.equal(
@@ -1091,7 +1090,7 @@ test("plan mode allows reading and stopping background tasks, not starting one",
     );
 });
 
-test("Pi's tool lists, reads, and stops its tasks", { skip }, async () => {
+test("the agent's tool lists, reads, and stops its tasks", { skip }, async () => {
     const id = await session();
 
     await say(

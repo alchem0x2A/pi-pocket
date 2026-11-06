@@ -106,7 +106,7 @@ const results = async (id: ConversationId) => {
     return view.messages.filter((message) => message.role === "toolResult");
 };
 
-test("sessions offer only the small set; PiP's explicit extension selection is unchanged", async () => {
+test("sessions and Pia use local tool discovery", async () => {
     const id = await newSession(app);
     const offered = await names(id);
 
@@ -122,11 +122,13 @@ test("sessions offer only the small set; PiP's explicit extension selection is u
     assert.ok((await agent(id)).deferred.some((tool) => tool.name === "edit"));
     assert.ok((await agent(id)).deferred.some((tool) => tool.name === "subagent"));
 
-    const pip = await app.pip.ensure(owner(app));
+    const pia = await app.pia.ensure(owner(app));
 
-    assert.ok((await names(pip)).includes("sessions"));
-    assert.ok(!(await names(pip)).includes("tool_search"));
-    assert.ok(!(await names(pip)).includes("bash"));
+    const assistantTools = await names(pia);
+
+    assert.ok(assistantTools.includes("sessions"));
+    assert.ok(assistantTools.includes("tool_search"));
+    assert.ok(assistantTools.includes("bash"));
 });
 
 test("catalog lists all eligible tools with compact summaries and stays stable when loading", async (t) => {
@@ -140,7 +142,7 @@ test("catalog lists all eligible tools with compact summaries and stays stable w
     assert.ok(listed.every((match) => match[2]!.split(/\s+/).length <= 5));
     assert.ok(listed.every((match) => match[2]!.length <= 80));
     assert.match(catalog, /`browser`: Browse and inspect websites/);
-    assert.match(catalog, /`request_restart`: Request Pi Pocket server restart/);
+    assert.match(catalog, /`request_restart`: Request Pia server restart/);
     assert.ok(!catalog.includes("`team`:"));
     assert.ok(!(await names(id)).includes("browser"));
     await say(app, id, 'call tool_load {"names":["browser"]}');

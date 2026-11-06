@@ -16,19 +16,19 @@ A linked session is an ordinary session. The session list shows it under the ses
 
 `start(source, { title?, message, model?, thinking?, cwd? }, key)` makes the session, and sends `message` to it as its first message. It returns `{ session, address }`: the id of the new session, and the source's address for it.
 
-- `cwd` selects an existing working folder using the same path rules as the folder picker (including `~`). Prefer an absolute path. A blank `cwd` counts as no `cwd`. A relative `cwd` resolves against the folder of the server process, not the folder of the source. The child loads that folder's project context and tools; the source stays in its own folder. A missing path or a file is rejected before a session is created. Since 0.19.0: an older Pi Pocket ignores `cwd` and uses the source's folder, so a gallery entry that needs it sets `minPocket` to `0.19.0`.
+- `cwd` selects an existing working folder using the same path rules as the folder picker (including `~`). Prefer an absolute path. A blank `cwd` counts as no `cwd`. A relative `cwd` resolves against the folder of the server process, not the folder of the source. The child loads that folder's project context and tools; the source stays in its own folder. A missing path or a file is rejected before a session is created. Since 0.19.0: an older Pia ignores `cwd` and uses the source's folder, so a gallery entry that needs it sets `minPocket` to `0.19.0`.
 - Without `title`, the title is the first line of the message.
 - `model` is `provider/modelId`. While the owner's list (Menu → Providers → Models for subagents) is empty, it must be the source's model. Once the list has models, it must be one of them, and the source's own model counts only when it is listed. Without `model`, the session uses the source's model if the list is empty or has it. If the list does not have it, the call is refused with an error that names the allowed models: the caller must choose one (the error is a 400 for a human route).
 - `send` refuses a session that runs on a model off the list (a person changed it, or the owner changed the list), when the list is not empty. A message from a linked session to the session that started it is a reply, not work: it goes whatever model that session runs on.
-- `thinking` can be any level, also one above the source's. Without it, the session uses the source's level. Pi Pocket lowers it to the highest level that the model has, or uses the lowest level of the model when it has none that low.
-- When a model cannot be used now, Pi Pocket refuses the call before it makes anything.
+- `thinking` can be any level, also one above the source's. Without it, the session uses the source's level. Pia lowers it to the highest level that the model has, or uses the lowest level of the model when it has none that low.
+- When a model cannot be used now, Pia refuses the call before it makes anything.
 
 ## Starts from a human page
 
 Since 0.16.0, a [conversation-bound route](routes.md#bind-a-source-conversation) gets `request.linkedSessions.start({ title?, message, model?, thinking?, cwd? }, key)` and `list()`. These methods act as the authenticated person and bound source, not `host.requesterOf(source)`. They have no source-id or actor parameter. They end with the request, so await each start in the handler.
 
 - The same team, source plan, turn, spend, allowed-model, and provider checks apply. No message is added to the source, and its requester is unchanged.
-- Explicit thinking must be a level that the chosen model has. It is rejected rather than silently lowered. Omitted thinking inherits the source's level, which Pi Pocket lowers to a level that the model has. Read `request.conversation.model` and `thinkingLevel`, with `host.modelInfo("provider/modelId")`, to show the effective choices.
+- Explicit thinking must be a level that the chosen model has. It is rejected rather than silently lowered. Omitted thinking inherits the source's level, which Pia lowers to a level that the model has. Read `request.conversation.model` and `thinkingLevel`, with `host.modelInfo("provider/modelId")`, to show the effective choices.
 - Source folder/model/thinking changes while a start waits cause a 409. Other inherited agent settings are read fresh in the creation transaction. The target cannot be reconfigured to substitute another model, level, or folder before its first message is admitted.
 - Keys share the existing receipt store. Prefix them with the module's name and keep one stable key per logical role start. A receipt made for another clicking person is a 409, never permission to act as that person.
 - `list()` returns `HumanLinkedSession[]`: the existing address and audience-safe metadata, plus a `conversationId` visible to this person. Use `pocket.openConversation(item.conversationId)` or a start's `session` to open it. Do not put these ids in a model transcript. The host's `list(source)` still gives opaque addresses only.
@@ -46,7 +46,7 @@ Check for `web.conversationRoute` at runtime and set gallery `minPocket: "0.16.0
 
 ## List the sessions
 
-`list(source)` gives the sessions linked to the source, at any distance, that the person whom Pi works for can see.
+`list(source)` gives the sessions linked to the source, at any distance, that the person whom the agent works for can see.
 
 - Each one has an `address` of the source's own, so no session's id goes into the source's transcript.
 - Each one has its title, folder, and state only when all the people who see the source also see it.
@@ -55,13 +55,13 @@ Addresses belong to the session that has them. A fork starts with none, so it le
 
 ## Who it acts for
 
-`start` and `send` act for the person whom Pi works for in the source. They need that person's access and right to steer. To start a session, that person must also have access to all sessions.
+`start` and `send` act for the person whom the agent works for in the source. They need that person's access and right to steer. To start a session, that person must also have access to all sessions.
 
-Pi Pocket refuses them while the source is in plan mode, past a spend limit, or while another person has the turn. `send` also needs the turn, and room under the spend limit, in the target session.
+Pia refuses them while the source is in plan mode, past a spend limit, or while another person has the turn. `send` also needs the turn, and room under the spend limit, in the target session.
 
 ## Limits of a team
 
-Pi Pocket keeps a team small. Past these limits ([Limits](reference/limits.md#linked-sessions)), it refuses the call with a plain error:
+Pia keeps a team small. Past these limits ([Limits](reference/limits.md#linked-sessions)), it refuses the call with a plain error:
 
 - A linked session can send messages to the other sessions of its team. It cannot start sessions.
 - Since 0.19.0, no count limits the sessions that a session starts. Before 0.19.0, a session started a limited number.
@@ -73,6 +73,6 @@ Pi Pocket keeps a team small. Past these limits ([Limits](reference/limits.md#li
 
 ## Replays
 
-Give a `key` that stays the same when the call runs again: `${api.taskId}:${api.callId}`. A start or a send with a key that Pi Pocket saw before returns what the first call returned. So a replay makes one session, and sends one message. Pi Pocket keeps the record of a key for a limited time, and for a limited number of calls ([limits](reference/limits.md#linked-sessions)).
+Give a `key` that stays the same when the call runs again: `${api.taskId}:${api.callId}`. A start or a send with a key that Pia saw before returns what the first call returned. So a replay makes one session, and sends one message. Pia keeps the record of a key for a limited time, and for a limited number of calls ([limits](reference/limits.md#linked-sessions)).
 
-The errors say what is wrong. They do not tell Pi what to do about it: your tool tells Pi that.
+The errors say what is wrong. They do not tell the agent what to do about it: your tool tells the agent that.

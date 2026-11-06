@@ -148,7 +148,7 @@ test("the module has both tools, and the guide says when to use each", async () 
     assert.match(withBoth, /only a call you make directly shows a card/i);
     assert.match(withBoth, /schema, optional, is a string such as "v1"/);
     assert.match(withBoth, /focus alone does not count/);
-    // A session without the tool (PiP's) is not told about it.
+    // A session without the tool (Pia's) is not told about it.
     const without = await render(["artifact"]);
 
     assert.doesNotMatch(without, /artifact_inline/);

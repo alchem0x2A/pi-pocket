@@ -87,7 +87,7 @@ function Usage({ row, max }) {
     ><span></span></span>`;
 }
 
-/** What Pi spent, by person and by session, with the owner's limits. */
+/** What the agent spent, by person and by session, with the owner's limits. */
 export function SpendSheet() {
     const owner = store.state.me?.role === "owner";
     const [data, setData] = useState(null);
@@ -104,11 +104,11 @@ export function SpendSheet() {
         ${
             data?.total !== undefined &&
             html`<p class="spend-total">
-                <span>Pi spent</span> <strong>${money(data.total)}</strong> <span>on this server so far.</span>
+                <span>the agent spent</span> <strong>${money(data.total)}</strong> <span>on this server so far.</span>
             </p>`
         }
         <p class="muted small">
-            Spend goes to whoever asked for the work. Past a limit, Pi takes no new messages there, a run that crosses it stops, and subagents' reports wait until it is raised.
+            Spend goes to whoever asked for the work. Past a limit, the agent takes no new messages there, a run that crosses it stops, and subagents' reports wait until it is raised.
         </p>
         ${
             data &&
@@ -134,7 +134,7 @@ export function SpendSheet() {
                 <div class="sheet-list">
                     ${data.sessions.map(
                         (session) => html`<div class="spend-row" key=${session.id}>
-                            <span class="grow">${session.id === store.state.pip?.id ? assistantName() : session.title}</span>
+                            <span class="grow">${session.id === store.state.pia?.id ? assistantName() : session.title}</span>
                             <${Usage} row=${session} max=${sessionsMax} />
                             <span class="mono">${money(session.spent)}</span>
                             <${SpendLimit}

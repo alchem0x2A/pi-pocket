@@ -1,15 +1,15 @@
 # Rate-limit wait (design for 0.21.0)
 
-Status: built for 0.21.0 (see "What was built differently" at the end). Facts were checked in this checkout (Pi Pocket 0.20.1, `@earendil-works/pi-durable` 1.3.0, `@earendil-works/pi-ai` 1.3.0). Things not checked against a live provider are marked **(verify)**.
+Status: built for 0.21.0 (see "What was built differently" at the end). Facts were checked in this checkout (Pia 0.20.1, `@earendil-works/pi-durable` 1.3.0, `@earendil-works/pi-ai` 1.3.0). Things not checked against a live provider are marked **(verify)**.
 
-The request: Pi Pocket should handle 429s and similar errors well. A run that hits a limit should wait, check smartly, and continue by itself when the provider answers again.
+The request: Pia should handle 429s and similar errors well. A run that hits a limit should wait, check smartly, and continue by itself when the provider answers again.
 
 ## 1. What happens today
 
-Two layers exist. Pi Pocket adds no layer of its own.
+Two layers exist. Pia adds no layer of its own.
 
-1. **pi-ai provider retry** (`pi-ai/dist/utils/provider-retry.js`). It is off. `maxRetries` is undefined, so it is 0 (`provider-retry.js` `options.maxRetries ?? 0`; Pi's `getProviderRetrySettings` gives no default, `settings-defaults.js` line 22). When on, it reads `retry-after-ms` and `retry-after`, and fails at once for a delay over `maxRetryDelayMs` (60 s, `provider-retry.js` line 1 and 23). The failure text is "Server requested Ns retry delay (max: 60s). …".
-2. **Pi Durable generation retry** (`pi-durable/dist/harness/generation.js` lines 386-411). It reads only the error text. `isRetryableAssistantError` (`pi-ai/dist/utils/retry.js` line 193) decides. The policy is `DEFAULT_RETRY_POLICY` (`harness/agent.js` lines 4-9): 3 retries, 2 s, 4 s, 8 s (`retryDelayMs`, `retry.js` line 99), at most 60 s each. Pi Pocket passes Pi's retry settings as a live getter (`app.ts` line 1069), so a person can change these numbers in `~/.pi/agent/settings.json`, but never to hours.
+1. **pi-ai provider retry** (`pi-ai/dist/utils/provider-retry.js`). It is off. `maxRetries` is undefined, so it is 0 (`provider-retry.js` `options.maxRetries ?? 0`; the agent's `getProviderRetrySettings` gives no default, `settings-defaults.js` line 22). When on, it reads `retry-after-ms` and `retry-after`, and fails at once for a delay over `maxRetryDelayMs` (60 s, `provider-retry.js` line 1 and 23). The failure text is "Server requested Ns retry delay (max: 60s). …".
+2. **Pi Durable generation retry** (`pi-durable/dist/harness/generation.js` lines 386-411). It reads only the error text. `isRetryableAssistantError` (`pi-ai/dist/utils/retry.js` line 193) decides. The policy is `DEFAULT_RETRY_POLICY` (`harness/agent.js` lines 4-9): 3 retries, 2 s, 4 s, 8 s (`retryDelayMs`, `retry.js` line 99), at most 60 s each. Pia passes the agent's retry settings as a live getter (`app.ts` line 1069), so a person can change these numbers in `~/.pi/agent/settings.json`, but never to hours.
 
 While Durable waits, `live.generation.retry = { at, error }` is set. `projection.ts` line 599 sends it. `web/transcript.js` lines 2484-2535 show "Retrying in Ns" and the error text. The wait is a durable `retry` phase (`generation.js` line 132: `runtime.sleep(until)`), so it survives a restart.
 
@@ -25,35 +25,35 @@ While Durable waits, `live.generation.retry = { at, error }` is set. `projection
 A failed run is shown in all the same ways, with the reset time often lost:
 
 - Session list: `#failed` (`app.ts` lines 870-880, 2037) gives the "Failed" square (`web/sessions.js` line 288).
-- Push: "Pi stopped with an error" (`alerts.ts` `#pushDone`, line 88).
+- Push: "the agent stopped with an error" (`alerts.ts` `#pushDone`, line 88).
 - Notice: `No answer (model_error): …` (`commands.ts` line 1133).
 - The person must send the message again. "Retry" forks the session (`commands.ts` lines 1930-2000); there is no in-place continue.
 
 Other callers:
 
-- **Subagents** treat a limit as a model failure (`extensions/subagents.ts` lines 265-272, `PROVIDER_TROUBLE`). They tell Pi to stop and tell the person (`MODEL_FAILED`).
-- **Schedules, webhooks, PR watches, repo watches, linked sessions, and PiP** all send through `Commands.submit`. They get the same run, so the same failure. PiP's follow reports the failure at the end.
-- **Titles** (`titles.ts` line 116) and **PiP summaries** (`pip-compact.ts` line 402) call `completeSimple` and fail quietly or loudly on their own.
+- **Subagents** treat a limit as a model failure (`extensions/subagents.ts` lines 265-272, `PROVIDER_TROUBLE`). They tell the agent to stop and tell the person (`MODEL_FAILED`).
+- **Schedules, webhooks, PR watches, repo watches, linked sessions, and Pia** all send through `Commands.submit`. They get the same run, so the same failure. Pia's follow reports the failure at the end.
+- **Titles** (`titles.ts` line 116) call `completeSimple`. Pia uses ordinary session compaction and the required `compaction-review` extension.
 
 ## 2. How a provider says when it is available again
 
 What each provider sends **(verify each with a captured response; the first two rows are not confirmed in this checkout)**:
 
-| Provider                      | Signals                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anthropic API key             | `retry-after` (seconds); `anthropic-ratelimit-{requests,tokens,input-tokens,output-tokens}-reset` (RFC 3339)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Anthropic Claude subscription | `anthropic-ratelimit-unified-status`, `-unified-reset` (epoch seconds), `-unified-5h-reset`, `-unified-7d-reset`, `-unified-representative-claim`. These are what Claude Code reads. Pi Pocket's own usage page reads `GET https://api.anthropic.com/api/oauth/usage` (`resets_at` per window; confirmed in `~/.pi-pocket/extensions/subscription-usage.ts` line 312) Read as built: a rejected `-unified-5h-status` waits for `-unified-5h-reset`; a rejected `-unified-7d-status` is days away, so it does not wait and fails with `-unified-7d-reset` in its text (tested against real limits in PR #128 by @piromagnus). |
-| OpenAI API                    | `retry-after`; `x-ratelimit-reset-requests` and `-tokens` (durations such as `6m0s`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ChatGPT sign-in (Codex)       | The 429 body has `resets_at` (epoch seconds) and `resets_in_seconds`. pi-ai reads `resets_at` into the text "Try again in ~N min" (confirmed, `openai-codex-responses.js` lines 1250-1256). Response headers `x-codex-primary-*` and `-secondary-*` **(verify)**. A usage read costs a spawned `codex app-server` today Read as built: a window with `x-codex-<primary or secondary>-used-percent` of 100 waits for its `-reset-at` or `-reset-after-seconds`; if its `-window-minutes` is over 300 it is a weekly limit, and it does not wait (PR #128).                                                                    |
-| OpenCode Go                   | Error type `GoUsageLimitError` and the text "Monthly usage limit reached". Usage endpoint `GET https://opencode.ai/zen/go/v1/usage` has `resetsAt` for the rolling, weekly, and monthly windows (confirmed, `subscription-usage.ts` line 454)                                                                                                                                                                                                                                                                                                                                                                                |
-| OpenRouter                    | Sometimes `retry-after`; a 402 for credits (not a wait)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Google                        | `RetryInfo` `retryDelay` in the body                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Provider                      | Signals                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anthropic API key             | `retry-after` (seconds); `anthropic-ratelimit-{requests,tokens,input-tokens,output-tokens}-reset` (RFC 3339)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Anthropic Claude subscription | `anthropic-ratelimit-unified-status`, `-unified-reset` (epoch seconds), `-unified-5h-reset`, `-unified-7d-reset`, `-unified-representative-claim`. These are what Claude Code reads. Pia's own usage page reads `GET https://api.anthropic.com/api/oauth/usage` (`resets_at` per window; confirmed in `~/.pi-pocket/extensions/subscription-usage.ts` line 312) Read as built: a rejected `-unified-5h-status` waits for `-unified-5h-reset`; a rejected `-unified-7d-status` is days away, so it does not wait and fails with `-unified-7d-reset` in its text (tested against real limits in PR #128 by @piromagnus). |
+| OpenAI API                    | `retry-after`; `x-ratelimit-reset-requests` and `-tokens` (durations such as `6m0s`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ChatGPT sign-in (Codex)       | The 429 body has `resets_at` (epoch seconds) and `resets_in_seconds`. pi-ai reads `resets_at` into the text "Try again in ~N min" (confirmed, `openai-codex-responses.js` lines 1250-1256). Response headers `x-codex-primary-*` and `-secondary-*` **(verify)**. A usage read costs a spawned `codex app-server` today Read as built: a window with `x-codex-<primary or secondary>-used-percent` of 100 waits for its `-reset-at` or `-reset-after-seconds`; if its `-window-minutes` is over 300 it is a weekly limit, and it does not wait (PR #128).                                                              |
+| OpenCode Go                   | Error type `GoUsageLimitError` and the text "Monthly usage limit reached". Usage endpoint `GET https://opencode.ai/zen/go/v1/usage` has `resetsAt` for the rolling, weekly, and monthly windows (confirmed, `subscription-usage.ts` line 454)                                                                                                                                                                                                                                                                                                                                                                          |
+| OpenRouter                    | Sometimes `retry-after`; a 402 for credits (not a wait)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Google                        | `RetryInfo` `retryDelay` in the body                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
-**Can the information reach Pi Pocket today?**
+**Can the information reach Pia today?**
 
 - Error **text**: yes. pi-ai puts the SDK's message, with the body, in `AssistantMessage.errorMessage` (cut at 4000 characters, `error-body.js`). Pi Durable gets only this.
 - Error **headers**: no. The Anthropic and OpenAI SDKs throw on a 429 before `onResponse` runs (`anthropic-messages.js` line 478 is after the request). Only Codex calls `onResponse` before its ok check (`openai-codex-responses.js` line 284).
-- **The smallest way, in Pi Pocket alone:** `StreamOptions.fetch` (`pi-ai/dist/types.d.ts` line 57) is used by the Anthropic, OpenAI (completions and responses), Codex, and Mistral adapters. Pi Pocket already wraps `models.streamSimple` in core in two places: `timing.ts` (`measureModelStreams`, `app.ts` line 598) and `installRequestShaping` (`app.ts` line 3074). A third wrapper can pass a `fetch` that records status and headers of each response, and it can read the error text. Google and Bedrock do not take it: for those, text and backoff only.
+- **The smallest way, in Pia alone:** `StreamOptions.fetch` (`pi-ai/dist/types.d.ts` line 57) is used by the Anthropic, OpenAI (completions and responses), Codex, and Mistral adapters. Pia already wraps `models.streamSimple` in core in two places: `timing.ts` (`measureModelStreams`, `app.ts` line 598) and `installRequestShaping` (`app.ts` line 3074). A third wrapper can pass a `fetch` that records status and headers of each response, and it can read the error text. Google and Bedrock do not take it: for those, text and backoff only.
 - **Usage endpoints** give a reset time without spending tokens. Core does not call them. An extension can (section 4).
 
 ## 3. Proposed design
@@ -66,7 +66,7 @@ Why this works with no Pi Durable change:
 
 - A restart replays the `request` phase (`generation.js` `request`: it converts a partial, then asks again). The replay sends the request again, gets the limit again, and waits again. So the wait survives a restart. No wait state is the source of truth.
 - Stop (`conversation.abort`, Esc twice) aborts `options.signal`. The wrapper ends its wait at once.
-- Subagents, linked sessions, PiP, schedules, webhooks, and watches all use `Commands.submit`, so all use the gate with no change. A subagent just takes longer. Its parent sees a subagent at work.
+- Subagents, linked sessions, Pia, schedules, webhooks, and watches all use `Commands.submit`, so all use the gate with no change. A subagent just takes longer. Its parent sees a subagent at work.
 
 The wait is **not** Durable's `retry` phase. That phase is the better home for a long wait (checkpointed `until`, the existing "Retrying" display). It needs a Pi Durable change. See section 5.
 
@@ -101,7 +101,7 @@ Rules:
 - **Transcript live line:** "Waiting for Claude's limit · resets 14:05 (in 2 h 10 m)", with the reason line (the provider's text, cut to 300 characters, shown as text), **Retry now** and **Stop**. Stop is the existing abort. Retry now ends the wait of the key and sends the canary at once. Any person who may see and steer the session may press it.
 - **Session list:** a new square shape `limited` (label "Waiting for a usage limit"), `data-state="limited"` on `session-row`. It sits after "waiting for approval" and before "working". Home's Jump back in uses the same function. The theme surface reference gets the new state.
 - **Subagents board:** a subagent in a wait shows "waiting for limit".
-- **Notifications:** one push when a wait starts that will take over 10 minutes (a new push kind `limit`), and the usual "Pi finished" push when the run ends. When the gate gives up, the usual failure push and notice follow, now with the reset time in the text.
+- **Notifications:** one push when a wait starts that will take over 10 minutes (a new push kind `limit`), and the usual "the agent finished" push when the run ends. When the gate gives up, the usual failure push and notice follow, now with the reset time in the text.
 - **Server data:** `ClientLive.limit = { key, provider, kind, until?, reason, probes }` (projection). The session list gets `limited: until`.
 - A conversation is found from the stream by `options.sessionId`, by reading `ProviderDoc` of the busy conversations once when a wait starts. A subagent maps to its session with `rootOf`.
 
@@ -109,7 +109,7 @@ Rules:
 
 It queues like a message to any busy run. The live line says "Your message goes after the wait. Stop to cancel." It never counts as Retry now.
 
-### Titles and PiP summaries
+### Titles and Pia summaries
 
 They must not wait for hours. They pass an option `pocketNoWait: true`, which the wrapper reads and removes. They fail as today. Everything else waits (Durable's generation and compaction streams).
 
@@ -138,7 +138,7 @@ They must not wait for hours. They pass an option `pocketNoWait: true`, which th
 
 ## 5. What needs another package
 
-**Pi Pocket alone (all of v1):** the `fetch` wrapper, the classifier, the gate, the UI, the push.
+**Pia alone (all of v1):** the `fetch` wrapper, the classifier, the gate, the UI, the push.
 
 **Wanted in pi-ai (not required):**
 
@@ -165,7 +165,7 @@ They must not wait for hours. They pass an option `pocketNoWait: true`, which th
 
 ## 7. Decisions needed
 
-1. **In-stream wait now (Pi Pocket alone), or wait for a Pi Durable change?** Recommend: in-stream now. Ask for the Pi Durable hook later.
+1. **In-stream wait now (Pia alone), or wait for a Pi Durable change?** Recommend: in-stream now. Ask for the Pi Durable hook later.
 2. **Wait for subscription windows up to 6 hours, and for no-time errors up to 30 minutes?** Recommend: yes, both, with `limitWaitHours` in the Providers sheet. Weekly and monthly limits fail at once with the reset time.
 3. **On by default?** Recommend: yes. A wait spends nothing, and the owner can turn it off.
 4. **Gate key `provider/modelId` or `provider`?** Recommend: `provider/modelId`.
@@ -183,7 +183,7 @@ Separate commits (C17: core first, extension last):
 
 1. This design file.
 2. `limits.ts`: classifier only, with table tests on real error strings from pi-ai and the providers. Header capture is not wired yet.
-3. The gate and the stream wrapper, the `pocketNoWait` option in `titles.ts` and `pip-compact.ts`, and tests with the faux provider: 429 then success, Stop during a wait, a restart during a wait, 10 sessions with one canary, give up after the maximum.
+3. The gate and stream wrapper, the `pocketNoWait` option in `titles.ts`, and tests with the faux provider: 429 then success, Stop during a wait, a restart during a wait, 10 sessions with one canary, and give up after the maximum.
 4. Projection, session list `limited`, the Retry now route, the live line and the square, and the theme surface docs.
 5. Setting `limitWaitHours` and the Providers sheet field. Push kind `limit`. The cache file.
 6. Subagents board text, and the docs (`architecture.md`, `features.md`, `map.md`).

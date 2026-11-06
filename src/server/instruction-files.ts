@@ -1,5 +1,5 @@
 /**
- * Pi's context files: the files its resource loader reads from the agent directory and from each session's folder chain.
+ * the agent's context files: the files its resource loader reads from the agent directory and from each session's folder chain.
  * The owner can see and edit these files from Settings. Memory lessons are durable documents in `pocket.sqlite`, not files.
  */
 import {
@@ -17,6 +17,7 @@ import { join, resolve } from "node:path";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
 import { HttpError } from "./errors.ts";
+import { piaAgentsFile } from "./pia.ts";
 
 const MAX_FILE = 512 * 1024;
 
@@ -60,15 +61,11 @@ function filesFor(app: PocketApp, user: User): Map<string, string> {
             // A removed or unreadable session folder does not hide the other instruction files.
         }
 
-        // Let the owner create a top-level project file when Pi has no context file there yet.
+        // Let the owner create a top-level project file when the agent has no context file there yet.
         add(join(resolve(cwd), "AGENTS.md"));
     }
 
-    const piaFile = app.pip.profile().agentsFile;
-
-    if (app.pip.profile().mode === "pia") {
-        add(piaFile);
-    }
+    add(piaAgentsFile(app.dataDir));
 
     return files;
 }
@@ -96,7 +93,7 @@ function fileView(path: string, loaded: string): InstructionFile {
     }
 }
 
-/** The owner's memory database path and each context file Pi can load from current session folders. */
+/** The owner's memory database path and each context file the agent can load from current session folders. */
 export function instructionFiles(app: PocketApp, user: User) {
     const files = [...filesFor(app, user)]
         .map(([path, content]) => fileView(path, content))

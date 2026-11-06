@@ -62,11 +62,11 @@ function known(zone: string): boolean {
     }
 }
 
-// It returns `output`, so it needs version 2 of the extension API: Pi Pocket 0.18 says so, and does not load it.
+// It returns `output`, so it needs version 2 of the extension API: Pia 0.18 says so, and does not load it.
 export const pocketApi = 2;
 
 export default function createClock(_host: unknown, web: Web) {
-    // `/clock-zone` shows the session's time zone, and `/clock-zone Europe/Berlin` sets it, without asking Pi.
+    // `/clock-zone` shows the session's time zone, and `/clock-zone Europe/Berlin` sets it, without asking the agent.
     web.command("clock-zone", {
         description: "Show or set this session's time zone for the clock",
         args: "[zone]",

@@ -26,7 +26,7 @@ const WIDTH_KEY = "pocket.filesWidth";
 /** Tree and viewer side by side from this width of the tile; one at a time below it. */
 const SIDE_BY_SIDE = 600;
 
-/** The tile is for people who can steer: the viewer reads files as Pi would. */
+/** The tile is for people who can steer: the viewer reads files as the agent would. */
 export const filesAvailable = () => canSteer() && store.state.conversationId !== null;
 
 /** Show or hide the tile. It takes the Browser and People panels' place. */
@@ -670,7 +670,7 @@ export function FilesPanel({ leaving = false }) {
     const { filesTab, view, server } = store.state;
     const root = view.agent?.cwd ?? view.conversation?.cwd ?? "";
     const { changes } = useChanges(true);
-    // Pi's edits git does not list count too: outside a repository, they are all there is.
+    // the agent's edits git does not list count too: outside a repository, they are all there is.
     const count = changes ? changes.files.length + changes.piOnly.length : 0;
 
     const beside = panelsBeside();

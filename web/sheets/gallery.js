@@ -1,5 +1,5 @@
 // The extension gallery: drop-ins other people wrote, from a reviewed index. Browse and search them, read
-// one's code before it is installed, install it (off until turned on), ask Pi to
+// one's code before it is installed, install it (off until turned on), ask the agent to
 // review a drop-in, turn it on, update it with a diff, remove it; and share your own as a draft index entry. The
 // owner's alone; the server side is src/server/gallery.ts.
 //
@@ -490,7 +490,7 @@ export function GallerySheet({
                                       <span>Everything is up to date.</span>`
                                 : needle || tag
                                   ? "Nothing matches. Try other words, or All."
-                                  : "The index has nothing for this Pi Pocket yet."
+                                  : "The index has nothing for this Pia yet."
                         }
                     </div>`
                 }
@@ -515,7 +515,7 @@ export function GallerySheet({
                         ${
                             hidden.incompatible > 0 &&
                             html`<p class="muted small">
-                                ${plural(hidden.incompatible, "entry")} need a newer Pi Pocket.
+                                ${plural(hidden.incompatible, "entry")} need a newer Pia.
                             </p>`
                         }
                         ${
@@ -593,8 +593,8 @@ function Declares({ declares }) {
 }
 
 /**
- * Ask Pi to review an installed extension: a new session in the drop-in folder, in plan mode, with the review prompt.
- * Pi reads code that may hold instructions to it: without plan mode, which blocks its edits and commands that change
+ * Ask the agent to review an installed extension: a new session in the drop-in folder, in plan mode, with the review prompt.
+ * the agent reads code that may hold instructions to it: without plan mode, which blocks its edits and commands that change
  * things, the review is not sent.
  */
 async function askForReview(name) {
@@ -622,7 +622,7 @@ async function askForReview(name) {
     navigate(id);
     notify(
         "info",
-        "Pi reviews it in plan mode: it reads the files, and plan mode keeps it from changing them.",
+        "the agent reviews it in plan mode: it reads the files, and plan mode keeps it from changing them.",
     );
 }
 
@@ -694,10 +694,10 @@ function Adds({ declares }) {
         ...(declares.wraps ?? []).map((wrap) => `wraps ${wrap}`),
     ].filter(Boolean);
     const rows = [
-        ["Tools for Pi", tools, true],
+        ["Tools for the agent", tools, true],
         ["Commands", declared(declares, "commands"), true],
         ["In the app", app, false],
-        ["Changes to Pi", turns, false],
+        ["Changes to the agent", turns, false],
     ].filter(([, items]) => items.length > 0);
 
     return html`<section class="ext-adds">
@@ -848,7 +848,7 @@ export function GalleryEntrySheet({ name, listing, embedded = false }) {
         View source
     </button>`;
     const askPi = html`<button class="button small" disabled=${busy} onClick=${review}>
-        <${Icon} name="sparkle" size=${14} /> Ask Pi to review
+        <${Icon} name="sparkle" size=${14} /> Ask the agent to review
     </button>`;
 
     return html`<${EntryFrame} title=${title} embedded=${embedded}>
@@ -924,8 +924,8 @@ export function GalleryEntrySheet({ name, listing, embedded = false }) {
                               title: "Look it over",
                               text:
                                   installed === null
-                                      ? "Read its code now, or once it is installed, have Pi review it in plan mode, where Pi cannot change anything."
-                                      : "Read its code, or have Pi review it in plan mode, where Pi cannot change anything.",
+                                      ? "Read its code now, or once it is installed, have the agent review it in plan mode, where the agent cannot change anything."
+                                      : "Read its code, or have the agent review it in plan mode, where the agent cannot change anything.",
                               now: installed !== null,
                               actions: html`${source} ${installed && askPi}`,
                           },
@@ -967,7 +967,7 @@ export function GalleryEntrySheet({ name, listing, embedded = false }) {
             <${EntryFacts}
                 entry=${entry}
                 installed=${installed}
-                needs=${entry && `Pi Pocket ${entry.minPocket} or newer · extension API ${entry.pocketApi}`}
+                needs=${entry && `Pia ${entry.minPocket} or newer · extension API ${entry.pocketApi}`}
             />
             <${Files} files=${files} />
             <div class="group">
@@ -1425,7 +1425,7 @@ export function GalleryShareSheet({ file }) {
 
     return html`<${Sheet} title=${`Share ${shareName}`} onClose=${closeSheet} wide=${true} className="gallery">
         <p class="muted small">
-            To share it, add its entry to the gallery's index with a pull request. Pi Pocket makes no GitHub calls: you put its files on GitHub and open the pull request yourself.
+            To share it, add its entry to the gallery's index with a pull request. Pia makes no GitHub calls: you put its files on GitHub and open the pull request yourself.
         </p>
         ${
             data.problems.length > 0

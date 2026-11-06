@@ -1,4 +1,4 @@
-// Pi's skills: the places a session finds them, which of a name wins, project trust, and that it matches Pi's CLI.
+// the agent's skills: the places a session finds them, which of a name wins, project trust, and that it matches the agent's CLI.
 import {
     type App,
     cleanUp,
@@ -42,7 +42,7 @@ import {
     type TrustChoice,
 } from "../src/server/skills.ts";
 
-/** The system prompt of the newest request to Pi, its sections as JSON. */
+/** The system prompt of the newest request to the agent, its sections as JSON. */
 let prompt = "";
 
 const route: FauxResponseStep = (context) => {
@@ -76,9 +76,9 @@ function skill(folder: string, name: string, description = `The ${name} skill.`)
 }
 
 /**
- * A home folder with Pi's folder in it, and a git repository in it whose session folder is `repo/app`. Skills in every
+ * A home folder with the agent's folder in it, and a git repository in it whose session folder is `repo/app`. Skills in every
  * place: `.agents/skills` above the repository (never read), in it, and in the session's folder; the project's
- * `.pi/skills`; a folder named in Pi's settings; Pi's `skills/`; and the home folder's `.agents/skills`.
+ * `.pi/skills`; a folder named in the agent's settings; the agent's `skills/`; and the home folder's `.agents/skills`.
  */
 function fixture() {
     const base = realpathSync(mkdtempSync(join(root, "skills-")));
@@ -114,7 +114,7 @@ const names = (cwd: string, sources: SkillSources) =>
         .map((each) => each.name)
         .sort();
 
-test("a project's .agents/skills load only when Pi trusts the project", () => {
+test("a project's .agents/skills load only when the agent trusts the project", () => {
     const { agentDir, repo, cwd, sources } = fixture();
     const always: SkillSources = { ...sources, defaultProjectTrust: "always" };
     const never: SkillSources = { ...sources, defaultProjectTrust: "never" };
@@ -122,12 +122,12 @@ test("a project's .agents/skills load only when Pi trusts the project", () => {
     const has = (list: string[]) => projectOnes.every((name) => list.includes(name));
     const lacks = (list: string[]) => projectOnes.every((name) => !list.includes(name));
 
-    // Nobody decided: Pi would ask, and Pi Pocket cannot. The rest still load.
+    // Nobody decided: the agent would ask, and Pia cannot. The rest still load.
     assert.ok(lacks(names(cwd, sources)));
     assert.deepEqual(names(cwd, sources), ["everywhere", "from-settings", "pi-project", "pi-user"]);
     assert.ok(has(names(cwd, always)), "defaultProjectTrust: always trusts an undecided project");
     assert.ok(lacks(names(cwd, never)));
-    // Told no, as by defaultProjectTrust "never", its .pi/skills stay out too, as in Pi.
+    // Told no, as by defaultProjectTrust "never", its .pi/skills stay out too, as in the agent.
     assert.ok(!names(cwd, never).includes("pi-project"));
 
     // A decision for the repository counts for the folders in it, and wins over the default.
@@ -156,7 +156,7 @@ test("a skill linked into two places is listed once", () => {
     assert.equal(names(cwd, sources).filter((name) => name === "linked").length, 1);
 });
 
-/** The skills Pi's CLI loads in `cwd`: its resource loader, with `home` as the home folder. */
+/** The skills the agent's CLI loads in `cwd`: its resource loader, with `home` as the home folder. */
 async function cliSkills(cwd: string, home: string, agentDir: string, trusted: boolean) {
     const before = process.env.HOME;
 
@@ -178,7 +178,7 @@ async function cliSkills(cwd: string, home: string, agentDir: string, trusted: b
     }
 }
 
-test("a session has the skills Pi's CLI has in the same folder, the same one of each name", async () => {
+test("a session has the skills the agent's CLI has in the same folder, the same one of each name", async () => {
     const { home: own, agentDir, repo, cwd, extra, sources } = fixture();
     const found = (skills: { name: string; filePath: string }[]) =>
         skills
@@ -187,12 +187,20 @@ test("a session has the skills Pi's CLI has in the same folder, the same one of 
 
     writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ skills: [extra] }));
     // Names in several places, so the comparison covers which one wins.
-    skill(join(own, ".agents", "skills"), "pi-user", "The home folder's, shadowed by Pi's own.");
-    skill(join(agentDir, "skills"), "from-settings", "Pi's folder's, shadowed by the settings'.");
+    skill(
+        join(own, ".agents", "skills"),
+        "pi-user",
+        "The home folder's, shadowed by the agent's own.",
+    );
+    skill(
+        join(agentDir, "skills"),
+        "from-settings",
+        "the agent's folder's, shadowed by the settings'.",
+    );
     skill(join(repo, ".agents", "skills"), "here", "The repository's, shadowed by the nearer one.");
     skill(join(cwd, ".agents", "skills"), "pi-project", "Shadowed by the project's .pi/skills.");
 
-    // Untrusted, the CLI skips the project's .pi/skills too, which Pi Pocket keeps: compare without it.
+    // Untrusted, the CLI skips the project's .pi/skills too, which Pia keeps: compare without it.
     const untrusted = loadSessionSkills(cwd, sources).filter((each) => each.name !== "pi-project");
 
     assert.deepEqual(found(untrusted), found(await cliSkills(cwd, own, agentDir, false)));
@@ -234,7 +242,7 @@ test("a session lists them as /skill: commands and in its system prompt", async 
     assert.match((await modelTexts(app, id)).join("\n"), /<skill name=\\"here\\" location=/);
 });
 
-/** Pi's own answers to "trust this project?", from the CLI's code (the package does not export it). */
+/** the agent's own answers to "trust this project?", from the CLI's code (the package does not export it). */
 async function piTrustOptions(cwd: string) {
     const index = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
     const manager = (await import(
@@ -249,7 +257,7 @@ async function piTrustOptions(cwd: string) {
     return manager.getProjectTrustOptions(cwd);
 }
 
-test("each answer saves what Pi's /trust saves, and decides which skills load", async () => {
+test("each answer saves what the agent's /trust saves, and decides which skills load", async () => {
     const { cwd, sources } = fixture();
     const options = await piTrustOptions(cwd);
     const piLabel: Record<TrustChoice, (label: string) => boolean> = {
@@ -300,7 +308,7 @@ test("a folder reached through a link is trusted as the folder it is", () => {
     assert.deepEqual(readProjectTrust(cwd, sources).saved, { path: repo, trusted: true });
 });
 
-test("the owner answers through the API, a guest cannot, and Pi has the skills from its next message", async () => {
+test("the owner answers through the API, a guest cannot, and the agent has the skills from its next message", async () => {
     const app = await started();
     const project = realpathSync(mkdtempSync(join(root, "skills-asking-")));
 
@@ -364,7 +372,7 @@ test("the owner answers through the API, a guest cannot, and Pi has the skills f
     }
 });
 
-test("the app reads Pi's settings: its default trust, and its skill paths", async () => {
+test("the app reads the agent's settings: its default trust, and its skill paths", async () => {
     const agentDir = process.env.PI_CODING_AGENT_DIR!;
     const project = realpathSync(mkdtempSync(join(root, "skills-settings-")));
     const extra = realpathSync(mkdtempSync(join(root, "skills-settings-extra-")));
@@ -376,7 +384,7 @@ test("the app reads Pi's settings: its default trust, and its skill paths", asyn
         join(agentDir, "settings.json"),
         JSON.stringify({ defaultProjectTrust: "always", skills: [extra] }),
     );
-    // Opened after the settings are written: an app reads Pi's settings when it opens.
+    // Opened after the settings are written: an app reads the agent's settings when it opens.
     const other = await openApp(scriptedModel(route), join(root, "skills-settings-data"));
 
     try {
@@ -384,7 +392,7 @@ test("the app reads Pi's settings: its default trust, and its skill paths", asyn
         const commands = other.skillCommands(id).map((each) => each.name);
 
         assert.ok(commands.includes("by-default"), "trusted by defaultProjectTrust");
-        assert.ok(commands.includes("from-pi-settings"), "found through Pi's skill paths");
+        assert.ok(commands.includes("from-pi-settings"), "found through the agent's skill paths");
         assert.deepEqual(
             [other.projectTrust(id, owner(other))].map(({ trusted, ask }) => ({ trusted, ask })),
             [{ trusted: true, ask: false }],

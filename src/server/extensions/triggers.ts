@@ -1,7 +1,7 @@
 /**
- * Triggers start work from outside the app: a PR watch tells Pi when its pull request's checks fail, it has conflicts,
- * or reviewers comment, until it is merged; repository watches tell PiP what happens on the owner's repositories;
- * webhooks turn posts from other services into messages to a session or to PiP. While this is off, watches wait and
+ * Triggers start work from outside the app: a PR watch tells the agent when its pull request's checks fail, it has conflicts,
+ * or reviewers comment, until it is merged; repository watches tell Pia what happens on the owner's repositories;
+ * webhooks turn posts from other services into messages to a session or to Pia. While this is off, watches wait and
  * webhooks answer 503.
  */
 import { Type } from "@earendil-works/pi-ai";
@@ -13,7 +13,7 @@ import { endedText, MAX_SENT, TRIGGERS_EXTENSION, WATCH_VIA } from "../watches.t
 
 const reply = (text: string) => ({ output: [{ type: "text" as const, text }] });
 
-/** A watch in a line, as Pi reads it: a note with no failed look says why it waits. */
+/** A watch in a line, as the agent reads it: a note with no failed look says why it waits. */
 export function describeWatch(watch: PrWatch): string {
     const head = `PR #${watch.number} ${quoted(watch.title)} (${watch.url})`;
 

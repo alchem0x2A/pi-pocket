@@ -15,7 +15,7 @@ import { filesAvailable, toggleFiles } from "./files-panel.js";
 import { useDragToClose } from "./gestures.js";
 import { togglePeeks } from "./peeks.js";
 import { modelRefreshAvailable, refreshModels } from "./model-refresh.js";
-import { assistantName, openPip, pipAvailable } from "./pip.js";
+import { assistantName, openPia, piaAvailable } from "./pip.js";
 import { setArchived, toggleBoard } from "./sessions.js";
 import { branchAvailable, headLabel } from "./sheets/branch.js";
 import { recentLabels } from "./sheets/folder.js";
@@ -145,8 +145,8 @@ function actionItems() {
                     }),
             },
         piSessionsAvailable() && {
-            label: "Continue a Pi session",
-            detail: "from Pi in the terminal",
+            label: "Continue a terminal session",
+            detail: "from the agent in the terminal",
             icon: "terminal",
             run: () => openSheet({ type: "pi-sessions" }),
         },
@@ -202,7 +202,7 @@ function actionItems() {
         },
         {
             label: prefs().showThinking ? "Hide thinking" : "Show thinking",
-            detail: "Pi's thoughts above the live line and in the conversation",
+            detail: "the agent's thoughts above the live line and in the conversation",
             icon: "sparkle",
             keys: "Alt T",
             run: () => setPrefs({ showThinking: !prefs().showThinking }),
@@ -222,14 +222,14 @@ function actionItems() {
         store.state.me?.role === "owner" &&
             store.state.server?.defaultModel !== undefined && {
                 label: "Default model",
-                detail: "owner default first; otherwise project, last picked, then Pi global",
+                detail: "owner default first; otherwise project, last picked, then the agent global",
                 icon: "sparkle",
                 run: () => openSheet({ type: "model", id: "default", forDefault: true }),
             },
         conversation &&
             browserAvailable() && {
                 label: store.state.browserOpen ? "Close the browser" : "Open the browser",
-                detail: "see and test pages with Pi",
+                detail: "see and test pages with the agent",
                 icon: "globe",
                 keys: "Alt B",
                 run: toggleBrowser,
@@ -283,7 +283,7 @@ function actionItems() {
             steer &&
             planAvailable() && {
                 label: view.plan?.on ? "Turn plan mode off" : "Turn plan mode on",
-                detail: "Pi proposes, changes nothing",
+                detail: "the agent proposes, changes nothing",
                 icon: "shield",
                 run: () => attempt(() => actions.setPlan(!view.plan?.on)),
             },
@@ -330,7 +330,7 @@ function actionItems() {
         session &&
             steer &&
             driving && {
-                label: "Instructions for Pi",
+                label: "Instructions for the agent",
                 detail: view.agent?.instructions ? "on" : "none",
                 keywords: "prompt system",
                 icon: "sparkle",
@@ -348,7 +348,7 @@ function actionItems() {
             steer &&
             driving && {
                 label: "New context",
-                detail: "Pi starts fresh; history stays",
+                detail: "the agent starts fresh; history stays",
                 keywords: "reset clear",
                 icon: "reload",
                 run: () => openSheet({ type: "reset" }),
@@ -356,7 +356,7 @@ function actionItems() {
         conversation &&
             memoryAvailable() && {
                 label: "Memory",
-                detail: "lessons Pi keeps across sessions",
+                detail: "lessons the agent keeps across sessions",
                 icon: "sparkle",
                 run: () => openSheet({ type: "memory" }),
             },
@@ -403,16 +403,16 @@ function actionItems() {
                 icon: "archive",
                 run: () => setArchived([conversation.id], !conversation.archived),
             },
-        pipAvailable() && {
+        piaAvailable() && {
             label: `Ask ${assistantName()}`,
             detail: "your assistant, over any screen",
-            icon: "pip",
+            icon: "pia",
             keys: "Alt A",
-            run: () => openPip(),
+            run: () => openPia(),
         },
         {
             label: "Running now",
-            detail: "everything Pi is doing",
+            detail: "everything the agent is doing",
             icon: "pulse",
             run: () => openSheet({ type: "running" }),
         },
@@ -424,7 +424,7 @@ function actionItems() {
         },
         collab() && {
             label: "Notifications",
-            detail: "Pi finished, approvals, chat",
+            detail: "the agent finished, approvals, chat",
             icon: "pulse",
             run: () => openSheet({ type: "notifications" }),
         },

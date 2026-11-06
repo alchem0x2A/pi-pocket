@@ -1,6 +1,6 @@
-// PiP's browser-only draft, kept across panel mounts. No main-composer state or conversation lookup.
+// Pia's browser-only draft, kept across panel mounts. No main-composer state or conversation lookup.
 /** A scoped draft. Async work holds its original scope and item/token identity, never a newer draft. */
-export function createPipDraft({ loadText, saveText, upload, onError }) {
+export function createPiaDraft({ loadText, saveText, upload, onError }) {
     const listeners = new Set();
     let account;
     let id;
@@ -55,7 +55,7 @@ export function createPipDraft({ loadText, saveText, upload, onError }) {
 
             const changedAccount = account !== undefined && account !== nextAccount;
             const loggedOut = nextAccount === null && account !== null;
-            // A missing ID during reconnect is not evidence that PiP's conversation changed.
+            // A missing ID during reconnect is not evidence that Pia's conversation changed.
             const changedId = nextId !== undefined && id !== undefined && id !== nextId;
 
             account = nextAccount;
@@ -92,7 +92,7 @@ export function createPipDraft({ loadText, saveText, upload, onError }) {
         removeFile,
         addFiles(files) {
             if (id === undefined || account == null) {
-                onError("PiP is not ready yet. Try again in a moment.");
+                onError("Pia is not ready yet. Try again in a moment.");
 
                 return;
             }

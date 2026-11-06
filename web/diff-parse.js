@@ -1,4 +1,4 @@
-// Diffs as data: git's unified diffs and Pi's edit cards parsed into files, hunks, and lines, and the words that
+// Diffs as data: git's unified diffs and the agent's edit cards parsed into files, hunks, and lines, and the words that
 // changed between a removed line and the line that replaced it. No DOM here: web/diff.js draws what this returns.
 
 /**
@@ -263,7 +263,7 @@ export function parseUnified(text) {
 }
 
 /**
- * Pi's edit cards: `+12 text` added at new line 12, `-12 text` removed from old line 12, ` 12 text` unchanged at old
+ * the agent's edit cards: `+12 text` added at new line 12, `-12 text` removed from old line 12, ` 12 text` unchanged at old
  * line 12, and a line of only `...` where unchanged lines are left out. Every change is shown, so an unchanged line's
  * new number is its old one moved by the lines added and removed above it.
  */
@@ -318,10 +318,10 @@ export function parseEditDiff(text, path = "") {
     return { files: [file] };
 }
 
-/** Whether text reads as a unified diff rather than Pi's edit format. */
+/** Whether text reads as a unified diff rather than the agent's edit format. */
 export const isUnified = (text) => /^(diff --git |--- |\+\+\+ |@@ -\d)/m.test(text);
 
-/** Any diff text as files: a unified diff, or Pi's edit format for `path`. */
+/** Any diff text as files: a unified diff, or the agent's edit format for `path`. */
 export function parseDiff(text, path = "") {
     const parsed = isUnified(text) ? parseUnified(text) : parseEditDiff(text, path);
 

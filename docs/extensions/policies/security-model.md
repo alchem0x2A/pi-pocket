@@ -4,21 +4,21 @@ This page collects, for authors, what [SECURITY.md](../../../SECURITY.md) and th
 
 ## Who is who
 
-- **The owner** runs Pi Pocket. The server runs as the owner's user on the machine.
+- **The owner** runs Pia. The server runs as the owner's user on the machine.
 - **Guests** are people whom the owner invited with the role guest. A guest can steer, in every session or only in the sessions of the invite.
-- **Viewers** are people whom the owner invited with the role viewer. A viewer reads, reacts, and chats, in every session or only in the sessions of the invite. A viewer cannot make Pi do anything.
-- **Pi** is the model. It does what people ask. It can also do what text from outside asks, if that text gets into its context (prompt injection).
+- **Viewers** are people whom the owner invited with the role viewer. A viewer reads, reacts, and chats, in every session or only in the sessions of the invite. A viewer cannot make the agent do anything.
+- **the agent** is the model. It does what people ask. It can also do what text from outside asks, if that text gets into its context (prompt injection).
 - **Other modules** run in the same server, with the same rights as yours.
 
 Owner, guest, and viewer are three separate roles. A person has one of them.
 
-Anyone who can steer a session can make Pi call every tool that is on there. That includes guests who were invited to only that session.
+Anyone who can steer a session can make the agent call every tool that is on there. That includes guests who were invited to only that session.
 
 ## S1. A drop-in runs with the owner's rights
 
 Sources: SECURITY.md, "Drop-in extensions"; [Drop-in or built-in](../../extensions.md#drop-in-or-built-in).
 
-A module's server part runs inside the server. It can read `config.json` (with the owner's token), every session, Pi's sign-ins, and every file that the owner's user can read. It can start processes and open network connections. There is no sandbox. A drop-in starts off, and only the owner turns it on.
+A module's server part runs inside the server. It can read `config.json` (with the owner's token), every session, the agent's sign-ins, and every file that the owner's user can read. It can start processes and open network connections. There is no sandbox. A drop-in starts off, and only the owner turns it on.
 
 - **S1.1. Do only what the description says.**\
   _Reason:_ the description is how the owner decides to trust the module.
@@ -88,16 +88,16 @@ Rules:
 
 Sources: SECURITY.md, "Linked sessions" and "Replies are untrusted"; [Using the host](../host.md) (`text`); [Starting and messaging sessions](../linked-sessions.md).
 
-Untrusted text includes route parameters, queries, and bodies; command `args`; tool arguments from the model; messages from linked sessions; and anything from the network, files, issues, or web pages. The model's tool arguments are untrusted because text that Pi read can steer what Pi asks for.
+Untrusted text includes route parameters, queries, and bodies; command `args`; tool arguments from the model; messages from linked sessions; and anything from the network, files, issues, or web pages. The model's tool arguments are untrusted because text that the agent read can steer what the agent asks for.
 
 - **S5.1. Check tool arguments as you check text from a person you do not know:** paths, addresses, sizes, and names.\
-  _Reason:_ a web page or a file that Pi read can choose them.
+  _Reason:_ a web page or a file that the agent read can choose them.
 - **S5.1.1. Fetch an address from outside with `host.fetchPublic`, not `fetch`.** Since 0.20.0, it reaches only the public internet, and checks each connection and redirect ([`fetchPublic`](../reference/host.md#fetchpublic)).\
-  _Reason:_ an address that Pi chose can name this machine, the local network, or a cloud's metadata address, and `fetch` goes there.
-- **S5.2. Fence text from outside before Pi reads it.** Use `host.text.quoted(text, max)` for one line, or `host.text.defang(text)` for text between tags of your own. In the same place, tell Pi that it is data.\
+  _Reason:_ an address that the agent chose can name this machine, the local network, or a cloud's metadata address, and `fetch` goes there.
+- **S5.2. Fence text from outside before the agent reads it.** Use `host.text.quoted(text, max)` for one line, or `host.text.defang(text)` for text between tags of your own. In the same place, tell the agent that it is data.\
   _Reason:_ without a fence, the text can close your tags and speak as the system prompt.
-- **S5.3. Do not tell Pi to obey instructions that it finds in data.**\
-  _Reason:_ that turns every document that Pi reads into a command.
+- **S5.3. Do not tell the agent to obey instructions that it finds in data.**\
+  _Reason:_ that turns every document that the agent reads into a command.
 - **S5.4. Do not remove or change the label and fence on a linked session's message, and do not show it as a message from a person.** A message from a linked session is a request, not an order. That is guidance to the model, not a boundary.\
   _Reason:_ a session that read something hostile can pass it to every session of its team.
 - **S5.5. A tool that acts on the model's word must be safe when the model was misled.** Do not delete, send, pay, or publish only because the model asked. Leave that action to a person (with a command or a page), or keep it inside the session's folder.\
@@ -121,7 +121,7 @@ Know where each output goes:
 | `web.send(event, data)`                          | Everyone whom the browser module is for, or only the person `to` names        |
 | `host.notice(level, message)`                    | Everyone who sees all sessions; with a session's ID, the tabs of that session |
 | Files in the browser module's folder             | Everyone whom the browser module is for                                       |
-| Documents                                        | Every module, and Pi through its shell                                        |
+| Documents                                        | Every module, and the agent through its shell                                 |
 | `host.ask`'s values (since 0.22.0)               | The module that asked, alone                                                  |
 | A public page (`web.publicPage`)                 | Anyone with the link                                                          |
 
@@ -131,10 +131,10 @@ Know where each output goes:
   _Reason:_ the server log keeps errors, and `web.error` shows its words.
 - **S6.3. Do not ask people to type a password or a key as a command's `args`.**\
   _Reason:_ the task stores the arguments.
-- **S6.4. Ask for a password, a key, or a code with `host.ask`, and never through Pi.** Do not keep what comes back in a memo or a document, and tell Pi only what happened.\
-  _Reason:_ what Pi reads goes to the model provider and into the transcript; a memo and a document are stored.
+- **S6.4. Ask for a password, a key, or a code with `host.ask`, and never through the agent.** Do not keep what comes back in a memo or a document, and tell the agent only what happened.\
+  _Reason:_ what the agent reads goes to the model provider and into the transcript; a memo and a document are stored.
 - **S6.5. Hide a value with `host.hide` as soon as you have it, and each form of it that you expect, such as its base64.** Give a command a value with `host.commandEnv`, and only to the commands, sessions, and people that may use it.\
-  _Reason:_ a command can print a value, and a guest's message can lead Pi to a command. Hiding keeps values out of transcripts by accident; it is not a boundary against a command or a model that leaks one on purpose. It also tells whether a guess is right, so it protects only a value that cannot be guessed, never a short code ([People's values and the browser](../people-values.md)).
+  _Reason:_ a command can print a value, and a guest's message can lead the agent to a command. Hiding keeps values out of transcripts by accident; it is not a boundary against a command or a model that leaks one on purpose. It also tells whether a guess is right, so it protects only a value that cannot be guessed, never a short code ([People's values and the browser](../people-values.md)).
 
 ## S7. Names for stored data
 
@@ -159,7 +159,7 @@ Lancet Guard is off by default. When it is on, it judges each `bash`, `write`, a
 
 Rules:
 
-- **S8.1. Do not make a tool that runs a command or writes a file that the model chose.** Let Pi use `bash`, `write`, and `edit` for that.\
+- **S8.1. Do not make a tool that runs a command or writes a file that the model chose.** Let the agent use `bash`, `write`, and `edit` for that.\
   _Reason:_ the guard sees those tools, and it does not see yours.
 - **S8.2. Do not get around a block.** Do not answer, skip, or turn off the guard or an approval from a module.\
   _Reason:_ a guard or a person said no for a reason.
@@ -168,7 +168,7 @@ Rules:
 
 ## Report a problem
 
-- **A problem in Pi Pocket:** read [SECURITY.md](../../../SECURITY.md). Report it in private. Do not open a public issue.
+- **A problem in Pia:** read [SECURITY.md](../../../SECURITY.md). Report it in private. Do not open a public issue.
 - **A problem in a gallery extension:** report it in private in the index, [TannerMidd/pi-pocket-extensions](https://github.com/TannerMidd/pi-pocket-extensions): **Security → Report a vulnerability**. Tell its author too. Do not open a public issue. The maintainers then act as [gallery-review.md](gallery-review.md#revoke-withdraw-and-remove) says.
 
 ## Before you share a module
@@ -176,7 +176,7 @@ Rules:
 - [ ] The description says what the module does, each secret and outside file it reads, and each host it contacts (S1.2).
 - [ ] Routes that change something are `"owner"` or `"steer"` (S3.1).
 - [ ] Conversation commands check `args`, the person, and the session (S4).
-- [ ] Text from outside is fenced before Pi reads it (S5.2).
+- [ ] Text from outside is fenced before the agent reads it (S5.2).
 - [ ] `readOnlyHint` is only on tools that change nothing (S5.6).
 - [ ] No secret goes to the model, to cards, to events for everyone, or to errors (S6).
 - [ ] Stored data is named `x.<module>.<name>` (S7.1).

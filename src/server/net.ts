@@ -13,7 +13,7 @@ function quiet<T extends undici.Dispatcher>(dispatcher: T): T {
 }
 
 /**
- * The HTTP setup Pi uses for provider streams: generous idle timeouts, proxies from the environment, and fetch on the
+ * The HTTP setup the agent uses for provider streams: generous idle timeouts, proxies from the environment, and fetch on the
  * same undici as the dispatcher. Without it, some long provider streams break off early.
  */
 export function configureHttp(idleTimeoutMs = 300_000, httpProxy?: string): void {

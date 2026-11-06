@@ -3,19 +3,19 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <title>Pi Pocket on Pi Durable · Pi Pocket</title>
+        <title>Pia on Pi Durable · Pia</title>
         <meta
             name="description"
-            content="An interactive guide to how Pi Pocket uses Pi Durable: the commit listener, attribution, crash recovery rules, documents, and extensions."
+            content="An interactive guide to how Pia uses Pi Durable: the commit listener, attribution, crash recovery rules, documents, and extensions."
         />
         <link rel="canonical" href="https://tannermidd.github.io/pi-pocket/architecture.html" />
         <link rel="icon" href="icon.svg" type="image/svg+xml" />
         <meta property="og:type" content="article" />
-        <meta property="og:site_name" content="Pi Pocket" />
-        <meta property="og:title" content="Pi Pocket on Pi Durable" />
+        <meta property="og:site_name" content="Pia" />
+        <meta property="og:title" content="Pia on Pi Durable" />
         <meta
             property="og:description"
-            content="An interactive guide to how Pi Pocket uses Pi Durable: the commit listener, attribution, crash recovery rules, documents, and extensions."
+            content="An interactive guide to how Pia uses Pi Durable: the commit listener, attribution, crash recovery rules, documents, and extensions."
         />
         <meta
             property="og:url"
@@ -1255,7 +1255,7 @@
     <body>
         <div class="shell">
             <nav class="toc" aria-label="Contents">
-                <span class="crumb">Pi Pocket</span>
+                <span class="crumb">Pia</span>
                 <a href="#top">Overview</a>
                 <a href="#mapping">Feature map</a>
                 <a href="#message">Path of a message</a>
@@ -1271,18 +1271,18 @@
                 <!-- HERO -->
                 <section id="top" class="hero">
                     <div>
-                        <div class="crumb">PI DURABLE · PART 2</div>
-                        <h1>Pi Pocket</h1>
+                        <div class="crumb">Pi Durable · PART 2</div>
+                        <h1>Pia</h1>
                         <p class="thesis">
-                            Pi Pocket is a web app for Pi agents. It uses Pi Durable to run the
-                            agent and adds <b>multiple users</b>, <b>phone access</b>, and
+                            Pia is a web app for coding agents. It uses Pi Durable to run the agent
+                            and adds <b>multiple users</b>, <b>phone access</b>, and
                             <b>remote access</b>.
                         </p>
                         <p class="lede">
                             The server is one Node.js process with one SQLite file. The web app has
-                            no build step. Pi Durable commits each step before a tab shows it. Pi
-                            Pocket sends these commits to all tabs, so many people can watch and
-                            control one session from a phone or a computer.
+                            no build step. Pi Durable commits each step before a tab shows it. The
+                            agent Pocket sends these commits to all tabs, so many people can watch
+                            and control one session from a phone or a computer.
                         </p>
                         <div class="facts">
                             <span>TypeScript, no build</span><span>Preact + htm</span
@@ -1307,8 +1307,8 @@
                         <h2>Feature map</h2>
                         <p class="lede">
                             The left column shows the Pi Durable primitives. The right column shows
-                            the Pi Pocket features that use them. Select an item in a column to see
-                            the related items.
+                            the Pia features that use them. Select an item in a column to see the
+                            related items.
                         </p>
                     </div>
                     <div class="panel map" id="map">
@@ -1318,7 +1318,7 @@
                             <div class="map-list" id="mapL"></div>
                         </div>
                         <div class="map-col">
-                            <h3>Pi Pocket feature</h3>
+                            <h3>Pia feature</h3>
                             <div class="map-list" id="mapR"></div>
                         </div>
                         <div class="map-detail" id="mapDetail" aria-live="polite"></div>
@@ -1331,8 +1331,8 @@
                         <p class="eyebrow">Request path</p>
                         <h2>Path of a message</h2>
                         <p class="lede">
-                            A person sends a message from a phone. Pi answers, and all open tabs
-                            show the answer. The six steps below occur in this sequence.
+                            A person sends a message from a phone. The agent answers, and all open
+                            tabs show the answer. The six steps below occur in this sequence.
                         </p>
                     </div>
                     <div class="panel path">
@@ -1355,9 +1355,9 @@
                         <p class="eyebrow">app.ts · #committed</p>
                         <h2>Commit listener</h2>
                         <p class="lede">
-                            Pi Durable sends the changes of each commit in no fixed order. Pi Pocket
-                            uses one listener with two passes to process them. Thus, the order in
-                            which listeners register has no effect on spend.
+                            Pi Durable sends the changes of each commit in no fixed order. Pia uses
+                            one listener with two passes to process them. Thus, the order in which
+                            listeners register has no effect on spend.
                         </p>
                     </div>
                     <div class="two">
@@ -1503,7 +1503,7 @@
                                         font-size="11.5"
                                         fill="var(--ink-2)"
                                     >
-                                        charge the person Pi worked for before this commit
+                                        charge the person the agent worked for before this commit
                                     </text>
 
                                     <rect
@@ -1714,9 +1714,9 @@
                         <p class="eyebrow">attribution.ts · requests.ts</p>
                         <h2>Attribution of work</h2>
                         <p class="lede">
-                            The request id of a message to Pi can contain the ID of a person. Pi
-                            works for the person of the newest message that has a person in its id.
-                            Spend, approvals, schedules, and subagents all use
+                            The request id of a message to the agent can contain the ID of a person.
+                            The agent works for the person of the newest message that has a person
+                            in its id. Spend, approvals, schedules, and subagents all use
                             <code>requesterOf</code> to find this person. Click an action to see the
                             result.
                         </p>
@@ -1725,7 +1725,7 @@
                         <div class="acts" id="acts"></div>
                         <div class="who">
                             <div class="who-now">
-                                <span class="lab">Pi works for</span
+                                <span class="lab">the agent works for</span
                                 ><span class="avatar" id="whoAv"></span
                                 ><span class="who-name" id="whoName"></span>
                             </div>
@@ -1739,11 +1739,11 @@
                     <p class="note" style="margin-top: 12px">
                         <code>u:&lt;user&gt;:&lt;key&gt;</code> is a message that a person wrote.
                         <code>p:&lt;user&gt;:&lt;key&gt;</code> is a message sent for a person, for
-                        example a scheduled message that Pi set up, the task of a subagent, or a
-                        message from PiP, a watch, or a webhook. A schedule that a person set up
-                        sends a <code>u:</code> message for that person. If no person is known, Pi
-                        Pocket charges the person who started the session. If that person is not
-                        known, it charges the owner.
+                        example a scheduled message that the agent set up, the task of a subagent,
+                        or a message from Pia, a watch, or a webhook. A schedule that a person set
+                        up sends a <code>u:</code> message for that person. If no person is known,
+                        the agent Pocket charges the person who started the session. If that person
+                        is not known, it charges the owner.
                     </p>
                 </section>
 
@@ -1753,9 +1753,9 @@
                         <p class="eyebrow">Durability</p>
                         <h2>Crash recovery rules</h2>
                         <p class="lede">
-                            Pi Durable supplies tasks, checkpoints, and atomic commits. Pi Pocket
-                            uses them for the rules below. Thus, a restart loses no stored work. Pi
-                            does not get a message two times. A restart loses only the data in
+                            Pi Durable supplies tasks, checkpoints, and atomic commits. Pia uses
+                            them for the rules below. Thus, a restart loses no stored work. The
+                            agent does not get a message two times. A restart loses only the data in
                             memory. The right column of the table below shows this data.
                         </p>
                     </div>
@@ -1764,25 +1764,24 @@
                             <span class="tag t-commit">commit, then show</span>
                             <h3>Show only stored data</h3>
                             <p>
-                                Tabs show only committed state. Pi Pocket keeps its documents in the
-                                same storage as the transcript. Each change is an atomic commit.
-                                Changes that must agree are in one commit, for example a fork and
-                                its documents. Pi Pocket records the author of a message in a second
-                                commit. At startup, it repairs the authors that a crash did not
-                                record.
+                                Tabs show only committed state. Pia keeps its documents in the same
+                                storage as the transcript. Each change is an atomic commit. Changes
+                                that must agree are in one commit, for example a fork and its
+                                documents. Pia records the author of a message in a second commit.
+                                At startup, it repairs the authors that a crash did not record.
                             </p>
                         </div>
                         <div class="panel rule">
                             <span class="tag t-sub">request ids</span>
                             <h3>Send one time</h3>
                             <p>
-                                Each message to Pi has a request id. If Pi Pocket sends a message
-                                again with the same id, Pi Durable finds the stored message. Thus Pi
-                                gets the message only one time. Scheduled messages and subagent
-                                reports use the request id after a restart. A <code>!</code> command
-                                keeps its id until the server accepts it. Pi Pocket stores this id
-                                in <code>pocket.shell-requests</code>. Thus a second try after a
-                                lost reply runs the command only one time.
+                                Each message to the agent has a request id. If Pia sends a message
+                                again with the same id, Pi Durable finds the stored message. Thus
+                                the agent gets the message only one time. Scheduled messages and
+                                subagent reports use the request id after a restart. A
+                                <code>!</code> command keeps its id until the server accepts it. Pia
+                                stores this id in <code>pocket.shell-requests</code>. Thus a second
+                                try after a lost reply runs the command only one time.
                             </p>
                         </div>
                         <div class="panel rule">
@@ -1800,7 +1799,7 @@
                             <h3>Run again only if safe</h3>
                             <p>
                                 Artifact, schedule, memory, and <code>watch_pr</code> calls are
-                                replay-safe, and so are the calls of PiP. Other calls are not
+                                replay-safe, and so are the calls of Pia. Other calls are not
                                 replay-safe. Examples are bash, browser, codemode, and subagent
                                 calls. After a crash, the model gets a message that such a call
                                 stopped. Then the model examines the result.
@@ -1813,7 +1812,7 @@
                                 A scheduled message is a task. Its send time is in the
                                 <code>pocket.schedules</code> document. If a restart occurs before
                                 that time, the task sleeps again. If a restart occurs after that
-                                time, Pi Pocket sends the message immediately, one time.
+                                time, Pia sends the message immediately, one time.
                             </p>
                         </div>
                         <div class="panel rule">
@@ -1821,9 +1820,9 @@
                             <h3>Fork policy per document</h3>
                             <p>
                                 Each document kind tells if a fork copies it or starts it empty. In
-                                the commit that makes the fork, Pi Pocket empties the copied chat.
-                                It also removes the copied pins after the fork point, and the copied
-                                authors of later messages.
+                                the commit that makes the fork, Pia empties the copied chat. It also
+                                removes the copied pins after the fork point, and the copied authors
+                                of later messages.
                             </p>
                         </div>
                     </div>
@@ -1863,7 +1862,7 @@
                         <p class="eyebrow">docs.ts</p>
                         <h2>Data storage</h2>
                         <p class="lede">
-                            Pi Pocket documents are in <code>pocket.sqlite</code>, together with the
+                            Pia documents are in <code>pocket.sqlite</code>, together with the
                             transcript and the Pi Durable documents: the agent settings, the
                             provider ID, the inbox, the live run, and usage. Each document kind
                             tells what a fork gets. Click "Fork at reply 5" to see the result.
@@ -1895,15 +1894,15 @@
                             <b>config.json</b>people, roles, hashed tokens, settings
                         </div>
                         <div class="file"><b>push.json</b>VAPID keys, push subscriptions</div>
-                        <div class="file"><b>uploads/</b>files sent to Pi</div>
+                        <div class="file"><b>uploads/</b>files sent to the agent</div>
                         <div class="file"><b>worktrees/</b>sessions' git worktrees</div>
                         <div class="file"><b>extensions/</b>extensions that the owner adds</div>
                         <div class="file"><b>browser/</b>the profile of the built-in browser</div>
                     </div>
                     <p class="note" style="margin-top: 10px">
-                        Pi Pocket writes the config files atomically, with mode 0600. Do not rename
-                        a document kind. Pi Durable compares the scope, history, and fork settings
-                        of each kind with the stored data.
+                        Pia writes the config files atomically, with mode 0600. Do not rename a
+                        document kind. Pi Durable compares the scope, history, and fork settings of
+                        each kind with the stored data.
                     </p>
                 </section>
 
@@ -1913,9 +1912,9 @@
                         <p class="eyebrow">src/server/extensions/</p>
                         <h2>Extensions</h2>
                         <p class="lede">
-                            Pi Pocket adds most of its agent features as Pi Durable extensions. The
-                            server installs them in the sequence below. Each extension uses one or
-                            more of four parts: prompt sections, tools, hooks, and tasks.
+                            Pia adds most of its agent features as Pi Durable extensions. The server
+                            installs them in the sequence below. Each extension uses one or more of
+                            four parts: prompt sections, tools, hooks, and tasks.
                         </p>
                     </div>
                     <div class="exts" id="exts"></div>
@@ -2329,8 +2328,8 @@
                         <p class="eyebrow">Self-editing</p>
                         <h2>Live reload and restart</h2>
                         <p class="lede">
-                            Pi often edits Pi Pocket while Pi Pocket runs. The result of an edit
-                            depends on the file that changed. Select a file to see the result.
+                            The agent often edits Pia while Pia runs. The result of an edit depends
+                            on the file that changed. Select a file to see the result.
                         </p>
                     </div>
                     <div class="panel reload">
@@ -2343,7 +2342,7 @@
                 <footer>
                     <a class="back" href="durable.html">← Part 1: Pi Durable</a>
                     <span
-                        ><a href="./">Pi Pocket home</a> ·
+                        ><a href="./">Pia home</a> ·
                         <a href="https://github.com/TannerMidd/pi-pocket"
                             >github.com/TannerMidd/pi-pocket</a
                         >
@@ -2421,7 +2420,7 @@
                             "transcripts",
                             "providers",
                             "piSessions",
-                            "pip",
+                            "pia",
                             "watches",
                             "repoWatches",
                             "hooks",
@@ -2436,7 +2435,7 @@
                         c: "var(--task)",
                         main: true,
                         wire: "one file",
-                        text: "The harness runs the agent. It commits conversations, model turns, tool calls, and Pi Pocket documents atomically. A tab shows data only after the commit.",
+                        text: "The harness runs the agent. It commits conversations, model turns, tool calls, and Pia documents atomically. A tab shows data only after the commit.",
                         owns: ["conversations", "tasks", "documents", "extensions", "task graph"],
                     },
                     sqlite: {
@@ -2477,7 +2476,7 @@
                             "guard",
                             "codemode",
                             "memory",
-                            "pip",
+                            "pia",
                             "triggers",
                         ],
                     },
@@ -2485,20 +2484,20 @@
                         name: "Chromium",
                         path: "browser.ts",
                         c: "var(--entry)",
-                        text: "The server controls one headless browser with the DevTools protocol through a pipe. Each session has one page. The browser tool of Pi and the Browser panel use the same page. The browser starts on first use.",
+                        text: "The server controls one headless browser with the DevTools protocol through a pipe. Each session has one page. The browser tool of the agent and the Browser panel use the same page. The browser starts on first use.",
                         owns: ["cdp.ts", "page per session", "screenshots", "element refs"],
                     },
                     piagent: {
-                        name: "Pi",
+                        name: "Coding agent CLI",
                         path: "~/.pi/agent/",
                         c: "var(--sub)",
-                        text: "This folder contains sign-ins, settings, skills, prompt templates, and the answers to project trust. Pi Pocket and the Pi command line use the same folder. Pi Pocket only reads the sessions of the Pi command line, to continue one. If you install Lancet Guard as a Pi package, it is in this folder too. Its settings file, ~/.pi/lancet-guard.json, turns it on or off. In Pi Pocket, the guard extension must also be on.",
+                        text: "This folder contains sign-ins, settings, skills, prompt templates, and the answers to project trust. Pia and the terminal CLI use the same folder. Pia reads terminal-session files to continue one. Lancet Guard can also be installed with the CLI. Its settings file, ~/.pi/lancet-guard.json, turns it on or off. In Pia, the guard extension must also be on.",
                         owns: [
                             "provider sign-ins",
                             "skills",
                             "prompt templates",
                             "project trust",
-                            "Pi sessions (read only)",
+                            "the agent sessions (read only)",
                             "specpi-lancet-guard",
                         ],
                     },
@@ -2506,7 +2505,7 @@
                         name: "GitHub",
                         path: "github.ts",
                         c: "var(--task)",
-                        text: "Pull request and repository watches ask GitHub through the gh command that is signed in on the server. Webhooks use it to check who can write to a repository, and PiP uses it to clone a repository into repos/. A repository is watched or worked on only if the account of gh can push to it.",
+                        text: "Pull request and repository watches ask GitHub through the gh command that is signed in on the server. Webhooks use it to check who can write to a repository, and Pia uses it to clone a repository into repos/. A repository is watched or worked on only if the account of gh can push to it.",
                         owns: ["PR watches", "repository watches", "write access checks", "clones"],
                     },
                 };
@@ -2577,7 +2576,7 @@
                     ["subagents", "Subagents", "subagents.ts"],
                     ["worktrees", "Worktrees", "worktrees.ts"],
                     ["spend", "Spend limits", "spend.ts"],
-                    ["pip", "PiP", "pip.ts"],
+                    ["pia", "Pia", "pip.ts"],
                     ["triggers", "Watches and webhooks", "watches.ts"],
                     ["memory", "Memory", "memory.ts"],
                     ["restart", "Work continues after restart", "app.ts"],
@@ -2591,7 +2590,7 @@
                     [
                         "harness",
                         "pdocs",
-                        "Pi Pocket keeps its state in the same storage as the transcript, in pocket.sqlite.",
+                        "Pia keeps its state in the same storage as the transcript, in pocket.sqlite.",
                     ],
                     [
                         "commit",
@@ -2606,7 +2605,7 @@
                     [
                         "watch",
                         "rooms",
-                        "Pi Pocket batches the committed view of each session and sends it as small updates. A tab that connects late starts from the current view.",
+                        "Pia batches the committed view of each session and sends it as small updates. A tab that connects late starts from the current view.",
                     ],
                     [
                         "submit",
@@ -2616,17 +2615,17 @@
                     [
                         "submit",
                         "sched",
-                        "If Pi Pocket sends a scheduled message again after a restart, the request id finds the stored submission.",
+                        "If Pia sends a scheduled message again after a restart, the request id finds the stored submission.",
                     ],
                     [
                         "busy",
                         "steerq",
-                        "A person can change the direction of a run with a steer. A steer goes in after the current tool round. A follow-up waits until Pi answers.",
+                        "A person can change the direction of a run with a steer. A steer goes in after the current tool round. A follow-up waits until the agent answers.",
                     ],
                     [
                         "doc",
                         "pdocs",
-                        "Pi Pocket defines 25 pocket.* kinds: 24 with defineDoc, and the artifact bodies with defineDocFamily. Examples are chat, pins, notes, schedules, memory, and spend.",
+                        "Pia defines 25 pocket.* kinds: 24 with defineDoc, and the artifact bodies with defineDocFamily. Examples are chat, pins, notes, schedules, memory, and spend.",
                     ],
                     [
                         "doc",
@@ -2661,7 +2660,7 @@
                     [
                         "replay",
                         "restart",
-                        "Artifact, schedule, memory, watch_pr, and PiP calls run again after a crash. Other calls, for example bash, browser, codemode, and subagent calls, return as interrupted.",
+                        "Artifact, schedule, memory, watch_pr, and Pia calls run again after a crash. Other calls, for example bash, browser, codemode, and subagent calls, return as interrupted.",
                     ],
                     [
                         "hooks",
@@ -2676,19 +2675,19 @@
                     [
                         "hooks",
                         "goals",
-                        "After each final answer, a hook runs the check of the session. While the check fails, Pi continues to work.",
+                        "After each final answer, a hook runs the check of the session. While the check fails, the agent continues to work.",
                     ],
                     [
                         "section",
                         "prompt",
-                        "The prompt contains guidelines for a phone screen, the location of the Pi Pocket docs, the AGENTS.md files of the project, the Pi skills, and the working directory. The harness renders it before each request.",
+                        "The prompt contains guidelines for a phone screen, the location of the Pia docs, the AGENTS.md files of the project, the agent skills, and the working directory. The harness renders it before each request.",
                     ],
                     [
                         "section",
                         "plan",
-                        "Plan mode adds a section. The section tells Pi to read files and propose a plan, and to make no changes.",
+                        "Plan mode adds a section. The section tells the agent to read files and propose a plan, and to make no changes.",
                     ],
-                    ["section", "goals", "A section tells Pi about the check of the goal."],
+                    ["section", "goals", "A section tells the agent about the check of the goal."],
                     [
                         "registry",
                         "reload",
@@ -2711,28 +2710,28 @@
                     ],
                     [
                         "task",
-                        "pip",
-                        "Each follow is a durable task. It reports to PiP when the run of the session ends, also after a restart.",
+                        "pia",
+                        "Each follow is a durable task. It reports to Pia when the run of the session ends, also after a restart.",
                     ],
                     [
                         "submit",
-                        "pip",
-                        "A message that PiP sends has a request id made from its tool call. Thus a call that runs again does not send the message two times.",
+                        "pia",
+                        "A message that Pia sends has a request id made from its tool call. Thus a call that runs again does not send the message two times.",
                     ],
                     [
                         "replay",
-                        "pip",
-                        "The tools of PiP are replay-safe. A call that runs again finds the session, message, or follow that it made.",
+                        "pia",
+                        "The tools of Pia are replay-safe. A call that runs again finds the session, message, or follow that it made.",
                     ],
                     [
                         "section",
-                        "pip",
-                        "The conversation of PiP selects its own extension and prompt section. Other conversations do not select them.",
+                        "pia",
+                        "The conversation of Pia selects its own extension and prompt section. Other conversations do not select them.",
                     ],
                     [
                         "task",
                         "triggers",
-                        "A watch is a durable task. It waits, looks at GitHub with gh, and puts what to tell Pi in its checkpoint before it sends the message.",
+                        "A watch is a durable task. It waits, looks at GitHub with gh, and puts what to tell the agent in its checkpoint before it sends the message.",
                     ],
                     [
                         "submit",
@@ -2762,7 +2761,7 @@
                     [
                         "usage",
                         "spend",
-                        "The spend of a conversation is its pi.usage total. The owner can set a limit for a session or a person. Above the limit, Pi Pocket refuses new messages and stops the current run.",
+                        "The spend of a conversation is its pi.usage total. The owner can set a limit for a session or a person. Above the limit, Pia refuses new messages and stops the current run.",
                     ],
                 ];
                 const mapL = $("#mapL"),
@@ -2861,7 +2860,7 @@
                     {
                         file: "commands.ts",
                         name: "Check, then queue",
-                        text: "The server checks the invite scope, the role, take turns, and spend limits. It expands a prompt template. Then it submits the message with a request id that identifies the author. If Pi is idle, a run starts. If Pi is busy, the message goes into the inbox. A steer joins the run. A follow-up waits.",
+                        text: "The server checks the invite scope, the role, take turns, and spend limits. It expands a prompt template. Then it submits the message with a request id that identifies the author. If the agent is idle, a run starts. If the agent is busy, the message goes into the inbox. A steer joins the run. A follow-up waits.",
                         code: 'requireSee(user, 12); requireDriver(12, user)\nspend.check(user, 12)\nconversation.submit({ type: "input", content,\n  requestId: "u:ana:k7f2", whenBusy })',
                     },
                     {
@@ -3090,28 +3089,28 @@
                         b: "Ana sends a message",
                         id: "u:ana:k1",
                         who: "ana",
-                        log: "Ana wrote this message. Pi now works for Ana.",
+                        log: "Ana wrote this message. The agent now works for Ana.",
                     },
                     {
                         b: "The schedule of Ben starts at 8:00",
                         id: "u:ben:schedule-41-0",
                         who: "ben",
-                        log: "Ben set up this schedule. Thus the message is his own message. Pi now works for Ben.",
+                        log: "Ben set up this schedule. Thus the message is his own message. The agent now works for Ben.",
                     },
                     {
-                        b: "A schedule that Pi set up for Ana starts",
+                        b: "A schedule that the agent set up for Ana starts",
                         id: "p:ana:schedule-42-0",
                         who: "ana",
-                        log: "Pi set up this schedule when it worked for Ana. Pi Pocket sends the message for Ana. Pi now works for Ana.",
+                        log: "the agent set up this schedule when it worked for Ana. Pia sends the message for Ana. The agent now works for Ana.",
                     },
                     {
                         b: "Ben's PR watch reports a failed check",
                         id: "p:ben:watch-…",
                         who: "ben",
-                        log: "Ben set up this watch. Pi Pocket sends the message for Ben. Pi now works for Ben.",
+                        log: "Ben set up this watch. Pia sends the message for Ben. The agent now works for Ben.",
                     },
                     {
-                        b: "Pi starts a subagent",
+                        b: "the agent starts a subagent",
                         id: "p:<current>:subagent-…",
                         sub: true,
                         log: "The subagent works for the person that the parent worked for when it sent the last message to the subagent.",
@@ -3120,15 +3119,15 @@
                         b: "Ana writes in the side chat",
                         id: "pocket.chat (not a submission)",
                         none: true,
-                        log: "The side chat is a document. Pi does not see it. There is no change.",
+                        log: "The side chat is a document. The agent does not see it. There is no change.",
                     },
                     {
                         b: "A message with no person",
                         id: "schedule:43-0",
-                        log: "A message with no person in the id does not change the person that Pi works for.",
+                        log: "A message with no person in the id does not change the person that the agent works for.",
                     },
                 ];
-                // cur: whom Pi works for (requesterOf); null until a message names a person.
+                // cur: whom the agent works for (requesterOf); null until a message names a person.
                 // Then spend goes to the person who started the session: here, the owner.
                 let cur = null,
                     spend = { ana: 0, ben: 0, owner: 0 };
@@ -3168,7 +3167,7 @@
                             const cost = a.sub ? 0.09 : 0.05;
                             spend[payer()] += cost;
                             addLog(
-                                `Pi runs a turn${a.sub ? " (subagent)" : ""}. Cost $${cost.toFixed(2)}, charged to ${PEOPLE[payer()][0]}${cur ? "" : ", who started the session"}.`,
+                                `the agent runs a turn${a.sub ? " (subagent)" : ""}. Cost $${cost.toFixed(2)}, charged to ${PEOPLE[payer()][0]}${cur ? "" : ", who started the session"}.`,
                             );
                         }
                         renderWho();
@@ -3200,7 +3199,7 @@
                         "in the memo of the call; not asked again",
                     ],
                     ["The last address of the browser", "pocket.browser opens it again"],
-                    ["PiP's follows and the watches", "durable tasks; they continue"],
+                    ["Pia's follows and the watches", "durable tasks; they continue"],
                 ];
                 const MEM = [
                     [
@@ -3273,7 +3272,7 @@
                 const DOCS = [
                     ["pocket.sessions", "the session list (one for the server)", "adds"],
                     ["pocket.chat", "the side chat and activity lines", "own"],
-                    ["pocket.authors", "who wrote each message to Pi", "cut"],
+                    ["pocket.authors", "who wrote each message to the agent", "cut"],
                     ["pocket.pins", "pinned messages", "cut"],
                     ["pocket.reactions", "emoji reactions", "copy"],
                     ["pocket.notes", "the shared notes page", "copy"],
@@ -3288,9 +3287,9 @@
                     ["pocket.goal", "goal: the check and its attempts", "empty"],
                     ["pocket.shell-requests", "! commands that people started", "empty"],
                     ["pocket.pr-watch", "the watch of a pull request", "empty"],
-                    ["pocket.pip-follows", "the follows of PiP", "empty"],
-                    ["pocket.pip-asked", "which provider pays, when PiP asked", "empty"],
-                    ["pocket.pip-compaction", "the summaries that PiP wrote", "empty"],
+                    ["pocket.pip-follows", "the follows of Pia", "empty"],
+                    ["pocket.pip-asked", "which provider pays, when Pia asked", "empty"],
+                    ["pocket.pip-compaction", "retired assistant-summary accounting", "empty"],
                     ["pocket.spend", "spend per person (one for the server)", "none"],
                     ["pocket.memory", "lessons (one for the server)", "none"],
                     ["pocket.hooks", "webhooks (one for the server)", "none"],
@@ -3342,7 +3341,7 @@
                 const EXTS = [
                     [
                         "prompt.ts",
-                        "The system prompt. It contains guidelines for a phone screen, the location of the Pi Pocket docs, the AGENTS.md files of the project, the Pi skills, and the working directory. Always on.",
+                        "The system prompt. It contains guidelines for a phone screen, the location of the Pia docs, the AGENTS.md files of the project, the agent skills, and the working directory. Always on.",
                         ["section"],
                     ],
                     [
@@ -3352,7 +3351,7 @@
                     ],
                     [
                         "browser.ts",
-                        "A real Chromium browser that Pi and the people in a session use together. In plan mode, Pi can only read pages.",
+                        "A real Chromium browser that the agent and the people in a session use together. In plan mode, the agent can only read pages.",
                         ["tool", "section"],
                     ],
                     [
@@ -3362,12 +3361,12 @@
                     ],
                     [
                         "schedules.ts",
-                        "Scheduled messages, and a tool that Pi uses to schedule its own follow-ups.",
+                        "Scheduled messages, and a tool that the agent uses to schedule its own follow-ups.",
                         ["tool", "task", "section"],
                     ],
                     [
                         "goals.ts",
-                        "After each final answer, it runs the check of the session. While the check fails, Pi continues. Maximum of five checks.",
+                        "After each final answer, it runs the check of the session. While the check fails, the agent continues. Maximum of five checks.",
                         ["hook", "section"],
                     ],
                     [
@@ -3387,17 +3386,17 @@
                     ],
                     [
                         "memory.ts",
-                        "Lessons that Pi keeps across sessions. Pi proposes a lesson with the memory tool, and the owner approves it. The section lists the approved lessons for the project of the session.",
+                        "Lessons that the agent keeps across sessions. The agent proposes a lesson with the memory tool, and the owner approves it. The section lists the approved lessons for the project of the session.",
                         ["tool", "section"],
                     ],
                     [
                         "pip.ts",
-                        "The tools and prompt of PiP, and the follow task that reports to PiP when the run of a session ends. Only the conversation of PiP selects this extension.",
+                        "The tools and prompt of Pia, and the follow task that reports to Pia when the run of a session ends. Only the conversation of Pia selects this extension.",
                         ["tool", "task", "section"],
                     ],
                     [
                         "triggers.ts",
-                        "Pull request and repository watches, and the watch_pr tool of Pi. Webhooks work only while this extension is on.",
+                        "Pull request and repository watches, and the watch_pr tool of the agent. Webhooks work only while this extension is on.",
                         ["tool", "tasks"],
                     ],
                 ];

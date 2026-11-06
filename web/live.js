@@ -1,4 +1,4 @@
-// The message Pi is writing, put together from view updates. It imports nothing, so the server's tests can run it.
+// The message the agent is writing, put together from view updates. It imports nothing, so the server's tests can run it.
 
 /**
  * The live message after `update`, given the `current` one. An update of protocol 3 is what changed (`LiveMessageDelta`

@@ -108,7 +108,7 @@ export function sniffImage(head: Buffer): string | undefined {
 }
 
 /**
- * The app page's policy. Replies show markdown that Pi wrote, and what Pi writes can be steered by any file or page it
+ * The app page's policy. Replies show markdown that the agent wrote, and what the agent writes can be steered by any file or page it
  * reads: nothing on the page may load from, send to, or post to another site. The inline import map is allowed by hash.
  */
 function appPolicy(html: string): string {

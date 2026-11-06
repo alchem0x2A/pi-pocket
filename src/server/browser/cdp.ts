@@ -162,7 +162,7 @@ const LAUNCH_ARGS = [
     "--disable-extensions",
     "--disable-sync",
     "--disable-features=Translate,MediaRouter,OptimizationHints,AutofillServerCommunication",
-    // Pages keep running while nobody watches: Pi tests them in the background.
+    // Pages keep running while nobody watches: the agent tests them in the background.
     "--disable-background-timer-throttling",
     "--disable-backgrounding-occluded-windows",
     "--disable-renderer-backgrounding",

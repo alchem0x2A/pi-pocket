@@ -43,7 +43,7 @@ after(async () => {
 });
 
 // With no count limit, the words are what keeps two agents from thanking each other without end (the spend limit is the brake).
-test("the team tool and the linked message tell Pi to answer once and stop when the work is done", async () => {
+test("the team tool and the linked message tell the agent to answer once and stop when the work is done", async () => {
     const id = await newSession(app);
 
     await say(app, id, "START_A_TEAM");
@@ -109,7 +109,7 @@ test("agents write to each other in ASD-STE100: team messages, replies, and suba
 
     assert.match(
         own,
-        /A message with the marker .*\[via linked session …\].* comes from another agent \(PiP/,
+        /A message with the marker .*\[via linked session …\].* comes from another agent \(Pia/,
     );
 });
 

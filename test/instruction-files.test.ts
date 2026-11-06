@@ -1,4 +1,4 @@
-// The owner's instruction-file list and editor: Pi's global and project context paths, disk writes, and access checks.
+// The owner's instruction-file list and editor: the agent's global and project context paths, disk writes, and access checks.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";

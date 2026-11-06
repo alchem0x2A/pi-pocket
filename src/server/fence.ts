@@ -1,5 +1,5 @@
 /**
- * Text from elsewhere (what a session said, a check's log, a webhook's post) reaches Pi between tags, as data. Nothing
+ * Text from elsewhere (what a session said, a check's log, a webhook's post) reaches the agent between tags, as data. Nothing
  * inside may end the fence early: every `<` with a `/` soon after it loses its `<` (whatever lies between: spaces,
  * invisible characters, JSON's `\n`), and attribute values lose what would end them.
  */
@@ -31,9 +31,9 @@ export function attribute(value: string): string {
 }
 
 /**
- * Text from elsewhere (a title, a check's name, a waiting call, a scheduled message) where Pi or PiP reads it outside a
+ * Text from elsewhere (a title, a check's name, a waiting call, a scheduled message) where the agent or Pia reads it outside a
  * fence: one line (control characters too), without invisible ones (zero-width, bidi, tags), cut to `max`, with no tag
- * of any kind (every `<` becomes `‹`), in quotes it cannot close. PiP's rules and the watches' notes tell Pi it is data.
+ * of any kind (every `<` becomes `‹`), in quotes it cannot close. Pia's rules and the watches' notes tell the agent it is data.
  */
 export function quoted(text: string, max = 120): string {
     const line = snippet(text.replace(/\p{Cf}/gu, "").replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, " "), max);

@@ -1,19 +1,19 @@
 # pi-claude-code
 
-Pi Pocket vendors this source snapshot from upstream commit `0065a1f5a5e1f2214c87dcf2cdf7d66180b79459`.
+Pia vendors this source snapshot from upstream commit `0065a1f5a5e1f2214c87dcf2cdf7d66180b79459`.
 Its local change caps the request at 4 cache breakpoints in `src/claude-cli.ts`.
 `tests/cache-control.test.ts` covers the overflow and a duplicate final-message marker.
-Update this copy deliberately when upstream changes. Keep the standalone Pi npm package separate.
+Update this copy deliberately when upstream changes. Keep the standalone the agent npm package separate.
 
-This Pi extension lets you use your Claude Pro or Max subscription in Pi by
+This the agent extension lets you use your Claude Pro or Max subscription in the agent by
 routing all Claude model requests through the official Claude Code CLI.
 
-Pi still handles conversation history, approvals, compaction, and tool
+The agent still handles conversation history, approvals, compaction, and tool
 execution. Claude Code only talks to the model. It never runs tools itself.
 
 > [!WARNING]
 > **The future of this extension is uncertain.** Right now it works by running
-> Pi's requests through the official Claude Code CLI in non-interactive mode
+> the agent's requests through the official Claude Code CLI in non-interactive mode
 > (`claude -p`), and that usage counts against your normal Claude subscription
 > limits. In May 2026 Anthropic
 > [announced](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan)
@@ -30,7 +30,7 @@ execution. Claude Code only talks to the model. It never runs tools itself.
 
 ## Requirements
 
-- Pi
+- the agent
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code), installed and
   on your `PATH`:
 
@@ -47,7 +47,7 @@ pi install https://github.com/earendil-works/pi-claude-code
 ```
 
 Then pick a model from the **Claude Code Subscription (Experimental)** provider
-in Pi.
+in the agent.
 
 ## Login and logout
 
@@ -59,10 +59,10 @@ claude auth logout
 ```
 
 The extension uses whatever login Claude Code currently has. You don't need
-Pi's `/login` or `/logout` for this provider. The extension doesn't read, copy,
+The agent's `/login` or `/logout` for this provider. The extension doesn't read, copy,
 or store your Claude Code credentials.
 
-Run `/claude-code-status` in Pi to check that Claude Code is installed and
+Run `/claude-code-status` in the agent to check that Claude Code is installed and
 logged in.
 
 ## Configuration

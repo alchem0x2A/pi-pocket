@@ -1,11 +1,11 @@
 // Project trust gates .agents/skills and model defaults from .pi/settings.json. The bar asks the owner when a
-// session's project has either and nobody decided yet; /trust shows and changes the decision shared with Pi's CLI.
+// session's project has either and nobody decided yet; /trust shows and changes the decision shared with the agent's CLI.
 // Trusting model defaults affects only later new sessions, never the open session.
 import { useEffect } from "preact/hooks";
 import { actions, attempt, closeSheet, notify, openSheet, store } from "./store.js";
 import { html, Icon, Loader, Sheet, shortPath } from "./ui.js";
 
-/** Only the owner decides which projects Pi trusts: the answer goes into Pi's own settings. */
+/** Only the owner decides which projects the agent trusts: the answer goes into the agent's own settings. */
 export const trustAvailable = () => store.state.me?.role === "owner";
 
 /** The folders whose question the owner put off in this tab ("Not now"): the sheet and `/trust` still answer it. */
@@ -33,7 +33,7 @@ export function currentTrust() {
         : null;
 }
 
-/** Fetch whether Pi trusts the open conversation's project, unless that is known for its folder (or `force`). */
+/** Fetch whether the agent trusts the open conversation's project, unless that is known for its folder (or `force`). */
 export function loadTrust({ force = false } = {}) {
     const { conversationId, view, trust } = store.state;
     const cwd = view.agent?.cwd;
@@ -103,7 +103,9 @@ async function decide(choice) {
             ? `${shortPath(info.parent, server?.home)} and the folders in it`
             : "this project";
     const skills =
-        info.skills.length > 0 ? ` Pi has its skills from now on: ${skillNames(info.skills)}.` : "";
+        info.skills.length > 0
+            ? ` the agent has its skills from now on: ${skillNames(info.skills)}.`
+            : "";
 
     const defaults = info.settings
         ? " Project model defaults apply only to later new sessions; this session will not change."
@@ -134,7 +136,7 @@ export function TrustBar() {
             <strong>Trust this project?</strong>${" "}${
                 info.settings
                     ? `Its .pi/settings.json can set the model and thinking level of later new sessions. This session will not change.${info.skills.length > 0 ? ` Its skills in .agents/skills (${skillNames(info.skills)}) also need trust.` : ""}`
-                    : `Its skills in .agents/skills (${skillNames(info.skills)}) load only in a project Pi trusts.`
+                    : `Its skills in .agents/skills (${skillNames(info.skills)}) load only in a project the agent trusts.`
             }
         </span>
         <span class="trust-actions">
@@ -169,7 +171,7 @@ function Choice({ label, detail, current, onClick }) {
 }
 
 /**
- * Whether Pi was told not to trust the project: a saved "no", or its setting for undecided projects. A trust store that
+ * Whether the agent was told not to trust the project: a saved "no", or its setting for undecided projects. A trust store that
  * cannot be read decides nothing (as on the server, `skills.ts`), so the project's .pi/skills load.
  */
 const distrusted = (info) =>
@@ -185,7 +187,7 @@ function ownSkillsText(info) {
 
     if (info.skills.length > 0) {
         texts.push(
-            `In .agents/skills: ${list(info.skills)}. ${info.trusted ? "Pi has them." : "They load once you trust it."}`,
+            `In .agents/skills: ${list(info.skills)}. ${info.trusted ? "the agent has them." : "They load once you trust it."}`,
         );
     }
 
@@ -200,27 +202,27 @@ function ownSkillsText(info) {
         : [
               info.settings
                   ? "It has no skills of its own."
-                  : "It has no skills of its own, so this changes nothing in Pi Pocket here.",
+                  : "It has no skills of its own, so this changes nothing in Pia here.",
           ];
 }
 
 /** Where the decision comes from, in a sentence. */
 function status(info, short) {
     if (info.unreadable) {
-        return "Pi's trust store (~/.pi/agent/trust.json) cannot be read, so no project is trusted, and no answer can be saved until it is mended or deleted.";
+        return "the agent's trust store (~/.pi/agent/trust.json) cannot be read, so no project is trusted, and no answer can be saved until it is mended or deleted.";
     }
 
     if (info.saved === null) {
         if (info.defaultProjectTrust === "always") {
-            return "Trusted: no decision is saved for it, and Pi's defaultProjectTrust setting trusts every project.";
+            return "Trusted: no decision is saved for it, and the agent's defaultProjectTrust setting trusts every project.";
         }
 
         if (info.defaultProjectTrust === "never") {
-            return "Not trusted: no decision is saved for it, and Pi's defaultProjectTrust setting trusts no project.";
+            return "Not trusted: no decision is saved for it, and the agent's defaultProjectTrust setting trusts no project.";
         }
 
         return info.skills.length > 0
-            ? "No decision yet. Until there is one, Pi Pocket leaves its skills in .agents/skills off."
+            ? "No decision yet. Until there is one, Pia leaves its skills in .agents/skills off."
             : "No decision yet.";
     }
 
@@ -231,7 +233,7 @@ function status(info, short) {
         : `${what}, as the folder it is in: ${short(info.saved.path)}.`;
 }
 
-/** The project's trust, and the three answers Pi's `/trust` offers. */
+/** The project's trust, and the three answers the agent's `/trust` offers. */
 export function TrustSheet() {
     const { server } = store.state;
     const short = (path) => shortPath(path, server?.home);
@@ -263,7 +265,7 @@ export function TrustSheet() {
             </p>`
         }
         <p class="muted small">
-            Pi's CLI goes by the same decision, saved in ~/.pi/agent/trust.json. There, trusting a project also loads its .pi settings, extensions, and packages, which run code on this machine. Trust only folders whose contents you trust.
+            The agent's CLI goes by the same decision, saved in ~/.pi/agent/trust.json. There, trusting a project also loads its .pi settings, extensions, and packages, which run code on this machine. Trust only folders whose contents you trust.
         </p>
         ${
             !trustAvailable()

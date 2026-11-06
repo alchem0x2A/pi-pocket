@@ -1,5 +1,5 @@
 /**
- * Browser: Pi opens, reads, clicks through, and screenshots web pages in a real Chromium on this machine, the same page
+ * Browser: the agent opens, reads, clicks through, and screenshots web pages in a real Chromium on this machine, the same page
  * the people in the conversation watch and use in the Browser panel. Turning it off turns off the panel too.
  *
  * A call is not replayed after a restart (clicking twice is not harmless), and the page itself does not survive one:
@@ -50,7 +50,7 @@ const MAX_TEXT = 20_000;
 
 const GUIDE = `You have a browser tool: headless Chromium on this machine. The people in this conversation see the same page live in the app's Browser panel and can click and type in it too, so it is how you show and test web work: local dev servers (http://localhost:5173), HTML files on this machine (give their path), or any site.
 - Use this browser for local web work. Do not rely on it for external web search or fetch. Websites may show CAPTCHA or other challenges, including HTTP 429. Do not try to bypass CAPTCHA.
-- A test returned a 429 CAPTCHA for Google search in Pi Pocket, but the same query worked in another browser setup. The test does not prove the cause.
+- A test returned a 429 CAPTCHA for Google search in Pia, but the same query worked in another browser setup. The test does not prove the cause.
 - Use the \`vm_browser\` skill, a headed browser with a real profile, for these tasks when available.
 - Cookies last only for the open page. Do not promise persistent sign-in.
 - Start a dev server in the background with bash first, for example \`nohup npm run dev > /tmp/dev.log 2>&1 &\`, then navigate to it.
@@ -85,7 +85,7 @@ export default function createBrowser(host: PocketHost) {
     const browser = defineTool({
         name: "browser",
         description:
-            "Use headless Chromium for local web pages, snapshots, clicks, typing, screenshots, and console checks. Do not rely on it for external web search or fetch: websites may show CAPTCHA or other challenges, including HTTP 429. Do not offer CAPTCHA bypasses. A Google search test returned a 429 CAPTCHA in Pi Pocket, but the same query worked in another browser setup; the test does not prove the cause. Use the `vm_browser` skill, a headed browser with a real profile, for these tasks when available. Cookies last only for the open page; do not promise persistent sign-in.",
+            "Use headless Chromium for local web pages, snapshots, clicks, typing, screenshots, and console checks. Do not rely on it for external web search or fetch: websites may show CAPTCHA or other challenges, including HTTP 429. Do not offer CAPTCHA bypasses. A Google search test returned a 429 CAPTCHA in Pia, but the same query worked in another browser setup; the test does not prove the cause. Use the `vm_browser` skill, a headed browser with a real profile, for these tasks when available. Cookies last only for the open page; do not promise persistent sign-in.",
         parameters: Type.Object({
             action: Type.Union(
                 ACTIONS.map((action) => Type.Literal(action)),
@@ -187,7 +187,7 @@ export default function createBrowser(host: PocketHost) {
             const action = args.action as Action;
             const agent = await api.snapshot(AgentDoc, api.conversationId, context);
             const cwd = agent?.cwd ?? process.cwd();
-            // A page opened again comes back at its last address, unless Pi is about to open another.
+            // A page opened again comes back at its last address, unless the agent is about to open another.
             const page = await awaitWithContext(
                 host.browsers.open(Number(api.conversationId), { restore: action !== "navigate" }),
                 context,

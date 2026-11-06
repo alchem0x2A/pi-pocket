@@ -1,6 +1,6 @@
-# Running Pi Pocket in Docker or Podman
+# Running Pia in Docker or Podman
 
-Pi Pocket runs from its source with Node.js, so the container is thin: Node, Chromium for the Browser panel, and the command-line tools the built-in extensions use (`git`, `gh`, `ripgrep`, `fd`, and `cloudflared`).
+Pia runs from its source with Node.js, so the container is thin: Node, Chromium for the Browser panel, and the command-line tools the built-in extensions use (`git`, `gh`, `ripgrep`, `fd`, and `cloudflared`).
 
 The image is built from the repository root. [`docker-compose.yml`](../docker-compose.yml) is the usual way to run it; [`docker/Dockerfile`](../docker/Dockerfile) works with plain `docker run` or `podman run` too.
 
@@ -32,16 +32,16 @@ The container's entrypoint clears Chromium's stale `Singleton*` locks in `./data
 
 Every folder that matters is a bind mount, so it stays outside the container and outside the image. Change the left-hand side in `.env` to use a folder anywhere on the host.
 
-| Variable               | Default             | In the container   | Holds                                                                                             |
-| ---------------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------- |
-| `PI_POCKET_DATA`       | `./data`            | `/data`            | `pocket.sqlite`, `config.json`, `push.json`, uploads, worktrees, the browser profile, and logging |
-| `PI_POCKET_EXTENSIONS` | `./data/extensions` | `/data/extensions` | The owner's drop-in extensions, loaded from this folder                                           |
-| `PI_POCKET_PI_DIR`     | `./data/pi`         | `/home/node/.pi`   | Pi's `agent/` folder: `auth.json`, `settings.json`, skills, prompts, trust, sessions, packages    |
-| `PI_POCKET_WORKSPACE`  | `./data/workspace`  | `/workspace`       | The projects Pi works on, and where new sessions start                                            |
+| Variable               | Default             | In the container   | Holds                                                                                                 |
+| ---------------------- | ------------------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
+| `PI_POCKET_DATA`       | `./data`            | `/data`            | `pocket.sqlite`, `config.json`, `push.json`, uploads, worktrees, the browser profile, and logging     |
+| `PI_POCKET_EXTENSIONS` | `./data/extensions` | `/data/extensions` | The owner's drop-in extensions, loaded from this folder                                               |
+| `PI_POCKET_PI_DIR`     | `./data/pi`         | `/home/node/.pi`   | the agent's `agent/` folder: `auth.json`, `settings.json`, skills, prompts, trust, sessions, packages |
+| `PI_POCKET_WORKSPACE`  | `./data/workspace`  | `/workspace`       | The projects the agent works on, and where new sessions start                                         |
 
 The mounts are nested on purpose: `extensions`, `pi`, and `workspace` are separate host folders under `./data`, even though the app reads them inside `/data` or `/home/node`. Dropping a `.ts` file into `./data/extensions` makes it appear in Menu → Extensions, off until the owner turns it on. The gallery's **Install** writes there too.
 
-Pi's sign-ins live in `./data/pi/agent/auth.json`, not in Pi Pocket's database. Keeping that folder means a fresh database reuses the same sign-ins, and a Pi CLI on the host can share it (`PI_CODING_AGENT_DIR=/absolute/path/to/data/pi/agent`).
+The agent's sign-ins live in `./data/pi/agent/auth.json`, not in Pia's database. Keeping that folder means a fresh database reuses the same sign-ins, and an agent CLI on the host can share it (`PI_CODING_AGENT_DIR=/absolute/path/to/data/pi/agent`).
 
 Provider keys can go in `.env` and the `environment:` block of the Compose file instead. Keys are not written to the image.
 
@@ -89,4 +89,4 @@ The external folders and the database are untouched. Extensions are live-edited 
 
 ## Security
 
-Anyone who can steer a session can run commands in this container as its user. With the default root user that means every file in the mounted folders, and every provider key in the environment. Mount only the projects you would trust Pi with, keep the port off the public internet unless you use a tunnel, and read [SECURITY.md](../SECURITY.md) before inviting other people.
+Anyone who can steer a session can run commands in this container as its user. With the default root user that means every file in the mounted folders, and every provider key in the environment. Mount only the projects you would trust the agent with, keep the port off the public internet unless you use a tunnel, and read [SECURITY.md](../SECURITY.md) before inviting other people.

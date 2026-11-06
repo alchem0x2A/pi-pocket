@@ -1,5 +1,5 @@
 // The subagents bar, above the message box: this session's subagents at a glance. It shows while one works or has a
-// report on its way to Pi, and after they finish until it is put away. Folded, one line: how many work and how many
+// report on its way to the agent, and after they finish until it is put away. Folded, one line: how many work and how many
 // are done, and what the newest one does. Unfolded, a row each: what it was asked, what it does this moment (its peek,
 // as tiles have), for how long, whether its report is on its way, Stop, and a tap to open it.
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -121,7 +121,7 @@ function AgentRow({ agent }) {
                 <span class="agent-head">
                     <span class="agent-name">${agent.name}</span>
                     ${when && html`<span class="agent-when">${when}</span>`}
-                    ${agent.reporting && html`<span class="agent-chip">report on its way to Pi</span>`}
+                    ${agent.reporting && html`<span class="agent-chip">report on its way to the agent</span>`}
                 </span>
                 ${agent.busy && html`<span class="agent-now">${nowDoing(agent)}</span>`}
                 ${status === "failed" && agent.error && html`<span class="agent-error">${agent.error}</span>`}

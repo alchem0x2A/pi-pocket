@@ -556,7 +556,7 @@ test("a long open group draws its newest steps, and shows the rest when asked", 
             `),
         "the session view",
     );
-    // A person's message, then a run of Pi's alone: 30 answers that each call a tool, and a result for each.
+    // A person's message, then a run of the agent's alone: 30 answers that each call a tool, and a result for each.
     await page.evaluate(`
         const { store } = await import("/store.js");
         const entries = [{ id: 910000, kind: "user", text: "go", images: 0, at: Date.now() }];
@@ -599,7 +599,7 @@ test("Keep activity folded opens and folds groups already on screen", real, asyn
             `),
         "the session view",
     );
-    // The newest turn: a person's message, then one call of Pi's and its result.
+    // The newest turn: a person's message, then one call of the agent's and its result.
     await page.evaluate(`
         const { store } = await import("/store.js");
         const entries = [
@@ -720,44 +720,44 @@ test("a late earlier-history response stays out of another conversation", real, 
     );
 });
 
-/** PiP closed and forgotten in this tab, so the tests after start without it. */
-async function noPip(): Promise<void> {
+/** Pia closed and forgotten in this tab, so the tests after start without it. */
+async function noPia(): Promise<void> {
     await page.evaluate(`
-        (await import("/pip.js")).closePip();
-        sessionStorage.removeItem("pocket.pip");
-        localStorage.removeItem("pocket.pip.draft");
+        (await import("/pip.js")).closePia();
+        sessionStorage.removeItem("pocket.pia");
+        localStorage.removeItem("pocket.pia.draft");
     `);
     await until(
         async () =>
             (await inPage<boolean>(
-                `return JSON.stringify(document.querySelector(".pip-panel") === null)`,
+                `return JSON.stringify(document.querySelector(".pia-panel") === null)`,
             )) === true,
-        "PiP's panel, gone",
+        "Pia's panel, gone",
     );
 }
 
 test(
-    "/pip with words that cannot be sent leaves them in PiP's box, after its draft",
+    "/pia with words that cannot be sent leaves them in Pia's box, after its draft",
     real,
     async () => {
         await fresh();
         await page.setViewport(VIEWPORTS.desktop);
         await page.evaluate(`
-        localStorage.setItem("pocket.pip.draft", "a draft");
+        localStorage.setItem("pocket.pia.draft", "a draft");
         const fetched = window.fetch;
         window.fetch = (url, init) =>
             String(url).endsWith("/submit") ? Promise.reject(new TypeError("offline")) : fetched(url, init);
         // Awaited: a promise the script leaves behind can be collected before it settles, which fails the call.
-        await (await import("/pip.js")).askPip("hello pip");
+        await (await import("/pip.js")).askPia("hello pia");
     `);
         await until(
             async () =>
                 (await inPage<string | null>(
-                    `return JSON.stringify(document.querySelector(".pip-composer textarea")?.value ?? null)`,
-                )) === "a draft\n\nhello pip",
-            "the words, back in PiP's box after the draft",
+                    `return JSON.stringify(document.querySelector(".pia-composer textarea")?.value ?? null)`,
+                )) === "a draft\n\nhello pia",
+            "the words, back in Pia's box after the draft",
         );
-        await noPip();
+        await noPia();
     },
 );
 
@@ -933,7 +933,7 @@ test(
         await openWithRows(30);
         await until(async () => (await gap()) < 2, "the bottom, once the rows show");
 
-        // Pi writes: the answer grows with no new entry, update after update.
+        // the agent writes: the answer grows with no new entry, update after update.
         for (let n = 1; n <= 3; n++) {
             await page.evaluate(`
             const { store } = await import("/store.js");

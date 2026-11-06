@@ -106,7 +106,7 @@ test("the settings route sets and clears the default, for the owner only", async
 });
 
 test("a default that is not signed in stays the default: no other model is put in its place", async () => {
-    // A model Pi knows, of a provider nobody signed in to here.
+    // A model the agent knows, of a provider nobody signed in to here.
     const away = app.models.getModels("anthropic")[0]!;
 
     app.config.lastModel = { provider: "faux", modelId: "other", thinkingLevel: "low" };

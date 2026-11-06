@@ -329,7 +329,7 @@ for await (const line of input) {
 
     // A tool call makes Claude's hidden history diverge because its inert MCP
     // server has already returned a denial. Never retain that process; replay
-    // the real Pi tool result in a fresh process on the next request.
+    // the real the agent tool result in a fresh process on the next request.
     const toolCommon = {
       ...common,
       manifest: [

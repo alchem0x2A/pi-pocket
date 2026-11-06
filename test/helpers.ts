@@ -1,5 +1,5 @@
-// What the server tests share: an isolated Pi install and data folder, a scripted model, and small helpers. Import
-// this before anything from src/: it points Pi's config at a temporary folder first.
+// What the server tests share: an isolated the agent install and data folder, a scripted model, and small helpers. Import
+// this before anything from src/: it points the agent's config at a temporary folder first.
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,14 +8,14 @@ import type { FauxResponseStep } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxProvider, fauxText } from "@earendil-works/pi-ai/providers/faux";
 import { type ConversationId, UsageDoc } from "@earendil-works/pi-durable";
 import type { Attachment } from "../src/server/commands.ts";
-import type { User } from "../src/server/config.ts";
+import { ConfigStore, type User } from "../src/server/config.ts";
 import type { LimitTuning } from "../src/server/limit-gate.ts";
 import type { Client } from "../src/server/room.ts";
 
 export const context = BACKGROUND_CONTEXT;
 
 export const root = mkdtempSync(join(tmpdir(), "pi-pocket-test-"));
-// Isolate from the real Pi install: its auth, settings, skills, and Lancet Guard.
+// Isolate from the real the agent install: its auth, settings, skills, and Lancet Guard.
 process.env.PI_CODING_AGENT_DIR = join(root, "agent");
 process.env.PI_POCKET_GUARD = "off";
 // Existing scripted models call tools without discovery. The discovery integration tests opt in explicitly.
@@ -49,7 +49,7 @@ export function lastText(context: { messages: readonly { role: string; content: 
     };
 }
 
-/** Echoes the last message: enough for tests that do not care what Pi says. */
+/** Echoes the last message: enough for tests that do not care what the agent says. */
 export const echo: FauxResponseStep = (context) =>
     fauxAssistantMessage([fauxText(`echo: ${lastText(context as never).text}`)]);
 
@@ -71,12 +71,23 @@ export function scriptedModel(route: FauxResponseStep = echo) {
 }
 
 /** Open the app on `dataDir` with the scripted model. Opening the same folder again is a restart; `now` moves its clock. */
-export function openApp(
+export async function openApp(
     model: ReturnType<typeof scriptedModel>,
     dataDir = join(root, "data"),
     now?: () => number,
     limits?: Partial<LimitTuning>,
+    enableTestHelperExtensions = true,
 ): Promise<App> {
+    if (enableTestHelperExtensions) {
+        const config = new ConfigStore(dataDir);
+
+        for (const file of ["subagents.ts", "background.ts"]) {
+            if (config.extensionChoice(file) === undefined) {
+                config.setExtensionEnabled(file, true);
+            }
+        }
+    }
+
     return PocketApp.open({
         dataDir,
         defaultCwd: work,
@@ -140,7 +151,7 @@ export async function newSession(app: App, cwd = work): Promise<ConversationId> 
     return id;
 }
 
-/** Send a message as the owner and wait for Pi's answer. */
+/** Send a message as the owner and wait for the agent's answer. */
 export async function say(
     app: App,
     id: ConversationId,

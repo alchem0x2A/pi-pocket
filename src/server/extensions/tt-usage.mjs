@@ -30,7 +30,13 @@ export default function setup(pocket) {
     const open = () => pocket.openSheet("peek-sheet");
     const item =
         typeof pocket.status === "function"
-            ? pocket.status({ id: "usage", text: "usage", short: "usage", title: "Open usage", run: open })
+            ? pocket.status({
+                  id: "usage",
+                  text: "usage",
+                  short: "usage",
+                  title: "Open usage",
+                  run: open,
+              })
             : undefined;
 
     function publish(data) {
@@ -71,9 +77,21 @@ export default function setup(pocket) {
     }
 
     /** The tag after the name, by state. The words come from the server (`WORDS`), never the technical cause. */
-    const TAG = { "not-checked": "", ok: "ok", near: "near limit", "at-limit": "at limit", blocked: "blocked", failed: "", "sign-in": "" };
+    const TAG = {
+        "not-checked": "",
+        ok: "ok",
+        near: "near limit",
+        "at-limit": "at limit",
+        blocked: "blocked",
+        failed: "",
+        "sign-in": "",
+    };
     const stateClass = (state) =>
-        state === "blocked" || state === "at-limit" || state === "sign-in" ? "error" : state === "near" ? "warn" : "muted";
+        state === "blocked" || state === "at-limit" || state === "sign-in"
+            ? "error"
+            : state === "near"
+              ? "warn"
+              : "muted";
 
     /** The sheet: one line per account. */
     function Peek() {
@@ -97,22 +115,31 @@ export default function setup(pocket) {
                         <strong>${NAMES[report.provider] ?? report.label}</strong>
                         <span class=${stateClass(report.state)}> ${TAG[report.state] ?? ""}</span>
                     </div>
-                    ${remaining === null
-                        ? html`<div class="small">
-                              ${report.reason}
-                              ${report.state === "not-checked"
-                                  ? ""
-                                  : html`<span class="muted"> · ${new Date(report.at).toLocaleTimeString()}</span>`}
-                          </div>`
-                        : html`<div class="small mono">
-                                  ${remaining}% left${report.session ? ` · 5h ${left(report.session)}%` : ""}${report.weekly ? ` · wk ${left(report.weekly)}%` : ""}
-                              </div>
-                              <div class="small muted">
-                                  resets ${clock(report.session) || clock(report.weekly)}
-                              </div>`}
-                    ${report.gate
-                        ? html`<div class="small error">held until ${report.gate.until}</div>`
-                        : ""}
+                    ${
+                        remaining === null
+                            ? html`<div class="small">
+                                  ${report.reason}
+                                  ${
+                                      report.state === "not-checked"
+                                          ? ""
+                                          : html`<span class="muted">
+                                                · ${new Date(report.at).toLocaleTimeString()}</span
+                                            >`
+                                  }
+                              </div>`
+                            : html`<div class="small mono">
+                                      ${remaining}%
+                                      left${report.session ? ` · 5h ${left(report.session)}%` : ""}${report.weekly ? ` · wk ${left(report.weekly)}%` : ""}
+                                  </div>
+                                  <div class="small muted">
+                                      resets ${clock(report.session) || clock(report.weekly)}
+                                  </div>`
+                    }
+                    ${
+                        report.gate
+                            ? html`<div class="small error">held until ${report.gate.until}</div>`
+                            : ""
+                    }
                 </div>`;
             })}
             ${error ? html`<div class="small error">Could not check. Try again.</div>` : ""}

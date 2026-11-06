@@ -1,6 +1,6 @@
 /**
  * The extension gallery: find drop-ins other people wrote in a reviewed index, install them (drop-ins off),
- * read their code, ask Pi to review it, update them with a diff, remove them, and share your own. Its routes are the
+ * read their code, ask the agent to review it, update them with a diff, remove them, and share your own. Its routes are the
  * owner's alone; the web app shows it in Menu → Extensions and as the launcher's Find extensions (`gallery.ts` does the
  * work).
  */

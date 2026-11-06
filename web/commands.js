@@ -1,10 +1,10 @@
-// Slash commands in the message box ("/compact", "/model sonnet", …). They run here in the app and are never sent to Pi.
+// Slash commands in the message box ("/compact", "/model sonnet", …). They run here in the app and are never sent to the agent.
 import { browserAvailable, openInBrowser, toggleBrowser } from "./browser.js";
 import { filesAvailable, toggleFiles } from "./files-panel.js";
 import { branchAvailable } from "./sheets/branch.js";
 import { memoryAvailable, remember } from "./sheets/memory.js";
 import { togglePeeks } from "./peeks.js";
-import { askPip, assistantName, openPip, pipAvailable } from "./pip.js";
+import { askPia, assistantName, openPia, piaAvailable } from "./pip.js";
 import { actions, navigate, notify, openSheet, scoped, store } from "./store.js";
 import { chooseMode } from "./theme.js";
 import { trustAvailable } from "./trust.js";
@@ -21,11 +21,11 @@ export const schedulesAvailable = () =>
 const goalsAvailable = () =>
     isSession() && store.state.server?.extensions?.includes("pocket-goals") === true;
 
-/** Webhooks need the triggers extension; so does watching a PR, which is for sessions other than PiP. */
+/** Webhooks need the triggers extension; so does watching a PR, which is for sessions other than Pia. */
 export const triggersOn = () =>
     store.state.server?.extensions?.includes("pocket-triggers") === true;
 export const watchAvailable = () =>
-    isSession() && !store.state.view.conversation?.pip && triggersOn();
+    isSession() && !store.state.view.conversation?.pia && triggersOn();
 
 /** Watch this session's pull request (its branch's, or `pr`), and say what that means. */
 export async function watchPr(pr) {
@@ -33,7 +33,7 @@ export async function watchPr(pr) {
 
     notify(
         "info",
-        `Watching PR #${number}: Pi hears when its checks fail, it has conflicts, or reviewers comment, until it is merged.`,
+        `Watching PR #${number}: the agent hears when its checks fail, it has conflicts, or reviewers comment, until it is merged.`,
     );
 }
 
@@ -41,7 +41,7 @@ export async function watchPr(pr) {
 const TEMPLATES_FOR_MS = 30_000;
 
 /**
- * Fetch Pi's prompt templates for this conversation, unless a fresh list is here. Call when someone types a command. A
+ * Fetch the agent's prompt templates for this conversation, unless a fresh list is here. Call when someone types a command. A
  * list is for a folder too: the session moved (`/cwd`, a worktree) has another project's templates and skills.
  */
 export function loadTemplates() {
@@ -191,10 +191,10 @@ async function copyLast() {
 
         await copyText(text);
 
-        return notify("info", "Copied Pi’s last reply.");
+        return notify("info", "Copied the agent’s last reply.");
     }
 
-    notify("info", "Pi has not replied yet.");
+    notify("info", "the agent has not replied yet.");
 }
 
 function showSession() {
@@ -238,13 +238,13 @@ const COMMANDS = [
     {
         name: "reset",
         args: "[handoff note]",
-        description: "Start a new context: Pi starts fresh, history stays",
+        description: "Start a new context: the agent starts fresh, history stays",
         run: (arg) => actions.reset(arg || undefined),
     },
     {
         name: "instructions",
         args: "[text]",
-        description: "Set what Pi is told with every message here",
+        description: "Set what the agent is told with every message here",
         available: isSession,
         run: (arg) =>
             arg === "" ? openSheet({ type: "instructions" }) : actions.setInstructions(arg),
@@ -279,7 +279,7 @@ const COMMANDS = [
     },
     {
         name: "plan",
-        description: "Plan mode on or off: Pi reads and proposes, and changes nothing",
+        description: "Plan mode on or off: the agent reads and proposes, and changes nothing",
         available: () => planAvailable() && isSession(),
         run: async () => {
             const on = !store.state.view.plan?.on;
@@ -288,7 +288,7 @@ const COMMANDS = [
             notify(
                 "info",
                 on
-                    ? "Plan mode is on: Pi proposes a plan and changes nothing until you approve it."
+                    ? "Plan mode is on: the agent proposes a plan and changes nothing until you approve it."
                     : "Plan mode is off.",
             );
         },
@@ -297,7 +297,7 @@ const COMMANDS = [
         name: "schedule",
         args: "<when> <message>",
         description:
-            "Send Pi a message later or on repeat: in 2h …, tomorrow 9:00 …, every weekday 8:00 …",
+            "Send the agent a message later or on repeat: in 2h …, tomorrow 9:00 …, every weekday 8:00 …",
         available: schedulesAvailable,
         run: async (arg) => {
             if (arg === "") {
@@ -312,7 +312,7 @@ const COMMANDS = [
     {
         name: "remember",
         args: "<lesson>",
-        description: "Keep a lesson for Pi in every session of this project",
+        description: "Keep a lesson for the agent in every session of this project",
         available: () => memoryAvailable() && store.state.me?.role !== "viewer",
         run: async (arg) => {
             if (arg === "") {
@@ -324,15 +324,16 @@ const COMMANDS = [
             notify(
                 "info",
                 lesson.pending
-                    ? "Remembered. Pi uses it once the owner approves it."
-                    : "Remembered. Pi gets it from its next message.",
+                    ? "Remembered. The agent uses it once the owner approves it."
+                    : "Remembered. The agent gets it from its next message.",
             );
         },
     },
     {
         name: "until",
         args: "<command>",
-        description: "Pi keeps going until a check passes, such as npm test (5 checks at most)",
+        description:
+            "the agent keeps going until a check passes, such as npm test (5 checks at most)",
         available: goalsAvailable,
         run: async (arg) => {
             if (arg === "") {
@@ -340,19 +341,19 @@ const COMMANDS = [
             }
 
             await actions.setGoal(arg);
-            notify("info", `Pi keeps going until ${arg} passes, checked after each answer.`);
+            notify("info", `the agent keeps going until ${arg} passes, checked after each answer.`);
         },
     },
     {
         name: "watch",
         args: "[PR number or URL]",
         description:
-            "Watch this session's pull request: Pi fixes failed checks and answers reviews until it is merged",
+            "Watch this session's pull request: the agent fixes failed checks and answers reviews until it is merged",
         available: watchAvailable,
         run: (arg) => watchPr(arg),
     },
     { name: "stop", description: "Stop the current run", run: () => actions.abort() },
-    { name: "copy", description: "Copy Pi’s last reply", run: copyLast },
+    { name: "copy", description: "Copy the agent’s last reply", run: copyLast },
     {
         name: "find",
         args: "[text]",
@@ -373,7 +374,7 @@ const COMMANDS = [
     {
         name: "browser",
         args: "[address]",
-        description: "Open the browser Pi uses, or an address in it, such as localhost:5173",
+        description: "Open the browser the agent uses, or an address in it, such as localhost:5173",
         available: browserAvailable,
         run: (arg) => (arg === "" ? toggleBrowser() : openInBrowser(arg)),
     },
@@ -397,13 +398,13 @@ const COMMANDS = [
         run: (arg) => openSheet({ type: "branch", query: arg }),
     },
     {
-        name: "pip",
+        name: "pia",
         args: "[message]",
         get description() {
             return `Open ${assistantName()}, your assistant over every session, or ask it something`;
         },
-        available: pipAvailable,
-        run: (arg) => (arg === "" ? openPip() : askPip(arg)),
+        available: piaAvailable,
+        run: (arg) => (arg === "" ? openPia() : askPia(arg)),
     },
     {
         name: "peek",
@@ -424,7 +425,7 @@ const COMMANDS = [
     { name: "settings", description: "Open the menu", run: () => openSheet({ type: "menu" }) },
     {
         name: "trust",
-        description: "Whether Pi trusts this project, for its own skills",
+        description: "Whether the agent trusts this project, for its own skills",
         available: trustAvailable,
         run: () => openSheet({ type: "trust" }),
     },
@@ -481,7 +482,7 @@ const available = () => [
     ...extensionCommands(),
 ];
 
-/** The command a message runs, or null for a message to Pi (such as one starting with a path like /etc/hosts). */
+/** The command a message runs, or null for a message to the agent (such as one starting with a path like /etc/hosts). */
 export function parseCommand(text) {
     const match = /^\/([a-z][\w-]*)(?:\s+([\s\S]*))?$/i.exec(text.trim());
 
@@ -494,7 +495,7 @@ export function parseCommand(text) {
     return command ? { command, arg: (match[2] ?? "").trim() } : null;
 }
 
-/** The prompt template a message to Pi starts with, or null. The app's own commands come first. */
+/** The prompt template a message to the agent starts with, or null. The app's own commands come first. */
 export function parseTemplate(text) {
     const match = /^\/(\S+)(?:\s|$)/.exec(text.trim());
 
@@ -505,7 +506,7 @@ export function parseTemplate(text) {
     return templates().find((template) => template.name === match[1]) ?? null;
 }
 
-/** Commands to offer while someone types a command name: "/" lists them all, then Pi's prompt templates and skills. */
+/** Commands to offer while someone types a command name: "/" lists them all, then the agent's prompt templates and skills. */
 export function suggestCommands(text) {
     const match = /^\/([\w:-]*)$/.exec(text);
 

@@ -3,7 +3,7 @@
  * strings.
  */
 /**
- * The page outline Pi reads: headings, text, and every control with a ref (`[e12]`) that click, type, select, and
+ * The page outline the agent reads: headings, text, and every control with a ref (`[e12]`) that click, type, select, and
  * hover take until the next snapshot. Refs are kept in the page itself, as weak references, so a page that changed
  * underneath still finds the controls it has. Elements that only look clickable (a `cursor: pointer` div with a
  * script's listener) count as controls too: apps are full of them.
@@ -170,7 +170,7 @@ const DEEP = String.raw`
 `;
 
 /**
- * Finds what Pi points at, scrolls it into view, and returns its middle in screen coordinates (CSS pixels of the
+ * Finds what the agent points at, scrolls it into view, and returns its middle in screen coordinates (CSS pixels of the
  * visual viewport, which mouse events use), with a short description and what covers it, if anything.
  */
 export const LOCATE_SCRIPT = String.raw`(async (target) => {${DEEP}	const clip = (text, max) => { const flat = String(text ?? "").replace(/\s+/g, " ").trim(); return flat.length > max ? flat.slice(0, max - 1) + "…" : flat; };
@@ -270,7 +270,7 @@ export const SELECT_OPTION_SCRIPT = String.raw`((target, wanted) => {
 	return option.text.trim();
 })`;
 
-/** A value as text for Pi: JSON, with elements as their opening tags. */
+/** A value as text for the agent: JSON, with elements as their opening tags. */
 export const DESCRIBE_FUNCTION = String.raw`function () {
 	const seen = new WeakSet();
 	const node = (value) => value.nodeType === 1 ? value.outerHTML.slice(0, 200) + (value.outerHTML.length > 200 ? "…" : "") : String(value.textContent ?? value.nodeName);

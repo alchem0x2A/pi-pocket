@@ -242,7 +242,8 @@ test("a run that crosses its session's limit is stopped once, and the people the
         tab.events.filter(
             (each) =>
                 each.event === "notice" &&
-                each.data.message === "Pi stopped: this session reached its $1.00 spend limit.",
+                each.data.message ===
+                    "the agent stopped: this session reached its $1.00 spend limit.",
         );
 
     try {
@@ -282,7 +283,7 @@ test("a run that crosses its session's limit is stopped once, and the people the
         assert.doesNotMatch(
             said,
             /"done"/,
-            "the five-second command was cut off, so Pi never answered after it",
+            "the five-second command was cut off, so the agent never answered after it",
         );
         assert.equal(stopped().length, 1);
     } finally {

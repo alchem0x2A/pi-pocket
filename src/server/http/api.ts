@@ -45,7 +45,7 @@ function lanAddresses(): string[] {
 /**
  * The owner's restart routes (`restart.ts`): `GET /api/restart` the status; `POST /api/restart` restarts, after a check
  * that the new code loads (`{ when: "now" | "idle", force }`); `POST /api/restart/cancel` stops a restart that waits
- * for tool calls; `POST /api/restart/command` sets the restart command; `POST /api/restart/dismiss` drops Pi's request.
+ * for tool calls; `POST /api/restart/command` sets the restart command; `POST /api/restart/dismiss` drops the agent's request.
  */
 async function restartRoute(
     { app, request, response }: ApiRequest,
@@ -260,7 +260,7 @@ export function createApi(options: HttpOptions, auth: Auth) {
             return json(response, 200, { ok: true });
         }
 
-        // The owner's Memory database path and Pi context files, with writes limited to listed files.
+        // The owner's Memory database path and the agent context files, with writes limited to listed files.
         if (first === "instruction-files" && second === undefined) {
             requireOwner(user);
 
@@ -336,8 +336,8 @@ export function createApi(options: HttpOptions, auth: Auth) {
             return json(response, 200, app.subagents(user));
         }
 
-        // The PiP panel opened or closed in a tab: while open, it gets PiP's conversation (`pipview` events). Opening it
-        // the first time makes this person's PiP; the answer says which conversation it is.
+        // The Pia panel opened or closed in a tab: while open, it gets Pia's conversation (`piaview` events). Opening it
+        // the first time makes this person's Pia; the answer says which conversation it is.
         if (first === "pip" && second === undefined && method === "POST") {
             const body = await readJson<{ connection?: unknown; on?: unknown; seq?: unknown }>(
                 request,
@@ -347,14 +347,16 @@ export function createApi(options: HttpOptions, auth: Auth) {
                 throw new HttpError(400, "seq must be a whole number");
             }
 
-            await app.setPip(
+            await app.setPia(
                 user,
                 String(body.connection ?? ""),
                 body.on === true,
                 body.seq as number | undefined,
             );
 
-            return json(response, 200, { pip: app.pip.state(user) });
+            const state = app.pia.state(user);
+
+            return json(response, 200, { pia: state, pip: state });
         }
 
         // Webhooks: the ones this person may manage, with the address to give other services; making and removing one.
@@ -379,7 +381,7 @@ export function createApi(options: HttpOptions, auth: Auth) {
         }
 
         // A repository watch let hear from anyone, or only from the repository's people: by its person or the owner,
-        // never by PiP.
+        // never by Pia.
         if (
             first === "repo-watches" &&
             second !== undefined &&
@@ -469,7 +471,7 @@ export function createApi(options: HttpOptions, auth: Auth) {
             return json(response, 200, app.sessions(user));
         }
 
-        // Pi's sessions from the terminal, which the owner can continue here.
+        // the agent's sessions from the terminal, which the owner can continue here.
         if (first === "pi-sessions" && second === undefined && method === "GET") {
             return json(
                 response,
@@ -606,10 +608,8 @@ export function createApi(options: HttpOptions, auth: Auth) {
                 approvalRule?: unknown;
                 defaultModel?: unknown;
                 compactionModel?: unknown;
-                pipCompactAt?: unknown;
                 subagentModels?: unknown;
                 limitWaitHours?: unknown;
-                assistantProfile?: unknown;
                 assistantName?: unknown;
             }>(request);
 
@@ -619,10 +619,8 @@ export function createApi(options: HttpOptions, auth: Auth) {
                     body.approvalRule,
                     body.defaultModel,
                     body.compactionModel,
-                    body.pipCompactAt,
                     body.subagentModels,
                     body.limitWaitHours,
-                    body.assistantProfile,
                     body.assistantName,
                 ].filter((value) => value !== undefined).length > 1
             ) {
@@ -634,20 +632,12 @@ export function createApi(options: HttpOptions, auth: Auth) {
                 await app.setSubagentModels(user, body.subagentModels);
             }
 
-            if (body.pipCompactAt !== undefined) {
-                await app.setPipCompactAt(user, body.pipCompactAt);
-            }
-
             // How long a run waits for a provider's limit to clear: the owner's (checked in `app.ts`).
             if (body.limitWaitHours !== undefined) {
                 await app.setLimitWaitHours(user, body.limitWaitHours);
             }
 
-            // The assistant profile and Pia's name: the owner's (checked in `app.ts`).
-            if (body.assistantProfile !== undefined) {
-                await app.setAssistantProfile(user, body.assistantProfile);
-            }
-
+            // The assistant name: the owner's (checked in `app.ts`).
             if (body.assistantName !== undefined) {
                 await app.setAssistantName(user, body.assistantName);
             }

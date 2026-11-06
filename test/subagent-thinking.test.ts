@@ -1,4 +1,4 @@
-// A subagent thinks at the level Pi asks, also above its session's; a level its model lacks becomes a lower one, and a
+// A subagent thinks at the level the agent asks, also above its session's; a level its model lacks becomes a lower one, and a
 // level raised by hand stays as work is sent.
 import { type App, cleanUp, context, lastText, openApp, owner, until, work } from "./helpers.ts";
 import assert from "node:assert/strict";
@@ -68,7 +68,7 @@ after(async () => {
 });
 
 /**
- * A session on `modelId` at `thinkingLevel` whose Pi spawns as `text` says; the subagent's thinking level, and what the
+ * A session on `modelId` at `thinkingLevel` whose the agent spawns as `text` says; the subagent's thinking level, and what the
  * tool answered.
  */
 async function spawn(modelId: string, text: string, thinkingLevel = "off") {
@@ -97,7 +97,7 @@ async function spawn(modelId: string, text: string, thinkingLevel = "off") {
     return { thinking: (await app.agentState(child!))?.thinkingLevel, answer };
 }
 
-test("a subagent thinks harder than its session when Pi asks, with no note", async () => {
+test("a subagent thinks harder than its session when the agent asks, with no note", async () => {
     const { thinking, answer } = await spawn("deep", "spawn eager high", "low");
 
     assert.equal(thinking, "high");
@@ -108,7 +108,7 @@ test("a subagent with no level named takes its session's", async () => {
     assert.equal((await spawn("deep", "spawn same -", "medium")).thinking, "medium");
 });
 
-test("a level its model lacks becomes a lower one, and Pi is told", async () => {
+test("a level its model lacks becomes a lower one, and the agent is told", async () => {
     const { thinking, answer } = await spawn("plain", "spawn modest high", "medium");
 
     assert.equal(thinking, "off");

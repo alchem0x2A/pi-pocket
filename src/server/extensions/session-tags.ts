@@ -1,6 +1,6 @@
 /** Session tags: shared labels on sessions, shown on their rows, found by search, and used to filter the session list. */
 import { defineDoc } from "@earendil-works/pi-durable";
-// Types only: at run time this module uses nothing of Pi Pocket's but the host and web, as a drop-in would.
+// Types only: at run time this module uses nothing of Pia's but the host and web, as a drop-in would.
 import type { ExtensionWeb, PocketHost, WebRequest } from "../host.ts";
 
 /** Each session's tags, by session id. A session with no tags has no key. Stored data: never rename the kind. */
@@ -16,7 +16,7 @@ const MAX_TAGS = 10;
 const MAX_LENGTH = 32;
 const MAX_IDS = 500;
 
-/** Whether Pi Pocket `version` is 0.20.0 or newer: a server started before then has none of what this module uses. */
+/** Whether Pia `version` is 0.20.0 or newer: a server started before then has none of what this module uses. */
 function supported(version: string | undefined): boolean {
     const [major = 0, minor = 0] = (version ?? "0.0.0").split(".").map(Number);
 

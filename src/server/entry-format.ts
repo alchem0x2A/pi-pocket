@@ -1,5 +1,5 @@
 /**
- * What Pi Pocket writes into stored conversations: the kinds of its own entries, and the markers it puts into message
+ * What Pia writes into stored conversations: the kinds of its own entries, and the markers it puts into message
  * text. Stored entries and the web app depend on these exact values: never change them.
  */
 
@@ -8,7 +8,7 @@ export const FILE_BLOCK = '<file name="';
 /** The entry kind of a note about what a person did (`Commands.note`). */
 export const NOTE_ENTRY = "pocket.note";
 
-/** The speaker prefix Pi Pocket adds to messages when several people share the server. */
+/** The speaker prefix Pia adds to messages when several people share the server. */
 export const FROM_PREFIX = /^\[from: ([^\]\n]{1,60})\] /;
 
 /** What separates a message from the list of files attached to it. The web app splits messages on it too. */
@@ -29,14 +29,14 @@ export function splitAttachments(text: string): [written: string, files: string 
 export const SHELL_ENTRY = "pocket.shell";
 
 /**
- * The entry kind that ends a session continued from Pi in the terminal: what comes before it is Pi's. It gives the model
- * nothing; it carries the context edits Pi had made to that history.
+ * The entry kind that ends a session continued from the agent in the terminal: what comes before it is the agent's. It gives the model
+ * nothing; it carries the context edits the agent had made to that history.
  */
 export const FROM_PI_ENTRY = "pocket.from-pi";
 
-/** What that entry holds: the Pi session's id, its title, and its file. */
+/** What that entry holds: the agent session's id, its title, and its file. */
 export type FromPiData = { session: string; title: string; file: string };
-/** The entry kind of an extension command's card: text for the people here, never in Pi's context. */
+/** The entry kind of an extension command's card: text for the people here, never in the agent's context. */
 export const COMMAND_ENTRY = "pocket.extension-command";
 
 export type CommandData = {
@@ -54,7 +54,7 @@ export type ShellData = {
     command: string;
     by: string;
     name: string;
-    /** Pi sees this command and its output. */
+    /** the agent sees this command and its output. */
     context: boolean;
     output: string;
     /** Absent when the command did not get to exit. */

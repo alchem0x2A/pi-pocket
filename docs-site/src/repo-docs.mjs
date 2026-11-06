@@ -1,5 +1,5 @@
-// Pi Pocket's docs, read where they are in the repository, with no copies: docs/**/*.md (not docs/design/),
-// SECURITY.md, and CONTRIBUTING.md. Pi reads the same files, and GitHub shows them, so they stay plain Markdown
+// Pia's docs, read where they are in the repository, with no copies: docs/**/*.md (not docs/design/),
+// SECURITY.md, and CONTRIBUTING.md. The agent reads the same files, and GitHub shows them, so they stay plain Markdown
 // without front matter.
 //
 // - `repoDocsLoader` is Astro's glob loader on the repository root. A page's title is its `# H1`, its description
@@ -37,7 +37,7 @@ export const REF =
         }
     })();
 
-/** Pi Pocket's version, as the footer says it. */
+/** Pia's version, as the footer says it. */
 export const VERSION = JSON.parse(readFileSync(join(REPO, "package.json"), "utf8")).version;
 
 const ROOT_PAGES = ["SECURITY.md", "CONTRIBUTING.md"];
@@ -396,7 +396,7 @@ export function repoMarkdown({ fileURL }) {
         },
         link: relink,
         definition: relink,
-        // "Since 0.14.0 · Stable" under a reference member: plain text on GitHub and for Pi, two tags here.
+        // "Since 0.14.0 · Stable" under a reference member: plain text on GitHub and for the agent, two tags here.
         paragraph(node, ctx) {
             const first = node.children[0];
             const meta = first?.type === "text" ? META.exec(first.value) : null;

@@ -18,7 +18,7 @@ export function globalModelSettings(cwd: string): SettingsManager {
     if (settings.drainErrors().length > 0) {
         throw new HttpError(
             400,
-            "Pi global settings.json cannot be read. Check its JSON and file access. No session was created.",
+            "the agent global settings.json cannot be read. Check its JSON and file access. No session was created.",
         );
     }
 

@@ -27,7 +27,7 @@ test("fallback catalog matches Claude Code's selectable model families", () => {
   assert.equal(supportsNativeToolChanges("claude-sonnet-5"), false);
 });
 
-test("maps discovered aliases to stable canonical Pi model ids", () => {
+test("maps discovered aliases to stable canonical the agent model ids", () => {
   const opus = modelFromDiscovery({
     value: "opus[1m]",
     resolvedModel: "claude-opus-5-5[1m]",

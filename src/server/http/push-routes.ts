@@ -75,7 +75,7 @@ export async function pushRoutes(api: ApiRequest, action: string | undefined): P
 
     if (action === "test") {
         const sent = await store.notify(user.id, {
-            title: "Pi Pocket",
+            title: "Pia",
             body: `Notifications work on this device, ${user.name}.`,
             url: "/",
             tag: "test",

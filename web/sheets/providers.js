@@ -13,8 +13,8 @@ const MODEL_SEARCH_AT = 8;
 let saving = Promise.resolve();
 
 /**
- * The owner's choice of the models Pi may start subagents and linked sessions on: every model, by provider, each
- * checked or not on its own. None, the default: they run on their session's model, and Pi is offered no model to pick.
+ * The owner's choice of the models the agent may start subagents and linked sessions on: every model, by provider, each
+ * checked or not on its own. None, the default: they run on their session's model, and the agent is offered no model to pick.
  * Some: only those, their session's model too only when it is checked. A tap sends that one model's change, not the
  * whole list, so quick taps and other tabs keep theirs.
  * `names`: providers' names by id, once the sheet has them.
@@ -43,7 +43,7 @@ function SubagentModels({ names }) {
     const chosen = rows.filter((row) => isOn(row.spec)).map((row) => row.model?.name ?? row.spec);
     const summary =
         chosen.length === 0
-            ? "None allowed: Pi never picks a model."
+            ? "None allowed: the agent never picks a model."
             : `${chosen.length} allowed: ${chosen.join(", ")}`;
     const needle = query.trim().toLowerCase();
     const groups = new Map();
@@ -88,7 +88,7 @@ function SubagentModels({ names }) {
     return html`<div class="subagent-models">
         <div class="label">Models for subagents</div>
         <p class="muted small">
-            With none checked, subagents and linked sessions run on their session's model, and Pi cannot choose another. Check some, and they run only on those: on the session's model when it is checked, otherwise on a checked model that Pi chooses to suit the work. Pi cannot use any other.
+            With none checked, subagents and linked sessions run on their session's model, and the agent cannot choose another. Check some, and they run only on those: on the session's model when it is checked, otherwise on a checked model that the agent chooses to suit the work. The agent cannot use any other.
         </p>
         <p class="small subagent-models-chosen" title=${summary}>${summary}</p>
         ${
@@ -207,7 +207,7 @@ export function ProvidersSheet() {
 
     const logout = (provider) =>
         confirm(
-            `Log out of ${provider.name}? Pi uses the same sign-in, so it is signed out too.`,
+            `Log out of ${provider.name}? The agent uses the same sign-in, so it is signed out too.`,
         ) &&
         attempt(async () => {
             await api(`providers/${encodeURIComponent(provider.id)}/logout`, {});
@@ -292,7 +292,7 @@ export function ProvidersSheet() {
         className=${`providers-sheet ${owner ? "with-side" : ""}`}
     >
         <p class="muted small">
-            Pi Pocket shares Pi's sign-ins (<span class="mono">~/.pi/agent/auth.json</span>). ${owner ? "" : "Only the owner can change them."}
+            Pia shares the agent's sign-ins (<span class="mono">~/.pi/agent/auth.json</span>). ${owner ? "" : "Only the owner can change them."}
         </p>
         <div class="providers-layout">
             ${

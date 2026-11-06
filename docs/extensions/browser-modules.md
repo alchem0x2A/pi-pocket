@@ -8,7 +8,7 @@ On the server, `web.client(entry, { access })` gives the module a browser module
 
 `entry` is the name of a file or a folder beside the module, not a link. The name has letters, digits, `.`, `_`, and `-`, and starts with a letter, a digit, or `_`.
 
-- **A `.js` or `.mjs` file.** Pi Pocket serves this file alone.
+- **A `.js` or `.mjs` file.** Pia serves this file alone.
 - **A folder.** Its `index.js` loads first, and can import the other files of the folder. A stylesheet, or any other file, needs a folder.
 
 ## The default export
@@ -49,7 +49,7 @@ export default function setup(pocket) {
 }
 ```
 
-Keep the top level of the module to declarations, and do its work in the default export: the app checks `pocketApi` after it imports the module ([API versions](reference/api-versions.md)). This module uses nothing that changed in version 2 of the extension API (a tool's `output`), so it keeps `pocketApi = 1` and still loads on Pi Pocket 0.18.
+Keep the top level of the module to declarations, and do its work in the default export: the app checks `pocketApi` after it imports the module ([API versions](reference/api-versions.md)). This module uses nothing that changed in version 2 of the extension API (a tool's `output`), so it keeps `pocketApi = 1` and still loads on Pia 0.18.
 
 ## What the folder serves
 
@@ -57,7 +57,7 @@ Keep the top level of the module to declarations, and do its work in the default
 - It never serves `.ts` files, hidden files, `node_modules`, or a file through a link. A link could lead to such a file, or out of the folder.
 - It serves files up to a size [limit](reference/limits.md#browser-modules).
 - All the people that the browser module is for can read each file of those types in the folder. Keep no secret there. Keep the module's own data, such as a cache or settings, in another place: beside the module, or in a folder of its own in the data folder.
-- When the file or the folder goes, or becomes a link, Pi Pocket tells the owner. Tabs cannot load the browser module until it is back.
+- When the file or the folder goes, or becomes a link, Pia tells the owner. Tabs cannot load the browser module until it is back.
 
 ## New versions
 
@@ -66,7 +66,7 @@ When you save a file that the folder serves, the browser module gets a new addre
 - Only the types that the folder serves count. A `.log` or `.txt` file does not count, so a write to one loads nothing again. A `.json` file or an image counts.
 - The version in the address is only for this. Each version serves the files as they are now.
 - Only a [limited number](reference/limits.md#browser-modules) of files and folders count. An edit past those gives no new address, so open tabs keep their version until the page loads again.
-- Pi Pocket watches a [limited number](reference/limits.md#browser-modules) of folders. It sees an edit in a deeper folder at its next look: when something that it watches changes, or when the module loads again.
+- Pia watches a [limited number](reference/limits.md#browser-modules) of folders. It sees an edit in a deeper folder at its next look: when something that it watches changes, or when the module loads again.
 
 ## Rail buttons, menu rows, and launcher actions
 
@@ -92,7 +92,7 @@ App menu rows show in the menu without a session. Session menu rows show only in
 **`page({ id, title, component, escape, swipe })`** shows in the place of the conversation, as the subagents board does, with its title and a close button. On a phone, it fills the screen.
 
 - Esc and back close it. Esc never closes it while an input method composes a character.
-- `escape: false` keeps Esc for the page. Esc still closes a sheet, the launcher, or PiP over it, and the close button and back still close the page.
+- `escape: false` keeps Esc for the page. Esc still closes a sheet, the launcher, or Pia over it, and the close button and back still close the page.
 - On a narrow touch screen ([limits](reference/limits.md#browser-modules)), a swipe to the right on the page goes back. A swipe in a field or in a sideways scroller does not. In an app on an iPhone's or iPad's home screen, a swipe in from the left edge also goes back.
 - `swipe: false` starts no back swipe on the page, at the edge too. A `data-no-swipe` attribute on an element starts no swipe on it or in it: use it on a slider, or a canvas that people draw on.
 
@@ -127,13 +127,13 @@ These, and slots, came in 0.19.0, and are experimental: they can change in a min
 
 **`composerButton({ id, title, icon or iconPath, … })`** adds a button on the left of the message box's row. **`insertText(text)`** puts text into the message box for the person to send: a prompt template, a snippet, a screenshot's description. It never sends.
 
-**`pip.ask(text, { send })`** gives the person's PiP, their assistant, a message of the module's: the findings of an analyser, a question about what the module shows. By default it opens PiP and puts the text in its message box, for the person to read, edit, and send. With `send: true` it sends at once, but only just after the person tapped or pressed a key anywhere in the app (so send only from their own action, such as a button's `run`); elsewhere the answer is `{ ok: false, reason }`. It never throws for a person who has no PiP, and resolves with `{ ok: false, reason: "PiP is not available" }`. The text starts with a line that names the module, and PiP reads it as the person's own message, so fence what the module did not write (a session's title, a web page) as untrusted data. It came in 0.26.0, and is experimental. Check for it first: `pocket.pip?.ask`.
+**`pia.ask(text, { send })`** gives the person's Pia, their assistant, a message of the module's: the findings of an analyser, a question about what the module shows. By default it opens Pia and puts the text in its message box, for the person to read, edit, and send. With `send: true` it sends at once, but only just after the person tapped or pressed a key anywhere in the app (so send only from their own action, such as a button's `run`); elsewhere the answer is `{ ok: false, reason }`. It never throws for a person who has no Pia, and resolves with `{ ok: false, reason: "Pia is not available" }`. The text starts with a line that names the module, and Pia reads it as the person's own message, so fence what the module did not write (a session's title, a web page) as untrusted data. It came in 0.26.0, and is experimental. Check for it first: `pocket.pia?.ask`.
 
-**`composerKey({ id, keys, label, run(box) })`** adds a key in the message boxes, the session's and PiP's: Ctrl+W to delete a word, Alt+Backspace, keys of an editor you are used to. It comes before the box's own keys. `run` gets the box's `text`, its selection (`start`, `end`), and `set(text, caret)`, which edits the box as typing does. It came in 0.20.0, and is experimental. A browser tab never gets some keys, such as Ctrl+W, which closes the tab: they reach the page only in an installed app's window, if at all.
+**`composerKey({ id, keys, label, run(box) })`** adds a key in the message boxes, the session's and Pia's: Ctrl+W to delete a word, Alt+Backspace, keys of an editor you are used to. It comes before the box's own keys. `run` gets the box's `text`, its selection (`start`, `end`), and `set(text, caret)`, which edits the box as typing does. It came in 0.20.0, and is experimental. A browser tab never gets some keys, such as Ctrl+W, which closes the tab: they reach the page only in an installed app's window, if at all.
 
 **`onConversation(listener)`**, **`messages({ before, limit, signal })`**, and **`reveal(id)`** let a module follow the session the tab shows, read its people's messages a page at a time, and scroll the transcript to one: an outline of a long session, a list of its questions. The app loads earlier history for `reveal`, and the server checks access for each page. They came in 0.20.0, and are experimental.
 
-**`replyAction({ id, label, run(reply) or sheet })`** adds an action under Pi's answers, before More: "Send to Linear", "Read aloud". `run` gets the answer as `{ id, text, conversationId }`, and a sheet gets it as the prop `reply`.
+**`replyAction({ id, label, run(reply) or sheet })`** adds an action under the agent's answers, before More: "Send to Linear", "Read aloud". `run` gets the answer as `{ id, text, conversationId }`, and a sheet gets it as the prop `reply`.
 
 ## The session list
 
@@ -150,7 +150,7 @@ On the server, `request.sessions()` in a route gives the sessions that the perso
 
 ## Slots and layout
 
-The top bar's buttons, the status line's items, the places' tiles, the message box's buttons on its left, and the actions under Pi's answers are **slots**: lists of named items, the app's own (`core:files`, `core:spend`) and modules' (`ext:<module>:<id>`). The same rules place them all, so a module, or a person, can change how they show.
+The top bar's buttons, the status line's items, the places' tiles, the message box's buttons on its left, and the actions under the agent's answers are **slots**: lists of named items, the app's own (`core:files`, `core:spend`) and modules' (`ext:<module>:<id>`). The same rules place them all, so a module, or a person, can change how they show.
 
 - **Where a module's item goes:** give a status item, a top bar button, a message box button, or an action under answers `before` or `after` an id: `pocket.status({ id: "watts", text, after: "core:context" })`.
 - **Arranging a slot:** `pocket.arrange("topbar", { hide: ["core:artifacts"], order: ["core:files", "core:browser"] })` hides and reorders items, the app's own too, in the tabs that load the module. This is for an owner who wants their own layout in a drop-in.
@@ -175,9 +175,9 @@ The app draws what a module changed at the next frame, one time for all its chan
 - Values are the same only when they are the very same value. A new array or function is a change, each time.
 - Many changes at the same time draw one time.
 
-Change what the module added from an event, a timer, or an effect, not while a component draws. Give each effect its dependencies. A module that changes what it added each time it draws, or each time an effect of its drawing runs, redraws the app in each frame until the owner turns it off. Pi Pocket does not stop it.
+Change what the module added from an event, a timer, or an effect, not while a component draws. Give each effect its dependencies. A module that changes what it added each time it draws, or each time an effect of its drawing runs, redraws the app in each frame until the owner turns it off. Pia does not stop it.
 
-Pi Pocket stops a module in that browser, as one that failed ("was stopped in this browser: it redraws without end"), until the page loads again or the module changes, when:
+Pia stops a module in that browser, as one that failed ("was stopped in this browser: it redraws without end"), until the page loads again or the module changes, when:
 
 - One task makes too many calls to `pocket`, over more than one second ([limits](reference/limits.md#browser-modules)). All of `pocket` counts, but not `h`, `html`, `Fragment`, the hooks, and the components. This stops a loop of microtasks, which holds the page, and also a long batch with heavy work between its calls. Then its calls throw until the next task, `pocket.api` too, so an `await` loop rejects and a `.then` chain stops.
 - It opens and closes its pages or sheets too many times in one second, or again and again with no task between ([limits](reference/limits.md#browser-modules)).
@@ -190,7 +190,7 @@ Nothing outside a module can stop a loop that never yields and calls nothing of 
 - Use the app's colors, which follow the light or dark mode: `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--bg)`, `var(--card)`, `var(--line)`, `var(--err)`, `var(--warn)`, and `var(--ok)`.
 - Use these classes: `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting` (a row with a label and a control).
 
-Pi Pocket keeps these names. They are part of [the CSS names reference](reference/theme-surface.md#extensions-css-names), and a module can use its other tokens too. The rest of its CSS can change.
+Pia keeps these names. They are part of [the CSS names reference](reference/theme-surface.md#extensions-css-names), and a module can use its other tokens too. The rest of its CSS can change.
 
 To load a stylesheet of your own, put it in the module's folder, and call `pocket.style(path)`. The stylesheet goes in the app's own cascade layer: it wins and loses against the app's rules by specificity and order. Do not add a `<link>` of your own: it would be outside the layer, and win over the app.
 

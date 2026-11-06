@@ -17,9 +17,9 @@ if (typeof host.on !== "function" || typeof web.provide !== "function") {
 | `session.created`  | A session is made: by a person, a fork, a linked start, or a resend. |
 | `session.renamed`  | A session gets a new title.                                          |
 | `session.archived` | A session is archived, or brought back.                              |
-| `message.sent`     | A person sends Pi a message, a steer or a queued one too.            |
-| `run.started`      | Pi starts to work in a session or a subagent.                        |
-| `run.ended`        | Pi stops.                                                            |
+| `message.sent`     | A person sends the agent a message, a steer or a queued one too.     |
+| `run.started`      | the agent starts to work in a session or a subagent.                 |
+| `run.ended`        | the agent stops.                                                     |
 
 ```typescript
 web.onDispose(
@@ -31,7 +31,7 @@ web.onDispose(
 
 - An event comes after the change is stored, and a listener runs after the work that caused it: it cannot stop or change that work. To stop a tool call, use a [hook](hooks.md).
 - A listener that throws or rejects is logged; the others still run.
-- PiP's conversation is its person's alone: it sends no events.
+- Pia's conversation is its person's alone: it sends no events.
 - `message.sent` has the words as stored: values that extensions hide are hidden there too ([People's values](people-values.md#hide-a-value)).
 
 ## Services
@@ -109,7 +109,7 @@ web.onSettings(() => restartTimer(every()));
 
 ## Who can use what
 
-A drop-in runs inside the server with the owner's rights ([the security model](policies/security-model.md#s1-a-drop-in-runs-with-the-owners-rights)). Pi Pocket does not limit which parts of `host` a module uses: a module that wanted more could import `node:fs` and read the data folder itself. So the parts above are not permissions. The protections are that every drop-in starts off, the owner turns it on, the gallery pins and checks its files, and the owner can read every file first (**Ask Pi to review**). Write what your module reads and uses in its description: the gallery's review checks that the code matches it.
+A drop-in runs inside the server with the owner's rights ([the security model](policies/security-model.md#s1-a-drop-in-runs-with-the-owners-rights)). Pia does not limit which parts of `host` a module uses: a module that wanted more could import `node:fs` and read the data folder itself. So the parts above are not permissions. The protections are that every drop-in starts off, the owner turns it on, the gallery pins and checks its files, and the owner can read every file first (**Ask the agent to review**). Write what your module reads and uses in its description: the gallery's review checks that the code matches it.
 
 ## See also
 

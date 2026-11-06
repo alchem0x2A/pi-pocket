@@ -9,10 +9,10 @@
  * request IDs keep a restarted task from delivering a message or a report twice.
  *
  * Models are a person's to choose: with no list of models for subagents (`subagentModels`), a subagent runs on its
- * session's model. With a list, a subagent runs only on a model on it: its session's model when that is listed and Pi
- * names none, else the one Pi names, which must be listed and is required when the session's is not. Thinking is the
- * session's level unless Pi names another, of any height. A subagent its model or provider failed is reported as such,
- * and Pi is told to stop and tell the user, never to try another model.
+ * session's model. With a list, a subagent runs only on a model on it: its session's model when that is listed and the agent
+ * names none, else the one the agent names, which must be listed and is required when the session's is not. Thinking is the
+ * session's level unless the agent names another, of any height. A subagent its model or provider failed is reported as such,
+ * and the agent is told to stop and tell the user, never to try another model.
  */
 import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import { Type } from "@earendil-works/pi-ai";
@@ -168,8 +168,8 @@ function reporterFor(Courier: CourierTask, host: Pick<PocketHost, "notice">) {
                             agent.error = why;
                         }
 
-                        // Stopped too: Pi may be waiting for its answer, and is told none comes. One its model failed
-                        // tells Pi to stop and tell its person, not to try again on another model.
+                        // Stopped too: the agent may be waiting for its answer, and is told none comes. One its model failed
+                        // tells the agent to stop and tell its person, not to try again on another model.
                         return next(
                             `${REPORT_PREFIX}${name} failed: ${why}]${modelFailed ? ` ${MODEL_FAILED}` : ""}`,
                         );
@@ -199,7 +199,7 @@ function reporterFor(Courier: CourierTask, host: Pick<PocketHost, "notice">) {
                 if (modelFailed && settled.status === "unanswered") {
                     host.notice(
                         "warning",
-                        `Subagent ${name} failed: ${ranOn}${whyUnanswered(settled.reason, settled.detail)}. Pi was told to stop and tell you, not to switch models.`,
+                        `Subagent ${name} failed: ${ranOn}${whyUnanswered(settled.reason, settled.detail)}. The agent was told to stop and tell you, not to switch models.`,
                         runtime.conversationId,
                     );
                 }
@@ -258,7 +258,7 @@ const BACKGROUND = { ownership: { kind: "conversation" }, background: true } as 
 
 /**
  * What a provider says when the model or its account is the problem (a sign-in, a model that is gone or refused, a
- * quota or rate limit, an overload), not the request: a context that will not fit, say, is Pi's to work around.
+ * quota or rate limit, an overload), not the request: a context that will not fit, say, is the agent's to work around.
  */
 const PROVIDER_TROUBLE =
     /oauth|sign.?in|auth|api.?key|unauthori[sz]ed|forbidden|permission|\b(401|402|403|404|429|503|529)\b|not found|does not exist|no such model|not available|not configured|unsupported model|quota|rate.?limit|insufficient|billing|credit|usage limit|overloaded/i;
@@ -271,7 +271,7 @@ function modelFailure(reason: string, detail: unknown): boolean {
     );
 }
 
-/** What a report of a subagent its model failed tells Pi, after why. */
+/** What a report of a subagent its model failed tells the agent, after why. */
 export const MODEL_FAILED =
     "Its model or provider failed. Tell the user in a line. If the same tier is listed at another provider that works now (check provider_usage), start the work again there with a short brief of what is done; else stop and ask. Only the user signs in again.";
 
@@ -356,7 +356,7 @@ type CourierState =
     | { phase: "hold" }
     | { phase: "send"; batch?: number; text?: string };
 
-/** What the courier asks Pi Pocket about spend limits. */
+/** What the courier asks Pia about spend limits. */
 type Limits = Pick<PocketHost, "heldBack" | "onLimitsChanged" | "notice">;
 
 type CourierTask = ReturnType<typeof courierFor>;
@@ -372,7 +372,7 @@ const RETRY_MS = 5_000;
 
 /**
  * What became of the batch a courier took (`state.sending`), from its submission, settled in `state`: kept while it is
- * still to send or waits in the parent's queue; gone once Pi has it. Taken out of the queue before Pi had it, it is
+ * still to send or waits in the parent's queue; gone once the agent has it. Taken out of the queue before the agent had it, it is
  * gone if a person did that (the queue's ×, or Stop, which mark it `discarded`), and otherwise (a spend limit's stop, a
  * new context) its reports wait again, first.
  */
@@ -516,8 +516,8 @@ function courierFor(limits: Limits) {
 
                         delete state.delivering;
 
-                        // A batch an earlier courier sent that still waits in Pi's queue: see it leave first. It is
-                        // Pi's already, whatever the limits say now.
+                        // A batch an earlier courier sent that still waits in the agent's queue: see it leave first. It is
+                        // the agent's already, whatever the limits say now.
                         if (record?.status === "queued") {
                             return { status: "running", checkpoint: { phase: "send" } };
                         }
@@ -661,7 +661,7 @@ A subagent does not see this conversation. The brief holds the goal, paths, what
 /** What the guide says about models, once the owner's list is known: how it runs, and when to stop. */
 const FAILED = `If a subagent fails because of its model or provider (a sign-in, a missing model, a quota), tell the user what failed, and start it again on the same tier at another listed provider when one is signed in and within its limit (check provider_usage); else stop and ask.`;
 
-/** What the tool says when Pi names a model, and none but its own may be used. */
+/** What the tool says when the agent names a model, and none but its own may be used. */
 const NO_CHOICE =
     "Subagents run on this session's model: you cannot choose another. Leave model out. If the work needs a different model, stop and ask the user: only they choose models.";
 
@@ -684,7 +684,7 @@ const keyOf = (ref: ModelRef) => `${ref.provider}/${ref.modelId}`;
 const same = (a: ModelRef | undefined, b: ModelRef | undefined) =>
     a !== undefined && b !== undefined && keyOf(a) === keyOf(b);
 
-/** Why Pi may not use a model now (its sign-in, say), or undefined; nothing to say on a server older than the check. */
+/** Why the agent may not use a model now (its sign-in, say), or undefined; nothing to say on a server older than the check. */
 async function problemOf(host: PocketHost, ref: ModelRef, fresh: boolean) {
     return typeof host.modelProblem === "function" ? host.modelProblem(ref, fresh) : undefined;
 }
@@ -721,7 +721,7 @@ const notListed = (model: string, allowed: readonly string[]) =>
 /**
  * The model a subagent may run on: undefined for this session's own, else a model on the owner's list whose sign-in
  * works now. With no list, only this session's own. With a list, only a model on it: this session's own when it is
- * there and Pi names none, else the one Pi names, which it must, as choosing from the list is its job. A model off the
+ * there and the agent names none, else the one the agent names, which it must, as choosing from the list is its job. A model off the
  * list is refused, and so is a listed one that cannot be used now, with word to go to the user.
  */
 async function chosenModel(
@@ -803,7 +803,7 @@ export default function createSubagents(host: PocketHost) {
     const Courier = courierFor(host);
     const Reporter = reporterFor(Courier, host);
     // Read as the module is built: the app builds it again when the owner changes the models subagents may use, so the
-    // tool offers Pi a model only while some are allowed. Its call checks the list as it is then, whatever it offered.
+    // tool offers the agent a model only while some are allowed. Its call checks the list as it is then, whatever it offered.
     const choosing = allowedModels(host).length > 0;
     const base = {
         action: Type.Union([

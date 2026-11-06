@@ -244,7 +244,7 @@ test(
             `return JSON.stringify([...document.querySelectorAll(".queued")].some((row) => row.textContent.includes("this is my own message") && row.querySelector(".queued-mode").textContent.trim().startsWith("Steer")))`,
             "the look-alike as a steer",
         );
-        // Once Pi has it, it shows as the person's message, not as a report card.
+        // Once the agent has it, it shows as the person's message, not as a report card.
         await see(
             `return JSON.stringify([...document.querySelectorAll(".prompt")].some((prompt) => prompt.textContent.includes("this is my own message")))`,
             "the look-alike as a message",

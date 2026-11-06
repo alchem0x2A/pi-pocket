@@ -1,27 +1,27 @@
 /**
- * Pi's skills for a session's folder, from the places Pi's CLI looks, in its order. The first skill of a name wins:
+ * the agent's skills for a session's folder, from the places the agent's CLI looks, in its order. The first skill of a name wins:
  *
- * 1. `.pi/skills/` in the session's folder, unless Pi was told not to trust the project.
+ * 1. `.pi/skills/` in the session's folder, unless the agent was told not to trust the project.
  * 2. `.agents/skills/` in the session's folder and each folder above it, nearest first, up to the root of its git
- *    repository, or to `/` outside one. Only in a project Pi trusts, below.
- * 3. The skill paths in Pi's settings.
- * 4. `skills/` in Pi's folder (`~/.pi/agent/skills/`).
+ *    repository, or to `/` outside one. Only in a project the agent trusts, below.
+ * 3. The skill paths in the agent's settings.
+ * 4. `skills/` in the agent's folder (`~/.pi/agent/skills/`).
  * 5. `~/.agents/skills/`, for every session.
  *
- * Pi trusts a project when its trust store (`trust.json` in Pi's folder) says so for the folder or one above it, or
- * says nothing and Pi's `defaultProjectTrust` setting is "always". Where it says nothing, the CLI asks when it starts.
- * Pi Pocket asks its owner (`readProjectTrust` says when) and saves the answer in the same store, with the three
- * answers the CLI's `/trust` saves (`saveProjectTrust`); until then the project is not trusted, as when Pi runs without
- * a terminal. Pi also asks before it loads `.pi/skills/`: Pi Pocket loads those until it is told not to trust the
- * project (a saved "no", or `defaultProjectTrust` "never"), as it always has, and then leaves them out as Pi does.
+ * the agent trusts a project when its trust store (`trust.json` in the agent's folder) says so for the folder or one above it, or
+ * says nothing and the agent's `defaultProjectTrust` setting is "always". Where it says nothing, the CLI asks when it starts.
+ * Pia asks its owner (`readProjectTrust` says when) and saves the answer in the same store, with the three
+ * answers the CLI's `/trust` saves (`saveProjectTrust`); until then the project is not trusted, as when the agent runs without
+ * a terminal. The agent also asks before it loads `.pi/skills/`: Pia loads those until it is told not to trust the
+ * project (a saved "no", or `defaultProjectTrust` "never"), as it always has, and then leaves them out as the agent does.
  *
- * The search for `.agents/skills/` stops at the repository's root, as Pi's loading does; Pi's question also counts
- * folders above the root, whose skills it never loads, so Pi Pocket does not ask about those.
+ * The search for `.agents/skills/` stops at the repository's root, as the agent's loading does; the agent's question also counts
+ * folders above the root, whose skills it never loads, so Pia does not ask about those.
  *
  * This follows `addAutoDiscoveredResources` and `collectAncestorAgentsSkillDirs` in `dist/core/package-manager.js`,
  * `resolveProjectTrusted` in `dist/core/project-trust.js`, and `getProjectTrustOptions` in `dist/core/trust-manager.js`
- * of @earendil-works/pi-coding-agent, which the package does not export: check them when updating Pi.
- * `test/skills.test.ts` checks the skills against Pi's own loader.
+ * of @earendil-works/pi-coding-agent, which the package does not export: check them when updating the agent.
+ * `test/skills.test.ts` checks the skills against the agent's own loader.
  */
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -34,13 +34,13 @@ import {
 
 /** What, besides the session's folder, says where skills are. */
 export type SkillSources = {
-    /** Pi's folder (`~/.pi/agent`): its `skills/`, and `trust.json`, which projects Pi was told to trust or not. */
+    /** the agent's folder (`~/.pi/agent`): its `skills/`, and `trust.json`, which projects the agent was told to trust or not. */
     agentDir: string;
     /** The home folder, whose `.agents/skills/` every session has. */
     home: string;
-    /** The skill paths in Pi's settings. */
+    /** The skill paths in the agent's settings. */
     settingsPaths: readonly string[];
-    /** Pi's `defaultProjectTrust` setting: whether a project nobody decided about is trusted. */
+    /** the agent's `defaultProjectTrust` setting: whether a project nobody decided about is trusted. */
     defaultProjectTrust: "always" | "never" | "ask";
 };
 
@@ -77,13 +77,13 @@ function projectAgentsFolders(cwd: string, home: string): string[] {
     }
 }
 
-/** The answers Pi's `/trust` offers: trust the folder, trust the folder above it (and so this one too), or not. */
+/** The answers the agent's `/trust` offers: trust the folder, trust the folder above it (and so this one too), or not. */
 export type TrustChoice = "trust" | "trust-parent" | "distrust";
 
-/** A decision in Pi's trust store: the folder it was saved for, and whether Pi trusts it and the folders in it. */
+/** A decision in the agent's trust store: the folder it was saved for, and whether the agent trusts it and the folders in it. */
 type Saved = { path: string; trusted: boolean };
 
-/** Whether Pi trusts a session's project, and the project skills that load only while it does. */
+/** Whether the agent trusts a session's project, and the project skills that load only while it does. */
 export type ProjectTrust = {
     /** The session's folder, as the trust store names it: links resolved. */
     folder: string;
@@ -91,21 +91,21 @@ export type ProjectTrust = {
     parent?: string;
     /** The decision saved for the folder or the nearest folder above it; null when there is none. */
     saved: Saved | null;
-    /** Pi's `defaultProjectTrust` setting: it decides for a folder without a saved decision. */
+    /** the agent's `defaultProjectTrust` setting: it decides for a folder without a saved decision. */
     defaultProjectTrust: SkillSources["defaultProjectTrust"];
-    /** Whether Pi trusts the project now. */
+    /** Whether the agent trusts the project now. */
     trusted: boolean;
     /** The project's `.agents/skills/` folders. */
     folders: string[];
     /** The skills in them. */
     skills: { name: string; description: string }[];
-    /** The skills in its `.pi/skills/`, which load unless Pi was told not to trust it. */
+    /** The skills in its `.pi/skills/`, which load unless the agent was told not to trust it. */
     ownSkills: { name: string; description: string }[];
     /** The project has a .pi/settings.json file, whose model defaults require trust. */
     settings: boolean;
-    /** Whether to ask the owner: project skills or settings exist, no decision applies, and Pi's setting is to ask. */
+    /** Whether to ask the owner: project skills or settings exist, no decision applies, and the agent's setting is to ask. */
     ask: boolean;
-    /** Pi's trust store cannot be read: nothing is trusted, and no answer can be saved until it is mended. */
+    /** the agent's trust store cannot be read: nothing is trusted, and no answer can be saved until it is mended. */
     unreadable?: true;
 };
 
@@ -130,7 +130,7 @@ function savedDecision(cwd: string, agentDir: string): Saved | null | undefined 
 }
 
 /**
- * What Pi decided about a project, as it decides without asking: trusted, not trusted (a saved "no", or
+ * What the agent decided about a project, as it decides without asking: trusted, not trusted (a saved "no", or
  * `defaultProjectTrust` "never"), or nothing yet, which includes a trust store that cannot be read.
  */
 type Decision = "trusted" | "distrusted" | "undecided";
@@ -152,7 +152,7 @@ function decides(saved: Saved | null | undefined, sources: SkillSources): Decisi
 }
 
 /**
- * Whether Pi was told not to trust the project a session in `cwd` works in (a saved "no", or `defaultProjectTrust`
+ * Whether the agent was told not to trust the project a session in `cwd` works in (a saved "no", or `defaultProjectTrust`
  * "never"), for what of its own `.pi` folder trust gates: its `.pi/prompts` stay out then, as its `.pi/skills` do. The
  * trust store is read only for a project with `.pi/prompts`.
  */
@@ -165,13 +165,13 @@ export function projectDistrusted(cwd: string, sources: SkillSources): boolean {
     );
 }
 
-/** Where a session in `cwd` loads skills from, in order: folders, and the paths in Pi's settings as written. */
+/** Where a session in `cwd` loads skills from, in order: folders, and the paths in the agent's settings as written. */
 export function skillPlaces(cwd: string, sources: SkillSources): string[] {
     const folder = resolve(cwd);
     const own = join(folder, CONFIG_DIR_NAME, "skills");
     const hasOwn = existsSync(own);
     const agents = projectAgentsFolders(folder, sources.home);
-    // The trust store is read only for a project with skills of its own: Pi needs no trust from one without.
+    // The trust store is read only for a project with skills of its own: the agent needs no trust from one without.
     const decision =
         hasOwn || agents.length > 0
             ? decides(savedDecision(folder, sources.agentDir), sources)
@@ -186,7 +186,7 @@ export function skillPlaces(cwd: string, sources: SkillSources): string[] {
     ];
 }
 
-/** Pi's skills for a session in `cwd`: the first of each name, from `skillPlaces`. */
+/** the agent's skills for a session in `cwd`: the first of each name, from `skillPlaces`. */
 export function loadSessionSkills(cwd: string, sources: SkillSources): Skill[] {
     return loadSkills({
         cwd,
@@ -196,7 +196,7 @@ export function loadSessionSkills(cwd: string, sources: SkillSources): Skill[] {
     }).skills;
 }
 
-/** Whether Pi trusts the project a session in `cwd` works in, and the project skills that wait for it. */
+/** Whether the agent trusts the project a session in `cwd` works in, and the project skills that wait for it. */
 export function readProjectTrust(cwd: string, sources: SkillSources): ProjectTrust {
     const folder = canonical(cwd);
     const parent = dirname(folder);
@@ -235,7 +235,7 @@ export function readProjectTrust(cwd: string, sources: SkillSources): ProjectTru
     };
 }
 
-/** Save an answer to "trust this project?" for a session in `cwd` in Pi's trust store, as Pi's `/trust` saves it. */
+/** Save an answer to "trust this project?" for a session in `cwd` in the agent's trust store, as the agent's `/trust` saves it. */
 export function saveProjectTrust(cwd: string, agentDir: string, choice: TrustChoice): void {
     const folder = canonical(cwd);
     const parent = dirname(folder);

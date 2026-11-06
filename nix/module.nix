@@ -14,7 +14,7 @@ let
     else
       pkgs.linkFarm "pi-pocket-skills" (
         lib.imap0 (index: source: {
-          # Pi keeps the first skill of each name; preserve the declared traversal order.
+          # the agent keeps the first skill of each name; preserve the declared traversal order.
           name = lib.fixedWidthString (lib.stringLength (toString (lib.length cfg.skills))) "0" (
             toString index
           );
@@ -24,21 +24,21 @@ let
 in
 {
   options.services.pi-pocket = {
-    enable = lib.mkEnableOption "Pi Pocket";
+    enable = lib.mkEnableOption "Pia";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = pkgs.callPackage ./package.nix { };
       defaultText = lib.literalExpression "pkgs.callPackage ./package.nix { }";
-      description = "Pi Pocket package to run.";
+      description = "Pia package to run.";
     };
 
     user = lib.mkOption {
       type = lib.types.str;
       default = "pi-pocket";
       description = ''
-        User running Pi Pocket and its agents. The default user is created automatically.
-        Set this to an existing user to reuse their Pi sign-ins and access their projects.
+        User running Pia and its agents. The default user is created automatically.
+        Set this to an existing user to reuse their the agent sign-ins and access their projects.
         Anyone with steering access can run commands as this user.
       '';
     };
@@ -98,14 +98,14 @@ in
     browser = lib.mkOption {
       type = lib.types.nullOr lib.types.path;
       default = null;
-      description = "Browser executable. Null uses Pi Pocket's browser discovery.";
+      description = "Browser executable. Null uses Pia's browser discovery.";
     };
 
     browserArgs = lib.mkOption {
       type = lib.types.listOf lib.types.str;
       default = [ ];
       example = [ "--disable-dev-shm-usage" ];
-      description = "Extra Chromium flags. Pi Pocket splits these on whitespace.";
+      description = "Extra Chromium flags. Pia splits these on whitespace.";
     };
 
     skills = lib.mkOption {
@@ -113,14 +113,14 @@ in
       default = null;
       example = lib.literalExpression "[ ./skills/my-skill ./skills/collection ]";
       description = ''
-        Skill directories or collections to expose in the service user's Pi skills
+        Skill directories or collections to expose in the service user's the agent skills
         directory (~/.pi/agent/skills, or skills under PI_CODING_AGENT_DIR). Each path
         gets its own link, preserving SKILL.md files and their supporting files.
         Null leaves unmanaged skills alone and removes a previously managed link.
         An empty list manages an empty skills directory. Changing the list replaces
         the whole managed directory link, so removed skills leave no stale links.
         Existing unmanaged directories are never overwritten: move them aside before
-        opting in. This directory is shared with Pi CLI when using the same agent
+        opting in. This directory is shared with the agent CLI when using the same agent
         directory, and is read-only; use project skills for editable additions.
       '';
     };
@@ -196,7 +196,7 @@ in
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [ cfg.port ];
 
     systemd.services.pi-pocket = {
-      description = "Pi Pocket";
+      description = "Pia";
       wantedBy = [ "multi-user.target" ];
       wants = [ "network-online.target" ];
       after = [ "network-online.target" ];
@@ -216,7 +216,7 @@ in
         fi
         ${lib.optionalString (cfg.skills != null) ''
           if [ -e "$skills_dir" ] || [ -L "$skills_dir" ]; then
-            echo "Pi Pocket will not overwrite unmanaged skills at $skills_dir; move them aside before setting services.pi-pocket.skills." >&2
+            echo "Pia will not overwrite unmanaged skills at $skills_dir; move them aside before setting services.pi-pocket.skills." >&2
             exit 1
           fi
           mkdir -p -- "$agent_dir"

@@ -69,7 +69,7 @@ Inline Run loads bundle assets correctly. Static Preview keeps its existing rest
 If static Preview must show bundle assets before Run, the integrator must add a safe preview path in `web/rich.js`.
 Stream A does not own that file. The browser tests check inline Run, not static Preview.
 
-The capability code does not send capabilities to Pi or logs, but generic output paths need an integration review.
+The capability code does not send capabilities to the agent or logs, but generic output paths need an integration review.
 `browser/page.ts` can log a signed URL after navigation to a bundled HTML asset.
 An artifact can also explicitly include its base URI in a follow-up or saved value.
 Absolute exclusion from all agent context, transcripts, and logs needs redaction in those browser and bridge paths.

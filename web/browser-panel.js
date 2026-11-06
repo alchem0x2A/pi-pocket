@@ -1,4 +1,4 @@
-// The Browser panel: the session's page in the server's browser, the same one Pi uses with its browser tool. Frames
+// The Browser panel: the session's page in the server's browser, the same one the agent uses with its browser tool. Frames
 // come as JPEGs by long polling (which passes any tunnel); taps, drags, scrolls, and keys go back as input events. Wide
 // screens show it as a window beside the conversation; phones show it full screen.
 
@@ -627,7 +627,7 @@ function StartScreen({ steer }) {
     return html`<div class="browser-start">
         <h2>Browser</h2>
         <p>
-            ${steer ? "Type an address above, such as localhost:5173, or ask Pi to open one." : "Nothing is open yet. Pi, or someone who can steer, opens pages here."}
+            ${steer ? "Type an address above, such as localhost:5173, or ask the agent to open one." : "Nothing is open yet. The agent, or someone who can steer, opens pages here."}
         </p>
         ${owner && servers === null && html`<${Spinner} label="Looking for servers" />`}
         ${
@@ -713,7 +713,7 @@ const REOPEN_MS = 2 * 60_000;
 
 export function BrowserPanel({ leaving = false }) {
     const { conversationId, browser: state, me, view } = store.state;
-    // Using the page takes what steering Pi takes: while take turns is on, the wheel.
+    // Using the page takes what steering the agent takes: while take turns is on, the wheel.
     const turns = view.turns;
     const steer = canSteer() && (!turns?.on || turns.driver === me?.id);
     const visible = useVisible();
@@ -788,7 +788,7 @@ export function BrowserPanel({ leaving = false }) {
     };
 
     const run = (action, body = {}) => attempt(() => browserApi(action, body));
-    // A size that is no preset is a fitted (or Pi's own) one.
+    // A size that is no preset is a fitted (or the agent's own) one.
     const preset = PRESETS.find((each) => each.id === (state?.preset ?? "fit"));
     const nextPreset = PRESETS[(PRESETS.indexOf(preset) + 1) % PRESETS.length];
 
@@ -806,7 +806,7 @@ export function BrowserPanel({ leaving = false }) {
     };
 
     // Fitted here, the page follows the panel's size (a dragged edge, a folded sidebar, a resized window) once it
-    // settles; not a size Pi or another tab chose since, which reads as "fit" too.
+    // settles; not a size the agent or another tab chose since, which reads as "fit" too.
     const fitted = open && steer && preset.id === "fit";
     const shown = useRef(state?.viewport);
 
@@ -867,7 +867,7 @@ export function BrowserPanel({ leaving = false }) {
         stage = html`<div class="browser-note">
             <${Icon} name="globe" size=${28} />
             <p>
-                No browser was found on the machine Pi Pocket runs on. Install Chromium or Google Chrome there (or set <code>PI_POCKET_BROWSER</code> to a browser's path), then restart Pi Pocket.
+                No browser was found on the machine Pia runs on. Install Chromium or Google Chrome there (or set <code>PI_POCKET_BROWSER</code> to a browser's path), then restart Pia.
             </p>
         </div>`;
     } else if (!open && why) {

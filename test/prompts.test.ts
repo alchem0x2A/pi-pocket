@@ -1,4 +1,4 @@
-// Pi's prompt templates as slash commands: where they load from, how arguments fill them, and sending one.
+// the agent's prompt templates as slash commands: where they load from, how arguments fill them, and sending one.
 import {
     type App,
     cleanUp,

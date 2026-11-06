@@ -1,7 +1,7 @@
-// Webhooks and watches: addresses other services post to, each turning every post into a message to Pi in a session or
-// to PiP; and the repository watches PiP set up, which need no address.
+// Webhooks and watches: addresses other services post to, each turning every post into a message to the agent in a session or
+// to Pia; and the repository watches Pia set up, which need no address.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { assistantName, pipAvailable } from "../pip.js";
+import { assistantName, piaAvailable } from "../pip.js";
 import { api, attempt, closeSheet, navigate, notify, store } from "../store.js";
 import { copyText, formatWhen, html, Sheet } from "../ui.js";
 
@@ -16,7 +16,7 @@ function copy(text, what) {
 }
 
 /**
- * One hook: where it sends, what Pi is told to do, how it has been used; its address (and a signed one's secret), a new
+ * One hook: where it sends, what the agent is told to do, how it has been used; its address (and a signed one's secret), a new
  * secret, and removing it.
  */
 function HookRow({ hook, base, fresh, onRemove, onRotate }) {
@@ -35,7 +35,7 @@ function HookRow({ hook, base, fresh, onRemove, onRotate }) {
         <div class="hook-head">
             <strong class="grow">${hook.name}</strong>
             <span class="muted small">
-                to ${hook.pip ? assistantName() : html`<a href=${`/s/${hook.target}`} onClick=${open}>${hook.targetTitle}</a>`}
+                to ${hook.pia ? assistantName() : html`<a href=${`/s/${hook.target}`} onClick=${open}>${hook.targetTitle}</a>`}
             </span>
         </div>
         ${hook.instructions && html`<div class="hook-text">${hook.instructions}</div>`}
@@ -48,7 +48,7 @@ function HookRow({ hook, base, fresh, onRemove, onRotate }) {
             <span class="muted small grow">${hook.signed ? "GitHub, signed" : "secret in the address"}${hook.anyone ? " · from anyone" : ""} · ${used}</span>
             <button
                 class="button small"
-                onClick=${() => copy(addressOf(base, hook), hook.signed ? "Address copied: GitHub's Payload URL." : "Address copied. Keep it secret: anyone with it can message Pi.")}
+                onClick=${() => copy(addressOf(base, hook), hook.signed ? "Address copied: GitHub's Payload URL." : "Address copied. Keep it secret: anyone with it can message the agent.")}
             >
                 Copy address
             </button>
@@ -68,8 +68,8 @@ function HookRow({ hook, base, fresh, onRemove, onRotate }) {
 }
 
 /**
- * A repository watch PiP set up: the repository, what it looks for, where it sends; whether strangers' issues and PRs
- * reach it (only a person turns that on, never PiP), and removing it.
+ * A repository watch Pia set up: the repository, what it looks for, where it sends; whether strangers' issues and PRs
+ * reach it (only a person turns that on, never Pia), and removing it.
  */
 function WatchRow({ watch, onRemove, onAnyone }) {
     const open = (event) => {
@@ -88,7 +88,7 @@ function WatchRow({ watch, onRemove, onAnyone }) {
         <div class="hook-head">
             <strong class="grow">${watch.repo}</strong>
             <span class="muted small">
-                to ${watch.pip ? assistantName() : html`<a href=${`/s/${watch.target}`} onClick=${open}>${watch.targetTitle}</a>`}
+                to ${watch.pia ? assistantName() : html`<a href=${`/s/${watch.target}`} onClick=${open}>${watch.targetTitle}</a>`}
             </span>
         </div>
         <div class="muted small">${watch.events.join(", ")}${narrowed.length > 0 ? ` · ${narrowed.join(", ")}` : ""}</div>
@@ -106,15 +106,15 @@ function WatchRow({ watch, onRemove, onAnyone }) {
     </div>`;
 }
 
-/** The person's webhooks (every one, for the owner), and a form to make one for this session or for PiP. */
+/** The person's webhooks (every one, for the owner), and a form to make one for this session or for Pia. */
 export function HooksSheet() {
     const { view, me } = store.state;
     const here =
-        view.conversation?.kind === "session" && !view.conversation.pip ? view.conversation : null;
+        view.conversation?.kind === "session" && !view.conversation.pia ? view.conversation : null;
     const [list, setList] = useState(null);
     const [name, setName] = useState("");
     const [instructions, setInstructions] = useState("");
-    const [target, setTarget] = useState(here ? "here" : "pip");
+    const [target, setTarget] = useState(here ? "here" : "pia");
     const [github, setGithub] = useState(true);
     const [anyone, setAnyone] = useState(false);
     const [making, setMaking] = useState(false);
@@ -124,7 +124,7 @@ export function HooksSheet() {
     const load = () => attempt(async () => setList(await api("hooks")));
     const targets = [
         here && ["here", "This session"],
-        pipAvailable() && ["pip", assistantName()],
+        piaAvailable() && ["pia", assistantName()],
     ].filter(Boolean);
 
     useEffect(() => void load(), []);
@@ -139,7 +139,7 @@ export function HooksSheet() {
         setMaking(true);
         attempt(async () => {
             const hook = await api("hooks", {
-                target: target === "pip" ? "pip" : here.id,
+                target: target === "pia" ? "pia" : here.id,
                 name: name.trim(),
                 instructions: instructions.trim(),
                 signed: github,
@@ -161,7 +161,7 @@ export function HooksSheet() {
         attempt(async () => {
             if (
                 !confirm(
-                    `Remove the webhook “${hook.name}”? Posts to its address stop reaching Pi.`,
+                    `Remove the webhook “${hook.name}”? Posts to its address stop reaching the agent.`,
                 )
             ) {
                 return;
@@ -206,7 +206,7 @@ export function HooksSheet() {
             if (
                 on &&
                 !confirm(
-                    `Let anyone's issues and PRs on ${watch.repo} reach ${watch.pip ? assistantName() : "Pi"}? Strangers' words then come with your instructions.`,
+                    `Let anyone's issues and PRs on ${watch.repo} reach ${watch.pia ? assistantName() : "the agent"}? Strangers' words then come with your instructions.`,
                 )
             ) {
                 return;
@@ -218,7 +218,7 @@ export function HooksSheet() {
 
     return html`<${Sheet} title="Webhooks and watches" onClose=${closeSheet} wide=${true}>
         <p class="muted small">
-            Other services (GitHub, a deploy, a monitor) post to a webhook's address, and each post becomes a message to Pi in a session, or to ${assistantName()}: your instructions, then what came.
+            Other services (GitHub, a deploy, a monitor) post to a webhook's address, and each post becomes a message to the agent in a session, or to ${assistantName()}: your instructions, then what came.
         </p>
         ${
             steer &&
@@ -235,9 +235,9 @@ export function HooksSheet() {
                     />
                 </div>
                 <div class="field">
-                    <div class="label">What Pi should do with each post</div>
+                    <div class="label">What the agent should do with each post</div>
                     <textarea
-                        aria-label="What Pi should do with each post"
+                        aria-label="What the agent should do with each post"
                         rows="3"
                         maxlength="2000"
                         placeholder="When a deploy fails, find out why and fix it. Ignore the ones that pass."
@@ -264,7 +264,7 @@ export function HooksSheet() {
                         </button>
                     </div>
                     <div class="muted small">
-                        ${github ? "Signed: GitHub gets the address and, separately, a secret; the address alone lets nothing in." : "The secret is in the address: anyone who has it can message Pi as you."}
+                        ${github ? "Signed: GitHub gets the address and, separately, a secret; the address alone lets nothing in." : "The secret is in the address: anyone who has it can message the agent as you."}
                     </div>
                 </div>
                 ${
@@ -278,7 +278,7 @@ export function HooksSheet() {
                         From anyone: issues, PRs, and comments by people outside the repository too
                     </label>
                     <div class="muted small">
-                        ${anyone ? "Strangers' words reach Pi too, fenced as data." : "Off: posts about issues, PRs, and comments by people who cannot write to the repository are dropped (a 202 says so), and their words in other posts are left out. GitHub is asked who can write: gh must be able to push there."}
+                        ${anyone ? "Strangers' words reach the agent too, fenced as data." : "Off: posts about issues, PRs, and comments by people who cannot write to the repository are dropped (a 202 says so), and their words in other posts are left out. GitHub is asked who can write: gh must be able to push there."}
                     </div>`
                 }
                 ${
@@ -297,7 +297,7 @@ export function HooksSheet() {
                             )}
                         </div>
                         <div class="muted small">
-                            ${target === "pip" ? `${assistantName()} decides what to do: start a session, message one, or tell you.` : `Pi in “${here?.title}” gets each post.`}
+                            ${target === "pia" ? `${assistantName()} decides what to do: start a session, message one, or tell you.` : `the agent in “${here?.title}” gets each post.`}
                         </div>
                     </div>`
                 }

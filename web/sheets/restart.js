@@ -1,4 +1,4 @@
-// Restart server: whether the server's code changed since it started, Pi's requests, the restart command, and the
+// Restart server: whether the server's code changed since it started, the agent's requests, the restart command, and the
 // restart itself, now or once no tool call runs (`src/server/restart.ts`). The owner's alone.
 import { useEffect, useState } from "preact/hooks";
 import { api, attempt, closeSheet, navigate, notify, store } from "../store.js";
@@ -20,7 +20,7 @@ export function restartHint() {
     }
 
     if (status.requests.length > 0) {
-        return "Pi asks for one";
+        return "the agent asks for one";
     }
 
     return status.needed
@@ -35,7 +35,7 @@ export function restartAvailable() {
     return me?.role === "owner" && (server?.restart?.available ?? server?.supervised === true);
 }
 
-/** Whether the item gets a dot: Pi asks, or the code changed. */
+/** Whether the item gets a dot: the agent asks, or the code changed. */
 export function restartWanted() {
     const status = restartStatus();
 
@@ -169,7 +169,7 @@ export function RestartSheet() {
         ${status.requests.map(
             (request) => html`<div class="restart-request" key=${request.id}>
                 <div class="grow">
-                    <div>Pi asks for a restart${request.reason ? `: ${request.reason}` : "."}</div>
+                    <div>the agent asks for a restart${request.reason ? `: ${request.reason}` : "."}</div>
                     <button
                         class="link small"
                         onClick=${() => {

@@ -1,6 +1,6 @@
 # API versions
 
-This page tells how Pi Pocket marks the age and the stability of each part of the extension API. It also tells how a module works with an older or a newer Pi Pocket. [API stability](../policies/api-stability.md) gives the rules for changes and for removals.
+This page tells how Pia marks the age and the stability of each part of the extension API. It also tells how a module works with an older or a newer Pia. [API stability](../policies/api-stability.md) gives the rules for changes and for removals.
 
 ## The API version
 
@@ -8,11 +8,11 @@ This page tells how Pi Pocket marks the age and the stability of each part of th
 
 The version goes up only when a change breaks something that modules use. Additions do not change it.
 
-- **Why 2:** Pi Durable 1.2 renamed the result field of a tool from `content` to `output`. Pi Pocket still reads `content` from the `execute` of a drop-in's tool. But a hook (`afterTool`) or a wrap (`wrapTool`) that returns `content` gives the model an empty result, with no error.
+- **Why 2:** Pi Durable 1.2 renamed the result field of a tool from `content` to `output`. Pia still reads `content` from the `execute` of a drop-in's tool. But a hook (`afterTool`) or a wrap (`wrapTool`) that returns `content` gives the model an empty result, with no error.
 - **The oldest supported version is 1.** A module that exports `pocketApi = 1`, or no `pocketApi`, still loads. A module for an older version than 1 does not load.
-- **A module that returns `output` exports `pocketApi = 2`.** Pi Pocket 0.18 then refuses it with a clear message, and does not give the model an empty result.
+- **A module that returns `output` exports `pocketApi = 2`.** Pia 0.18 then refuses it with a clear message, and does not give the model an empty result.
 
-Since 0.21.0, document definitions should name `checkpointWhen` in every `defineDoc` or `defineDocFamily` call. When it is missing, Pi Pocket supplies `checkpointWhen: () => false` for older drop-ins, and logs the module and the document kind. Explicit policies stay as they are. Since 0.21.0 (Pi Durable 1.4), a task must not use `TaskRuntime.sleep()`: it must wait with durable `sleepUntil()` checkpoints.
+Since 0.21.0, document definitions should name `checkpointWhen` in every `defineDoc` or `defineDocFamily` call. When it is missing, Pia supplies `checkpointWhen: () => false` for older drop-ins, and logs the module and the document kind. Explicit policies stay as they are. Since 0.21.0 (Pi Durable 1.4), a task must not use `TaskRuntime.sleep()`: it must wait with durable `sleepUntil()` checkpoints.
 
 ## `pocketApi`
 
@@ -22,7 +22,7 @@ A module can export `pocketApi`: the server module, the browser module, or both.
 export const pocketApi = 2;
 ```
 
-A Pi Pocket with an older API version does not set up such a module. It says why in the Extensions sheet.
+A Pia with an older API version does not set up such a module. It says why in the Extensions sheet.
 
 The browser reads `pocketApi` after it imports the browser module. Thus keep the browser module's top level to declarations, and do its work in the default export.
 
@@ -30,17 +30,17 @@ The browser reads `pocketApi` after it imports the browser module. Thus keep the
 
 Each member in the reference and in [types/pocket.d.ts](../../../types/pocket.d.ts) has two marks:
 
-- **Since 0.14.0**: the first release of Pi Pocket that has the member. A pre-release counts as its release. In the types file, this is `@since`.
+- **Since 0.14.0**: the first release of Pia that has the member. A pre-release counts as its release. In the types file, this is `@since`.
 - **Stable**: the member changes only as the stability policy says.
 - **Experimental**: the member can change, or go, in any minor release (`0.15.0`), but never in a patch release (`0.14.1`). See A4 and A14 in [API stability](../policies/api-stability.md#experimental). In the types file, this is `@experimental`. In 0.14.0, `host.linkedSessions` is the only experimental member.
 
-Some members of the host are **internal**: only Pi Pocket's built-in modules use them. They are not in the types file. They can change in any release. [host](host.md#internal-members) lists them.
+Some members of the host are **internal**: only Pia's built-in modules use them. They are not in the types file. They can change in any release. [host](host.md#internal-members) lists them.
 
-## Older and newer Pi Pocket
+## Older and newer Pia
 
 ### Members that are new
 
-Pi Pocket reloads a module when you edit it, but the host changes only when the server restarts. A module that uses a member that is new to the host must work without it until then. Check that the member is there, and do as before when it is not:
+Pia reloads a module when you edit it, but the host changes only when the server restarts. A module that uses a member that is new to the host must work without it until then. Check that the member is there, and do as before when it is not:
 
 ```typescript
 if (typeof host.heldBack === "function") {
@@ -50,13 +50,13 @@ if (typeof host.heldBack === "function") {
 
 A module that calls a member that is not there fails at its first use, in all sessions.
 
-### Pi Pocket before 0.14.0
+### Pia before 0.14.0
 
-A Pi Pocket before 0.14.0 knows neither `pocketApi` nor `web`. There, a module that adds to the app fails at its first `web.route` or `web.client`. The Extensions sheet shows the error.
+A Pia before 0.14.0 knows neither `pocketApi` nor `web`. There, a module that adds to the app fails at its first `web.route` or `web.client`. The Extensions sheet shows the error.
 
 ### Gallery entries
 
-A gallery entry gives `pocketApi` and `minPocket`: the API version and the oldest Pi Pocket that the extension needs. The gallery hides an entry that needs a newer API or a newer Pi Pocket. See [Gallery entry](gallery-entry.md#pocketapi).
+A gallery entry gives `pocketApi` and `minPocket`: the API version and the oldest Pia that the extension needs. The gallery hides an entry that needs a newer API or a newer Pia. See [Gallery entry](gallery-entry.md#pocketapi).
 
 ## When each part came
 
@@ -84,4 +84,4 @@ Each member in the reference has its own Since line. These parts came together:
 | Public pages: `web.publicPage` and `web.links` (experimental)                                                                                                     | 0.22.0 |
 | People's values and the browser: `host.ask`, `hide`, `commandEnv`, `browser` (experimental)                                                                       | 0.22.0 |
 | Events, services, and settings: `host.on`, `web.provide`, `use`, `onService`, `settings`, `setting`, `onSettings`, `pocket.settings`, `onSettings` (experimental) | 0.22.0 |
-| Give PiP a message: `pocket.pip.ask` (experimental)                                                                                                               | 0.26.0 |
+| Give Pia a message: `pocket.pia.ask` (experimental)                                                                                                               | 0.26.0 |

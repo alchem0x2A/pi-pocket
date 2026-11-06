@@ -1,4 +1,4 @@
-// People working together beside Pi: who is here, who is typing, and a side panel Pi does not see, with the chat,
+// People working together beside the agent: who is here, who is typing, and a side panel the agent does not see, with the chat,
 // pinned messages, and shared notes.
 
 import { Component } from "preact";
@@ -102,10 +102,10 @@ function typingText(people, where, me) {
               ? `${names[0]} and ${names[1]}`
               : `${names.length} people`;
 
-    return `${who} ${names.length === 1 ? "is" : "are"} ${where === "pi" ? "writing to Pi" : "typing"}…`;
+    return `${who} ${names.length === 1 ? "is" : "are"} ${where === "pi" ? "writing to the agent" : "typing"}…`;
 }
 
-/** "Alex is writing to Pi…" above the message box, or "Alex is typing…" in the chat. */
+/** "Alex is writing to the agent…" above the message box, or "Alex is typing…" in the chat. */
 export function TypingLine({ where }) {
     const { presence, me } = store.state;
     const text = typingText(presence, where, me);
@@ -155,7 +155,7 @@ export function jumpToEntry(entryId, { quiet = false } = {}) {
 function show(entryId, jump, quiet) {
     // A message above the rows the transcript shows: show from it down. The render runs before the next frame.
     revealEntry(entryId);
-    // An answer of only tool calls is a mark in a group of Pi's calls: the group opens (transcript.js).
+    // An answer of only tool calls is a mark in a group of the agent's calls: the group opens (transcript.js).
     document.dispatchEvent(new CustomEvent("pocket:reveal", { detail: entryId }));
 
     return new Promise((resolve) =>
@@ -243,7 +243,7 @@ function MessageText({ text, mentions, users, me }) {
 }
 
 /**
- * One line of the chat log. The whole app renders again on every update while Pi streams; a line renders again only
+ * One line of the chat log. The whole app renders again on every update while the agent streams; a line renders again only
  * when something it shows changed, so a long chat stays light.
  */
 class ChatLine extends Component {
@@ -300,7 +300,7 @@ class ChatLine extends Component {
                             class="link small"
                             onClick=${() => insertIntoComposer(`> ${senderName(message, users)}: ${message.text.replace(/\n/g, "\n> ")}\n\n`)}
                         >
-                            Send to Pi
+                            Send to the agent
                         </button>`
                     }
                     <button
@@ -492,7 +492,7 @@ function ChatTab({ highlight, focus }) {
     };
 
     return html`<div class="chat-label">
-        <${Icon} name="eye" size=${12} />Side chat · Pi does not see this chat.
+        <${Icon} name="eye" size=${12} />Side chat · the agent does not see this chat.
     </div>
     <div class="chat-log" ref=${log}>
         ${chat.length === 0 && html`<div class="muted">No messages yet.</div>`}
@@ -601,7 +601,7 @@ function PinsTab({ onShowChat }) {
 
     if (pins.length === 0) {
         return html`<p class="muted">
-            Nothing pinned yet. Pin a reply of Pi's or a chat message to keep it at hand for everyone here.
+            Nothing pinned yet. Pin a reply of the agent's or a chat message to keep it at hand for everyone here.
         </p>`;
     }
 
@@ -615,7 +615,7 @@ function PinsTab({ onShowChat }) {
                     <div class="pin-meta">
                         <span
                             class="chat-name"
-                            style=${`--who:${pin.author === "Pi" ? "var(--brand)" : personColor(users.find((user) => user.name === pin.author)?.id ?? pin.author)}`}
+                            style=${`--who:${pin.author === "the agent" ? "var(--brand)" : personColor(users.find((user) => user.name === pin.author)?.id ?? pin.author)}`}
                         >
                             ${pin.author}
                         </span>
@@ -665,7 +665,7 @@ function NotesTab() {
     };
 
     return html`<p class="muted small">
-        One page of notes for everyone here: the plan, decisions, who does what. Pi does not see it unless you send it.
+        One page of notes for everyone here: the plan, decisions, who does what. The agent does not see it unless you send it.
     </p>
     ${
         changedMeanwhile &&
@@ -708,7 +708,7 @@ function NotesTab() {
                 class="button small"
                 onClick=${() => insertIntoComposer(`Shared notes:\n\n${notes.text}\n\n`)}
             >
-                Send to Pi
+                Send to the agent
             </button>`
         }
         ${
@@ -738,7 +738,7 @@ function PeopleRoster() {
             const writing = person.typing && person.id !== me?.id;
             const state = writing
                 ? person.typing === "pi"
-                    ? "writing to Pi…"
+                    ? "writing to the agent…"
                     : "typing…"
                 : person.away
                   ? "away"
@@ -774,7 +774,7 @@ function PeopleRoster() {
                     ${turns?.on ? `${driver} is driving` : "Take turns"}
                 </span>
                 <span class="people-turns-hint">
-                    ${turns?.on ? "Only the driver can send to Pi" : "One person drives Pi at a time"}
+                    ${turns?.on ? "Only the driver can send to the agent" : "One person drives the agent at a time"}
                 </span>
             </span>
             ${
@@ -859,7 +859,7 @@ export function ChatSheet() {
     <//>`;
 }
 
-/** Esc in the panel leaves its field, and never counts toward the two that stop Pi. */
+/** Esc in the panel leaves its field, and never counts toward the two that stop the agent. */
 function keepEscape(event) {
     if (event.key !== "Escape" || event.defaultPrevented) {
         return;

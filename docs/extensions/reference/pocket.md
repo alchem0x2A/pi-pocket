@@ -214,7 +214,7 @@ readonly Markdown: FunctionComponent<MarkdownProps>;
 
 Since 0.14.0 · Stable
 
-Shows Markdown. It cleans the HTML that it makes, as the app does for Pi's replies. See [`MarkdownProps`](#markdownprops).
+Shows Markdown. It cleans the HTML that it makes, as the app does for the agent's replies. See [`MarkdownProps`](#markdownprops).
 
 ### `Switch`
 
@@ -276,7 +276,7 @@ messages(options?: MessagesOptions): Promise<MessagePage>;
 
 Since 0.20.0 · Experimental
 
-Reads a page of the people's messages in the session the tab shows, oldest first: Pi's answers, tool calls, and notes are not in it. With no `before`, it is the newest `limit` messages (50 by default, up to 200). The page's `before` is the cursor for the page before it, and null at the start. Read pages until `before` is null to have them all. The messages are those of the transcript: after a New context, the earlier ones are not in it.
+Reads a page of the people's messages in the session the tab shows, oldest first: the agent's answers, tool calls, and notes are not in it. With no `before`, it is the newest `limit` messages (50 by default, up to 200). The page's `before` is the cursor for the page before it, and null at the start. Read pages until `before` is null to have them all. The messages are those of the transcript: after a New context, the earlier ones are not in it.
 
 The server checks the person's access to the session for each page. A page is from the session that the tab showed when it was asked for (`conversationId`): compare it with the one shown now before you use it. It rejects with an error whose `status` is 409 when its cursor is stale, as after a compaction: read again from the newest. Abort it with `signal`. With no session open, or from a version of the module that is gone, the page is empty. See [`MessagesOptions`](#messagesoptions), [`MessagePage`](#messagepage), and [`MessageInfo`](#messageinfo).
 
@@ -469,7 +469,7 @@ composerButton(spec: ComposerButtonSpec): Added<ComposerButtonSpec>;
 
 Since 0.19.0 · Experimental
 
-Adds a button on the left of the message box's row, after the app's own (Attach, the model, Plan). Send, Stop, the mic, and Steer, Queue and Interrupt stay on the right. In a narrow message box (a phone's), where they would push Send or Stop out of it, these buttons take a line of their own under the row: two or more up to 480 px wide, one up to 340 px. A single button in a box from 341 to 480 px wide stays in the row, and steps aside while Pi works, as the model chip does, so Stop stays in the row; it comes back when Pi stops. See [`ComposerButtonSpec`](#composerbuttonspec).
+Adds a button on the left of the message box's row, after the app's own (Attach, the model, Plan). Send, Stop, the mic, and Steer, Queue and Interrupt stay on the right. In a narrow message box (a phone's), where they would push Send or Stop out of it, these buttons take a line of their own under the row: two or more up to 480 px wide, one up to 340 px. A single button in a box from 341 to 480 px wide stays in the row, and steps aside while the agent works, as the model chip does, so Stop stays in the row; it comes back when the agent stops. See [`ComposerButtonSpec`](#composerbuttonspec).
 
 ### `replyAction`
 
@@ -479,7 +479,7 @@ replyAction(spec: ReplyActionSpec): Added<ReplyActionSpec>;
 
 Since 0.19.0 · Experimental
 
-Adds an action under Pi's answers, before More. Its `run` gets the answer, or its sheet gets it as the prop `reply`. See [`ReplyActionSpec`](#replyactionspec) and [`Reply`](#reply). The actions show under each finished answer, as the app's own (Discuss, Pin, Copy) do.
+Adds an action under the agent's answers, before More. Its `run` gets the answer, or its sheet gets it as the prop `reply`. See [`ReplyActionSpec`](#replyactionspec) and [`Reply`](#reply). The actions show under each finished answer, as the app's own (Discuss, Pin, Copy) do.
 
 ### `sessionChips`
 
@@ -529,7 +529,7 @@ composerKey(spec: ComposerKeySpec): Added<ComposerKeySpec>;
 
 Since 0.20.0 · Experimental
 
-Adds a key in the message boxes: the session's and PiP's. It comes before the box's own keys, so it can take any of them, Enter too. While an input method composes text, keys go to it, not to modules. When two modules give the same key, the one earlier in the server's order of modules gets it. The Keyboard shortcuts sheet lists it with its `label`. Some keys never reach a page: in a browser tab, the browser keeps keys such as Ctrl+W, Ctrl+T, and Ctrl+N for itself. See [`ComposerKeySpec`](#composerkeyspec) and [`ComposerBox`](#composerbox).
+Adds a key in the message boxes: the session's and Pia's. It comes before the box's own keys, so it can take any of them, Enter too. While an input method composes text, keys go to it, not to modules. When two modules give the same key, the one earlier in the server's order of modules gets it. The Keyboard shortcuts sheet lists it with its `label`. Some keys never reach a page: in a browser tab, the browser keeps keys such as Ctrl+W, Ctrl+T, and Ctrl+N for itself. See [`ComposerKeySpec`](#composerkeyspec) and [`ComposerBox`](#composerbox).
 
 ```js
 // Ctrl+W deletes the word before the caret, or the selection, as in a terminal.
@@ -558,15 +558,25 @@ Since 0.19.0 · Experimental
 
 Puts text into the message box of the session that the tab shows, after what is there: on a new paragraph, or with `inline: true`, after a space. The person sends it, or not: it never sends. A sheet that shows closes, so the box shows. With no session open, it does nothing. Text past 100,000 characters throws.
 
+### `pia`
+
+```ts
+readonly pia: PiaApi;
+```
+
+Since 0.26.0 · Experimental
+
+The part of `pocket` that talks to the person's Pia, their assistant. It has one method, `pia.ask`. See [`PiaApi`](#piaapi).
+
 ### `pip`
 
 ```ts
 readonly pip: PipApi;
 ```
 
-Since 0.26.0 · Experimental
+Since 0.26.0 · Deprecated
 
-The part of `pocket` that talks to the person's PiP, their assistant. It has one method, `pip.ask`. See [`PipApi`](#pipapi).
+Compatibility alias for [`pia`](#pia). New modules must use `pia`.
 
 ### `arrange`
 
@@ -795,7 +805,7 @@ A page in the place of the session. It has its title and a close button. On a ph
 - `id`: the page's id in the module.
 - `title`: the page's title.
 - `component`: what the page shows. It gets [`PageProps`](#pageprops).
-- `escape`: with `false`, the page keeps Esc for itself. Esc still closes a sheet, the launcher, or PiP over the page. The close button and back still close the page.
+- `escape`: with `false`, the page keeps Esc for itself. Esc still closes a sheet, the launcher, or Pia over the page. The close button and back still close the page.
 - `swipe`: with `false`, no swipe on the page goes back, also at the screen's edge.
 
 Esc and back close a page. Esc does not close it while an input method composes a character. On a narrow touch screen, a swipe to the right on the page goes back. This is not so in a field, or in an area that scrolls sideways. In an app added to the home screen of an iPhone or iPad, a swipe in from the left edge also goes back. A `data-no-swipe` attribute on an element stops the swipe on it and in it, for example on a slider. [Limits](limits.md#browser-modules) gives the width.
@@ -925,7 +935,7 @@ interface Reply {
 
 Since 0.19.0 · Experimental
 
-One of Pi's answers: its id in its session, its words as Markdown, and its session.
+One of the agent's answers: its id in its session, its words as Markdown, and its session.
 
 ### `ReplyActionSpec`
 
@@ -943,7 +953,7 @@ type ReplyActionSpec = (
 
 Since 0.19.0 · Experimental
 
-An action under Pi's answers: its `label`, an icon before it when you give one, and `run` or `sheet`. `run` gets the answer. The sheet gets it as the prop `reply`. When `run` throws or rejects, a notice says so.
+An action under the agent's answers: its `label`, an icon before it when you give one, and `run` or `sheet`. `run` gets the answer. The sheet gets it as the prop `reply`. When `run` throws or rejects, a notice says so.
 
 ### `SessionInfo`
 
@@ -1101,36 +1111,56 @@ Since 0.20.0 · Experimental
 - `id`: the message's id, for `reveal`. Two messages with the same words have different ids, and an id names the same message after a reload, a restart, and a compaction. A fork's messages have ids of their own. Do not read meaning into it.
 - `text`: what the person wrote, without the files attached to it: up to 1,000 characters.
 - `clipped`: true when `text` was cut.
-- `by`: who wrote it: their id and name, when known. A message from before Pi Pocket kept authors has neither.
+- `by`: who wrote it: their id and name, when known. A message from before Pia kept authors has neither.
 - `at`: when it was sent, in milliseconds since 1970 on the server's clock, or null.
 
-### `PipApi`
+### `PiaApi`
 
 ```ts
-interface PipApi {
-    ask(text: string, options?: { send?: boolean }): Promise<PipAskResult>;
+interface PiaApi {
+    ask(text: string, options?: { send?: boolean }): Promise<PiaAskResult>;
 }
 ```
 
 Since 0.26.0 · Experimental
 
-- `ask(text, options)`: gives PiP `text` as the person's own message. PiP sees it as it sees typed text.
-    - The text starts with a line that names the module (`From the extension “Usage”:`), as an artifact's follow-up starts with its source. So the message never reads as a command, and the person and PiP know where it came from.
-    - By default, it opens PiP and puts the text in PiP's message box, after what is there. The person reads it, edits it, and sends it, or not.
-    - With `send: true`, it sends the text at once, but only just after the person tapped or pressed a key (other than Escape) anywhere in the app, as a tap serves an artifact's follow-up; it need not be on the module's own controls. One tap serves for 5 seconds and for one send, so ask only from the person's own action. Without a tap, nothing is sent or drafted, and the answer says why. If PiP cannot take the message (it is not ready, or the send fails), a notice says so and the text waits in the box.
-    - It works for a person who has PiP. For anyone else, and while the app does not know yet, it does not throw: the answer is `{ ok: false, reason }`.
+- `ask(text, options)`: gives Pia `text` as the person's own message. Pia sees it as it sees typed text.
+    - The text starts with a line that names the module (`From the extension “Usage”:`), as an artifact's follow-up starts with its source. So the message never reads as a command, and the person and Pia know where it came from.
+    - By default, it opens Pia and puts the text in Pia's message box, after what is there. The person reads it, edits it, and sends it, or not.
+    - With `send: true`, it sends the text at once, but only just after the person tapped or pressed a key (other than Escape) anywhere in the app, as a tap serves an artifact's follow-up; it need not be on the module's own controls. One tap serves for 5 seconds and for one send, so ask only from the person's own action. Without a tap, nothing is sent or drafted, and the answer says why. If Pia cannot take the message (it is not ready, or the send fails), a notice says so and the text waits in the box.
+    - It works for a person who has Pia. For anyone else, and while the app does not know yet, it does not throw: the answer is `{ ok: false, reason }`.
     - Text that is empty or past 100,000 characters throws, as `insertText` does.
 
-### `PipAskResult`
+### `PiaAskResult`
 
 ```ts
-type PipAskResult = { ok: true; sent: boolean } | { ok: false; reason: string };
+type PiaAskResult = { ok: true; sent: boolean } | { ok: false; reason: string };
 ```
 
 Since 0.26.0 · Experimental
 
-- `ok: true`: the text went to PiP. `sent` is true when it was sent, and false when it waits in PiP's message box.
-- `ok: false`: nothing happened. `reason` says why, in words for a person: `"PiP is not available"`, `"Sending needs a click or a key press just before"`, or that the module's version is no longer loaded. Do not match on the words: they can change.
+- `ok: true`: the text went to Pia. `sent` is true when it was sent, and false when it waits in Pia's message box.
+- `ok: false`: nothing happened. `reason` says why, in words for a person: `"Pia is not available"`, `"Sending needs a click or a key press just before"`, or that the module's version is no longer loaded. Do not match on the words: they can change.
+
+### `PipApi`
+
+```ts
+interface PipApi extends PiaApi {}
+```
+
+Since 0.26.0 · Deprecated
+
+Compatibility type for browser modules that still use `pocket.pip`.
+
+### `PipAskResult`
+
+```ts
+type PipAskResult = PiaAskResult;
+```
+
+Since 0.26.0 · Deprecated
+
+Compatibility type for [`PiaAskResult`](#piaaskresult).
 
 ### `ComposerKeySpec`
 
@@ -1154,7 +1184,7 @@ Since 0.20.0 · Experimental
 
 ```ts
 interface ComposerBox {
-    readonly where: "session" | "pip";
+    readonly where: "session" | "pia";
     readonly text: string;
     readonly start: number;
     readonly end: number;
@@ -1164,7 +1194,7 @@ interface ComposerBox {
 
 Since 0.20.0 · Experimental
 
-- `where`: the session's message box, or PiP's.
+- `where`: the session's message box, or Pia's.
 - `text`, `start`, `end`: the box's text and selection when the key came. With nothing selected, `start` and `end` are the caret.
 - `set`: writes new text, as typing does, so the box keeps it as its draft. It puts the caret at `start` (by default, the end of the text), or selects from `start` to `end`. Text past 1,000,000 characters throws.
 
@@ -1176,7 +1206,7 @@ type SlotName = "topbar" | "status" | "places" | "composer" | "reply";
 
 Since 0.19.0 · Experimental
 
-A slot: `"topbar"`, the buttons after the session's title; `"status"`, the status line under the message box; `"places"`, the tiles in the places and at the top of the menu; `"composer"`, the buttons on the left of the message box's row; or `"reply"`, the actions under Pi's answers.
+A slot: `"topbar"`, the buttons after the session's title; `"status"`, the status line under the message box; `"places"`, the tiles in the places and at the top of the menu; `"composer"`, the buttons on the left of the message box's row; or `"reply"`, the actions under the agent's answers.
 
 ### `Arrangement`
 
@@ -1204,7 +1234,7 @@ What shows comes in layers, the last one wins: each item's default place, then t
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ | --------------------------- |
 | `topbar`   | `core:subagents`, `core:changes`, `core:peeks`, `core:files`, `core:browser`, `core:artifacts`, `core:people`, `core:menu`                                         | `core:menu`, last                                                              | after `core:browser`        |
 | `status`   | `core:connection`, `core:here`, `core:speed`, `core:context`, `core:cache`, `core:spend`, `core:background`, `core:guard`                                          | `core:connection`, `core:guard`                                                | after `core:cache`          |
-| `places`   | `core:files`, `core:changes`, `core:browser`, `core:artifacts`, `core:chat`, `core:find`, `core:launcher` (touch screens), `core:branch`, `core:pip`, `core:peeks` | none                                                                           | last: a tile for each panel |
+| `places`   | `core:files`, `core:changes`, `core:browser`, `core:artifacts`, `core:chat`, `core:find`, `core:launcher` (touch screens), `core:branch`, `core:pia`, `core:peeks` | none                                                                           | last: a tile for each panel |
 | `composer` | `core:places`, `core:attach`, `core:model`, `core:plan`                                                                                                            | none (Send, Stop, the mic, and Steer, Queue and Interrupt are not in the slot) | after `core:plan`           |
 | `reply`    | `core:time`, `core:react`, `core:discuss`, `core:pin`, `core:copy`, `core:more`                                                                                    | `core:more`, last                                                              | before `core:more`          |
 
@@ -1255,7 +1285,7 @@ Since 0.14.0 · Stable
 
 How the calls of one tool show, from their arguments.
 
-- `tool`: the tool's name, exactly as Pi calls it. The tool must be one that the module's own extensions install. The app refuses any other tool, so no module changes how the calls of another module show. With a server that is too old to list the module's tools, `toolCall` does nothing.
+- `tool`: the tool's name, exactly as the agent calls it. The tool must be one that the module's own extensions install. The app refuses any other tool, so no module changes how the calls of another module show. With a server that is too old to list the module's tools, `toolCall` does nothing.
 - `label`: the words of the call's line, such as `"start session"`.
 - `subject`: what the call acts on.
 - `summary`: how a group of calls counts this call. See [`CallSummary`](#callsummary).
@@ -1353,9 +1383,9 @@ Since 0.14.0 · Stable
 - `onChange`: runs when a person turns the switch. Set `on` again from it.
 - `disabled`: with `true`, nobody can turn the switch.
 
-## CSS names Pi Pocket keeps
+## CSS names Pia keeps
 
-To look like the app, use its colors and classes. The colors follow the light or dark mode. Pi Pocket keeps these names. The rest of its CSS can change. These names are a subset of [the CSS names reference](theme-surface.md#extensions-css-names), the one full list of the tokens, parts, and states Pi Pocket keeps.
+To look like the app, use its colors and classes. The colors follow the light or dark mode. Pia keeps these names. The rest of its CSS can change. These names are a subset of [the CSS names reference](theme-surface.md#extensions-css-names), the one full list of the tokens, parts, and states Pia keeps.
 
 - Colors: `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--bg)`, `var(--card)`, `var(--line)`, `var(--err)`, `var(--warn)`, and `var(--ok)`.
 - Classes: `button` (with `primary`), `error-box`, `muted`, `small`, `mono`, and `setting` (a row with a label and a control).

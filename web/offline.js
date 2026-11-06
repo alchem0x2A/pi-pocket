@@ -75,7 +75,7 @@ async function verify(account) {
                 forgetInboxAccount(localStorage);
             }
 
-            return "The signed-in account changed. Sign in to Pi Pocket to select the correct inbox.";
+            return "The signed-in account changed. Sign in to Pia to select the correct inbox.";
         }
     } catch (error) {
         // A network failure leaves identity unknown. The explicit device unlock is the only offline check.
