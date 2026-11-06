@@ -322,7 +322,7 @@ export async function conversationRoutes(
         return json(response, 200, { ok: true });
     }
 
-    // Whether Pi trusts the session's project, which its own skills wait for; only the owner answers.
+    // Whether the agent trusts the session's project, which its own skills wait for; only the owner answers.
     if (third === "trust" && method === "GET") {
         return json(response, 200, app.projectTrust(id, user));
     }
@@ -605,7 +605,7 @@ export async function conversationRoutes(
         return json(response, 200, { ok: true });
     }
 
-    // Running now's Stop for a command Pi runs in the background: anyone who may steer the session.
+    // Running now's Stop for a command the agent runs in the background: anyone who may steer the session.
     if (
         third === "background" &&
         fourth !== undefined &&

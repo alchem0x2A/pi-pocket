@@ -1,15 +1,15 @@
 # Core or extension
 
-This page tells where a change goes: into Pi Pocket's core, or into an extension. Read it before you write code, and before you open a pull request. [extensions.md](../../extensions.md) tells how to write an extension.
+This page tells where a change goes: into Pia's core, or into an extension. Read it before you write code, and before you open a pull request. [extensions.md](../../extensions.md) tells how to write an extension.
 
 ## Terms
 
-- **Core** is the code that Pi Pocket keeps for all people and all extensions. It is the server (`src/server/`, but not `src/server/extensions/`), the app (`web/`), and the interfaces that extensions use: `host`, `web`, and `pocket`.
-- An **extension** is a module that Pi Pocket loads through its extension loader. The owner can turn each one off in **Menu → Extensions**, except the system prompt (`prompt.ts`). There are three types:
-    - A **built-in extension** is a module in `src/server/extensions/`. It comes with Pi Pocket.
+- **Core** is the code that Pia keeps for all people and all extensions. It is the server (`src/server/`, but not `src/server/extensions/`), the app (`web/`), and the interfaces that extensions use: `host`, `web`, and `pocket`.
+- An **extension** is a module that Pia loads through its extension loader. The owner can turn each one off in **Menu → Extensions**, except the system prompt (`prompt.ts`). There are three types:
+    - A **built-in extension** is a module in `src/server/extensions/`. It comes with Pia.
     - A **gallery extension** is a drop-in that its author keeps in their own repository. The gallery lists it ([gallery-review.md](gallery-review.md)).
     - A **drop-in** is a module in the owner's `~/.pi-pocket/extensions/` folder.
-- An **extension point** is a part of the public API that lets an extension add to Pi Pocket or change it. [api-stability.md](api-stability.md) lists them.
+- An **extension point** is a part of the public API that lets an extension add to Pia or change it. [api-stability.md](api-stability.md) lists them.
 
 ## The decision
 
@@ -44,23 +44,23 @@ Ask these questions in this order. The first "yes" gives the answer.
 - **C11. Make a drop-in when one person or one machine needs it.**\
   _Reason:_ it survives updates, and nobody else has to keep it.
 - **C12. Make a gallery extension when other people can use it.** Its author keeps it in their own repository.\
-  _Reason:_ people can share it with no change to Pi Pocket.
-- **C13. Make a built-in extension only when Pi Pocket must ship it.** It is part of the default experience, or it is the interface to a part of core (as the gallery is).\
+  _Reason:_ people can share it with no change to Pia.
+- **C13. Make a built-in extension only when Pia must ship it.** It is part of the default experience, or it is the interface to a part of core (as the gallery is).\
   _Reason:_ the maintainers keep each built-in extension for all people.
 - **C14. A new built-in extension uses only `host` and `web` at run time.** Type imports from core are permitted. Agent Teams obeys this rule. The built-in extensions from before 0.14 do not have to change.\
   _Reason:_ the module then shows that the public API is sufficient, and it can move to the gallery later.
 
-## Examples from Pi Pocket
+## Examples from Pia
 
 ### Linked sessions and Agent Teams
 
-- **Core: linked sessions** (`linked-sessions.ts`, `host.linkedSessions`). Core starts a linked session, carries messages, and lists the sessions. It acts with the rights of the person Pi works for. It refuses work in plan mode. It counts the cost of the team against the budget of the top session. It stops a team at its [limits](../reference/limits.md#linked-sessions) of sessions, and of messages with no message from a person. It uses keys, so a replay acts once. It gives sessions addresses, so no session ID goes into a transcript.
-- **Extension: Agent Teams** (`extensions/agent-teams.ts` and `agent-teams.js`). The `team` tool, its words to Pi, and how its calls show. It is off by default. At run time it uses only `host` and `web`, as a drop-in does.
+- **Core: linked sessions** (`linked-sessions.ts`, `host.linkedSessions`). Core starts a linked session, carries messages, and lists the sessions. It acts with the rights of the person the agent works for. It refuses work in plan mode. It counts the cost of the team against the budget of the top session. It stops a team at its [limits](../reference/limits.md#linked-sessions) of sessions, and of messages with no message from a person. It uses keys, so a replay acts once. It gives sessions addresses, so no session ID goes into a transcript.
+- **Extension: Agent Teams** (`extensions/agent-teams.ts` and `agent-teams.js`). The `team` tool, its words to the agent, and how its calls show. It is off by default. At run time it uses only `host` and `web`, as a drop-in does.
 - **Why:** pull request #84 first put Agent Teams in core. In 0.14 the mechanism stayed in core, because it decides permissions, stored data, and spend (C1 to C3). The workflow became a built-in extension (C6, C7). Another team workflow can use the same linked sessions.
 
 ### Commands
 
-- **Core: `web.command`** (pull request #36). Core decides who may run a command. It makes a durable task for each run, so a retry runs the handler once. It shows the run in **Menu → Running now**, and stops it there. It keeps limits, and it writes cards that Pi does not read.
+- **Core: `web.command`** (pull request #36). Core decides who may run a command. It makes a durable task for each run, so a retry runs the handler once. It shows the run in **Menu → Running now**, and stops it there. It keeps limits, and it writes cards that the agent does not read.
 - **Extension: each command.** For example, `/clock-zone` in [examples/clock.ts](../../examples/clock.ts).
 - **Why:** the mechanism decides permissions and stored data (C1, C2). Each command is a workflow (C6).
 
@@ -68,7 +68,7 @@ Ask these questions in this order. The first "yes" gives the answer.
 
 - **Core: the trust rules** (`src/server/gallery/`, `host.gallery`). Core reads the index strictly. It downloads files only over https, from the pinned commit. It checks each SHA-256. It installs everything off, and it never updates by itself. It warns about revoked versions.
 - **Built-in extension: the gallery** (`gallery.ts`, `pocket-gallery`). Its routes and its screens. When the owner turns it off, it reads nothing.
-- **Why:** the checks protect the owner (C4). The screens are optional (C6), but Pi Pocket must ship them (C13).
+- **Why:** the checks protect the owner (C4). The screens are optional (C6), but Pia must ship them (C13).
 
 ### Subscription usage
 
@@ -84,7 +84,7 @@ Ask these questions in this order. The first "yes" gives the answer.
 
 ### Themes (#90, 0.14.0; removed)
 
-- Themes were removed. Pi Pocket has one palette, in light and dark. Its CSS names (tokens, `data-part` names, states) stay, for extensions' stylesheets.
+- Themes were removed. Pia has one palette, in light and dark. Its CSS names (tokens, `data-part` names, states) stay, for extensions' stylesheets.
 - **Core:** the CSS names, and the colors and the mode.
 - **Not core:** a different look. An extension's stylesheet can restyle its own pages.
 - **Why:** the tokens and the parts must be the same for every screen (C5).
@@ -125,7 +125,7 @@ A maintainer answers with one of these:
 ### Rules for extension points
 
 - **C15. Each new extension point has a user when it ships:** a built-in extension, a gallery extension, or a tested example in [docs/examples/](../../examples/). `host.linkedSessions` and `pocket.toolCall` shipped with Agent Teams, and `web.command` with the clock example.\
-  _Reason:_ an interface with no user is a guess, and a wrong guess becomes a public API that Pi Pocket must keep.
+  _Reason:_ an interface with no user is a guess, and a wrong guess becomes a public API that Pia must keep.
 
 ## Pull requests
 

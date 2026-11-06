@@ -1,4 +1,4 @@
-// Updates of Pi Pocket itself (`src/server/updates.ts`), on a checkout of a repository made here: what stands in the
+// Updates of Pia itself (`src/server/updates.ts`), on a checkout of a repository made here: what stands in the
 // way, an update that moves the checkout and restarts, its packages put in place beside it, the start after it, and
 // the launcher going back when the new version does not start (`update-state.ts`).
 import assert from "node:assert/strict";
@@ -76,7 +76,7 @@ const lock = (version: string, extra: Record<string, unknown> = {}) =>
         2,
     )}\n`;
 
-/** Write Pi Pocket's version (and maybe its lock file) in `cwd`, commit, and tag it. */
+/** Write Pia's version (and maybe its lock file) in `cwd`, commit, and tag it. */
 function release(cwd: string, version: string, lockExtra?: Record<string, unknown>, tag = true) {
     writeFileSync(
         join(cwd, "package.json"),
@@ -94,7 +94,7 @@ function release(cwd: string, version: string, lockExtra?: Record<string, unknow
     return run(cwd, ["rev-parse", "HEAD"]);
 }
 
-/** An upstream at 1.0.0, and a checkout of it, as a person clones Pi Pocket. */
+/** An upstream at 1.0.0, and a checkout of it, as a person clones Pia. */
 function setUp() {
     const where = join(root, `case-${++made}`);
     const upstream = join(where, "upstream");
@@ -140,7 +140,7 @@ function updater(
 const releaseOf = (version: string, extra: Partial<Release> = {}): Release => ({
     tag: `v${version}`,
     version,
-    name: `Pi Pocket ${version}`,
+    name: `Pia ${version}`,
     warning: notesWarn(extra.notes),
     ...notes(),
     ...extra,
@@ -237,7 +237,7 @@ test("changes not committed, commits the release lacks, and no launcher each sto
 
     release(upstream, "1.1.0");
 
-    // Changes of the owner's own, as Pi Pocket editing itself makes.
+    // Changes of the owner's own, as Pia editing itself makes.
     writeFileSync(join(app, "code.txt"), "my own change\n");
     const dirty = updater(app, upstream, () => releaseOf("1.1.0")).updates;
     const status = await dirty.check(undefined, { download: true });
@@ -360,7 +360,7 @@ test("new packages install beside the checkout, and the launcher puts the old on
     // 1.1.0 does not start: the launcher goes back to 1.0.0, its packages too.
     const said = rollBackUpdate(app);
 
-    assert.match(said ?? "", /1\.1\.0 did not start, so Pi Pocket went back to 1\.0\.0/);
+    assert.match(said ?? "", /1\.1\.0 did not start, so Pia went back to 1\.0\.0/);
     assert.equal(run(app, ["rev-parse", "HEAD"]), first);
     assert.equal(run(app, ["symbolic-ref", "--short", "HEAD"]), "main");
     assert.equal(
@@ -399,8 +399,8 @@ test("busy sessions wait unless the owner accepts them, and one update runs at a
     const { updates } = updater(app, upstream, () => releaseOf("1.1.0"), { busy: () => 2 });
     const status = await updates.check(undefined, { download: true });
 
-    assert.match(status.cautions.join("\n"), /Pi works in 2 sessions/);
-    await assert.rejects(updates.apply(), /Pi works in a session/);
+    assert.match(status.cautions.join("\n"), /the agent works in 2 sessions/);
+    await assert.rejects(updates.apply(), /the agent works in a session/);
 
     const [one, two] = await Promise.allSettled([
         updates.apply({ allowBusy: true }),
@@ -1001,7 +1001,7 @@ test("a checkout without the upstream remote starts no migration session, and sa
     assert.equal(started, 0);
 });
 
-test("the migration prompt asks Pi to read and report only: the owner merges by hand", () => {
+test("the migration prompt asks the agent to read and report only: the owner merges by hand", () => {
     const prompt = migrationPrompt({
         release: { tag: "v1.1.0", version: "1.1.0", url: "https://example.com/r" },
         remote: "upstream",
@@ -1012,7 +1012,7 @@ test("the migration prompt asks Pi to read and report only: the owner merges by 
         version: "1.0.0",
     });
 
-    assert.match(prompt, /Pi Pocket 1\.1\.0 \(tag v1\.1\.0\) is available/);
+    assert.match(prompt, /Pia 1\.1\.0 \(tag v1\.1\.0\) is available/);
     assert.match(prompt, /did not update itself/);
     assert.match(prompt, /git log --oneline HEAD\.\.upstream\/main/);
     assert.match(prompt, /Do not merge, rebase, pull, check out, commit, stash, reset, or push/);

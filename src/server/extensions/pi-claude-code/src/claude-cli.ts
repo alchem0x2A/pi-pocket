@@ -39,7 +39,7 @@ export interface ClaudeStatus {
 
 export interface RunClaudeInput {
   model: string;
-  /** Working directory exposed to Claude and used for Pi tool paths. */
+  /** Working directory exposed to Claude and used for the agent tool paths. */
   cwd?: string;
   frames: NativeFrame[];
   systemPrompt: string;
@@ -54,12 +54,12 @@ export interface RunClaudeInput {
   initialUserPrefix?: unknown[];
   /** Native system messages Claude Code injected immediately after that user message. */
   initialSystemMessages?: unknown[];
-  /** Pi system/tool deltas to restore at their historical assistant boundaries. */
+  /** the agent system/tool deltas to restore at their historical assistant boundaries. */
   nativeSystemInjections?: NativeSystemInjection[];
   /** Beta features appended to Claude Code's own request header by the turn relay. */
   betas?: string[];
   onEvent?: (event: AnthropicStreamEvent) => void;
-  /** Pi session whose linear continuation may reuse a warm Claude process. */
+  /** the agent session whose linear continuation may reuse a warm Claude process. */
   sessionId?: string;
 }
 
@@ -913,7 +913,7 @@ class ClaudeProcess {
 
       child = spawnCommand(command, args, {
         // Claude Code tells the model its process cwd. Keep transport files
-        // private while exposing Pi's real working directory to the model.
+        // private while exposing the agent's real working directory to the model.
         cwd: input.cwd ?? process.cwd(),
         env,
         detached: process.platform !== "win32",
@@ -981,8 +981,8 @@ class ClaudeProcess {
   commit(input: RunClaudeInput, message: NativeMessage): boolean {
     // Claude Code executes MCP calls internally before emitting its max-turns
     // result. Our inert MCP response is therefore part of its hidden history,
-    // while Pi will append the real tool result. That state is not a faithful
-    // continuation and must be discarded; the next request replays from Pi.
+    // while the agent will append the real tool result. That state is not a faithful
+    // continuation and must be discarded; the next request replays from the agent.
     if (message.content.some((block) => block.type === "tool_use")) {
       this.tipHash = undefined;
       return false;
@@ -1099,7 +1099,7 @@ class ClaudeProcess {
       for (const block of message.content) {
         if (block.type !== "tool_use") continue;
         if (!block.name.startsWith(TOOL_PREFIX) || !input.toolNames.has(block.name.slice(TOOL_PREFIX.length))) {
-          throw new Error("Claude Code returned a tool outside Pi's current tool inventory");
+          throw new Error("Claude Code returned a tool outside the agent's current tool inventory");
         }
       }
 
@@ -1109,7 +1109,7 @@ class ClaudeProcess {
       }
 
       // The response is already charged at this point, but stopping here keeps
-      // Pi's agent loop from issuing more requests against usage credits.
+      // the CLI's own loop from issuing more requests against usage credits.
       if (rateLimit?.isUsingOverage === true && !usageCreditsAllowed({ ...process.env, ...input.env })) {
         throw usageCreditsChargeError(rateLimit);
       }
@@ -1220,7 +1220,7 @@ async function acquireProcess(input: RunClaudeInput, plan: ClaudeLaunchPlan): Pr
     }
 
     // A concurrent request must not mutate the cached conversation. It gets a
-    // one-shot process, as does a request without Pi's stable session ID.
+    // one-shot process, as does a request without the agent's stable session ID.
     const retain = !!sessionId && !cached?.busy;
     if (retain) {
       while (processCache.size >= MAX_CACHED_CLAUDE_PROCESSES) {
@@ -1241,7 +1241,7 @@ async function acquireProcess(input: RunClaudeInput, plan: ClaudeLaunchPlan): Pr
   });
 }
 
-/** Close warm Claude processes for one Pi session, or all sessions. */
+/** Close warm Claude processes for one the agent session, or all sessions. */
 export async function closeClaudeProcesses(sessionId?: string): Promise<void> {
   const workers = await withManagerLock(() => {
     if (sessionId) {

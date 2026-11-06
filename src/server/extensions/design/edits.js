@@ -1,4 +1,4 @@
-// The text edits a person makes on the canvas, gathered until they are sent to Pi as one message.
+// The text edits a person makes on the canvas, gathered until they are sent to the agent as one message.
 
 /** The key an edit goes by: the element it changed. */
 const keyOf = (target) => `${target?.pid ?? ""}\n${target?.selector ?? ""}`;

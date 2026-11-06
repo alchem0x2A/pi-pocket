@@ -1,6 +1,6 @@
 /**
- * Background tasks let Pi start a command and not wait for it (a dev server, a long build, a test run), read what it
- * printed later, and stop it; Pi gets a message when it ends. Its command passes Lancet Guard as bash's does, and shows
+ * Background tasks let the agent start a command and not wait for it (a dev server, a long build, a test run), read what it
+ * printed later, and stop it; the agent gets a message when it ends. Its command passes Lancet Guard as bash's does, and shows
  * in Running now, where people can stop it too. While this is off, no task starts, and the ones running go on unwatched
  * until it is on again.
  */
@@ -32,7 +32,7 @@ export default function createBackground(host: PocketHost, web: ExtensionWeb) {
             name: "running",
             label: "Running tasks per session",
             description:
-                "How many commands Pi can run in the background at once in one session. Each keeps running until it ends or is stopped, also across a restart of the server.",
+                "How many commands the agent can run in the background at once in one session. Each keeps running until it ends or is stopped, also across a restart of the server.",
             type: "number",
             default: DEFAULT_BACKGROUND_LIMITS.running,
             min: 1,
@@ -110,7 +110,7 @@ export default function createBackground(host: PocketHost, web: ExtensionWeb) {
                 // This call, run again after a restart cut its start off: it is not started twice.
                 if (item.status === "starting") {
                     return reply(
-                        `A restart cut off the start of ${item.id}. It is not started again: Pi Pocket looks for its process within a minute, and keeps it or records that it never ran. Check with list.`,
+                        `A restart cut off the start of ${item.id}. It is not started again: Pia looks for its process within a minute, and keeps it or records that it never ran. Check with list.`,
                     );
                 }
 

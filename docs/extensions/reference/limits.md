@@ -7,7 +7,7 @@ All the numbers that limit a module, in one place. Each group links to the guide
 [Modules, loading, and errors](../modules.md)
 
 - **Reload after an edit:** about 300 ms after you save a module that is on.
-- **A file that goes:** Pi Pocket removes a module only when its file is still gone 300 ms later.
+- **A file that goes:** Pia removes a module only when its file is still gone 300 ms later.
 - **Time to load:** 30 s at most for one load: the import, and an async default export.
 - **Time to load at the server's start:** all the modules share 30 s. After that, each module that is left has 2 s.
 
@@ -36,7 +36,7 @@ All the numbers that limit a module, in one place. Each group links to the guide
 - **Messages between the sessions of a team:** no limit, since 0.19.0. Before 0.19.0, 20 at most since a person last wrote in one of them. The spend limit of the session that started the team still applies.
 - **A message:** 20,000 characters at most.
 - **A title:** one line of 120 characters at most.
-- **A call's key:** Pi Pocket keeps the record of a `key` for 30 days, and the records of the last 1,000 calls of each session.
+- **A call's key:** Pia keeps the record of a `key` for 30 days, and the records of the last 1,000 calls of each session.
 
 **Note:** since 0.19.0, no count limit applies to a team. The spend limit of the top session is the brake. The owner can set a session budget for a team in Menu → Spend.
 
@@ -46,12 +46,12 @@ All the numbers that limit a module, in one place. Each group links to the guide
 
 - **A file that a browser module serves:** 8 MB at most.
 - **Files that count for a new version:** the first 2000 served files, in 500 folders at most. An edit past these does not load the module again.
-- **Folders that Pi Pocket watches for edits:** the first 64. It sees an edit deeper at its next look.
+- **Folders that Pia watches for edits:** the first 64. It sees an edit deeper at its next look.
 - **Calls to `pocket` in one task:** past 1000, over more than 1 s, the module stops in that browser.
 - **Pages and sheets that a module opens or closes:** past 300 in 1 s, the module stops. With no task between them, it stops past 1000, or at 5 or more over more than 1 s.
 - **Redraws in a hidden tab:** by a timer of 100 ms, which the browser can make slower.
 - **Notices from `pocket.notify`:** 5 every 5 s for a module, for all its versions together. The app drops the rest.
-- **The text of `pocket.pip.ask`:** 1 to 100,000 characters. Others throw. A send needs a tap just before it: it serves for 5 s and for one send.
+- **The text of `pocket.pia.ask`:** 1 to 100,000 characters. Others throw. A send needs a tap just before it: it serves for 5 s and for one send.
 - **Rail buttons of modules:** no limit of their own. A rail with more buttons than room scrolls as a whole, and fades the edge where more is. The folded rail keeps up to a third of the window for its sessions first.
 - **A count on a rail button:** a count past 99, and `Infinity`, shows "99+".
 - **Text on a rail button:** past 24 characters, it is cut to 23 characters and "…". A panel's badge is the same.
@@ -98,7 +98,7 @@ All the numbers that limit a module, in one place. Each group links to the guide
 
 - **The data of one event:** 256 KB of JSON at most.
 - **Events that a version of a module sends:** 100 each second at most, and 1 MB of them. The rest of that second's events are dropped.
-- **A tab that falls behind:** Pi Pocket cuts it off when it is more than 8 MB behind and takes nothing for 30 s. It also cuts off a tab that is more than 128 MB behind. The tab then connects again, with no old events.
+- **A tab that falls behind:** Pia cuts it off when it is more than 8 MB behind and takes nothing for 30 s. It also cuts off a tab that is more than 128 MB behind. The tab then connects again, with no old events.
 
 ## Events, services, and settings
 
@@ -141,15 +141,15 @@ All the numbers that limit a module, in one place. Each group links to the guide
 - **A command's `description` and `args`:** 200 characters at most each.
 - **The arguments that a person types:** 4000 characters at most.
 - **A toast's message:** cut to 500 characters.
-- **A card:** Pi Pocket keeps the last 30,000 characters.
-- **Runs of one person:** 4 at the same time, in all sessions together. Pi Pocket refuses a fifth run until one ends.
-- **Kept requests:** Pi Pocket keeps the request ids of the last 100 finished runs of each person in each session. The same text sent again from the same tab finds the first run only while its id is kept.
+- **A card:** Pia keeps the last 30,000 characters.
+- **Runs of one person:** 4 at the same time, in all sessions together. Pia refuses a fifth run until one ends.
+- **Kept requests:** Pia keeps the request ids of the last 100 finished runs of each person in each session. The same text sent again from the same tab finds the first run only while its id is kept.
 
 ## Cleanups
 
 [Cleanups](../cleanups.md)
 
-- **A cleanup when the server stops:** Pi Pocket waits 3 s at most for the cleanups that return a promise.
+- **A cleanup when the server stops:** Pia waits 3 s at most for the cleanups that return a promise.
 
 ## Gallery
 

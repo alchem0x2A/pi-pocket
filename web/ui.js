@@ -108,7 +108,7 @@ marked.use({
 });
 
 /**
- * Replies are untrusted: a file or page Pi read can steer what it writes. No forms or controls, no media that loads by
+ * Replies are untrusted: a file or page the agent read can steer what it writes. No forms or controls, no media that loads by
  * itself, and no style, class, id, or data hooks that could lay a fake screen over the app: a theme styles
  * `[data-part="approval"]`, and a reply must not wear it. A code block's language is the one data attribute kept.
  */
@@ -508,7 +508,7 @@ export function setRichBlock(component) {
 
 /**
  * Rendered markdown. `cache={false}` for text that is still changing, such as a streaming answer: its pages, images, and
- * diffs show as code until it is whole. A single line break is a new line, as Pi's terminal shows a reply and GitHub a
+ * diffs show as code until it is whole. A single line break is a new line, as the agent's terminal shows a reply and GitHub a
  * comment; `breaks={false}` for a Markdown file, where it is a space, as GitHub shows the file (hard-wrapped prose
  * stays one paragraph).
  */
@@ -821,7 +821,7 @@ export async function copyText(text) {
     }
 }
 
-/** How full a context is, as Pi's own TUI colors its footer: `warn` above 70%, `err` above 90%. */
+/** How full a context is, as the agent's own TUI colors its footer: `warn` above 70%, `err` above 90%. */
 export function contextLevel(percent) {
     if (percent > 90) {
         return "err";
@@ -977,11 +977,11 @@ export function plainText(markdown) {
         .replace(/^[ \t]{0,3}(#{1,6}[ \t]+|>[ \t]?|[-*+][ \t]+|\d+\.[ \t]+)/gm, "");
 }
 
-/** What separates a message to Pi from the list of files attached to it, which the server adds. */
+/** What separates a message to the agent from the list of files attached to it, which the server adds. */
 export const ATTACHMENTS_HEADING = "\n\nAttached files (saved on the server):\n";
 
 /**
- * A message to Pi in two: what the person wrote, and the list of attached files if any. One with files alone, sent
+ * A message to the agent in two: what the person wrote, and the list of attached files if any. One with files alone, sent
  * before 0.14.0, has the heading without the blank line before it.
  */
 export function splitAttachments(text) {
@@ -990,12 +990,12 @@ export function splitAttachments(text) {
     );
 }
 
-/** What a person wrote in a message to Pi, without the list of attached files. */
+/** What a person wrote in a message to the agent, without the list of attached files. */
 export function writtenText(entry) {
     return splitAttachments(entry.text)[0];
 }
 
-/** What Pi wrote in a reply: its text blocks, without thinking or tool calls. */
+/** What the agent wrote in a reply: its text blocks, without thinking or tool calls. */
 export function replyText(entry) {
     return entry.blocks.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
 }
@@ -1015,8 +1015,8 @@ export function shortPath(path, home) {
 
 const ICONS = {
     menu: "M3 6h18M3 12h18M3 18h18",
-    // Customer helper: a full-width bow with splayed tails and an open center below the knot.
-    pip: "M10.5 8C8 4.5 5 3 2 3l1 9c3 0 5.5-1 7.5-2m3-2C16 4.5 19 3 22 3l-1 9c-3 0-5.5-1-7.5-2M8 12l-5 8 4-1 2 3 2-9m5-1 5 8-4-1-2 3-2-9M11.5 7h1a1 1 0 011 1v2a1 1 0 01-1 1h-1a1 1 0 01-1-1V8a1 1 0 011-1z",
+    // A ribbon bow, with soft loops, folded tails, and a central knot.
+    pia: "M11.5 11.8C9.3 10.1 6 7.5 5.4 5.1 4.9 2.7 7.1 2 8.9 3.9c1.7 1.8 2.7 4.9 3.2 7.8m.4.1c2.2-1.7 5.5-4.3 6.1-6.7.5-2.4-1.7-3.1-3.5-1.2-1.7 1.8-2.7 4.9-3.2 7.8m-.8 1.1c-1.5 2.2-3.7 4.9-5.5 7.7 1.9-.7 3.8-1.3 5.8-1.8.3-2 .6-3.9.8-5.9m.8 0c1.5 2.2 3.7 4.9 5.5 7.7-1.9-.7-3.8-1.3-5.8-1.8-.3-2-.6-3.9-.8-5.9m-1.5-1.4c0-1.3 3-1.3 3 0v1.7c0 1.3-3 1.3-3 0z",
     more: "M5 12h.01M12 12h.01M19 12h.01",
     close: "M6 6l12 12M18 6L6 18",
     send: "M12 19V5M5 12l7-7 7 7",
@@ -1185,7 +1185,7 @@ export function Loader({ label = "Loading" }) {
     </div>`;
 }
 
-/** The full-screen loader: π over Omarchy's boot bar, and what is happening under it. */
+/** The full-screen loader: the ribbon logo over Omarchy's boot bar, and what is happening under it. */
 export function Boot({ caption = "starting", detail = "", inline = false }) {
     return html`<div
         class=${`boot ${inline ? "inline" : ""}`}
@@ -1193,7 +1193,9 @@ export function Boot({ caption = "starting", detail = "", inline = false }) {
         role="status"
         aria-live="polite"
     >
-        <div class="boot-mark" data-part="brand-mark" aria-hidden="true">π</div>
+        <div class="boot-mark" data-part="brand-mark" aria-hidden="true">
+            <${Icon} name="pia" size=${64} />
+        </div>
         <div class="boot-bar" aria-hidden="true"><span></span></div>
         <div class="boot-caption">${caption}</div>
         ${detail && html`<div class="boot-detail">${detail}</div>`}
@@ -1205,7 +1207,7 @@ const edges = new Map();
 
 /**
  * A ref that keeps `name` (a CSS variable on the page's root) at where its element reaches, `measure(rect)` px, as it
- * or the window resizes; unset while the element is hidden or gone. PiP's window keeps clear of the session's top bar
+ * or the window resizes; unset while the element is hidden or gone. Pia's window keeps clear of the session's top bar
  * with it (`--topbar-h`).
  */
 export function useEdge(name, measure) {
@@ -1774,7 +1776,7 @@ addEventListener("keydown", (event) => {
 
     const active = document.activeElement;
 
-    // Focus in a layer that comes after the dialog and is not one itself (PiP's window, or the drawer, over a covering
+    // Focus in a layer that comes after the dialog and is not one itself (Pia's window, or the drawer, over a covering
     // Files tile or Browser panel) is above it: Tab moves there, as before.
     if (
         active !== null &&
@@ -1873,7 +1875,7 @@ export function item(label, run, hint) {
     </button>`;
 }
 
-/** Posted JSON laid out for people (Pi gets it compact); anything else as it came. */
+/** Posted JSON laid out for people (the agent gets it compact); anything else as it came. */
 export function readable(text) {
     try {
         return JSON.stringify(JSON.parse(text), null, 2);

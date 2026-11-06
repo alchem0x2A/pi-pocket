@@ -1,7 +1,7 @@
 /**
  * Design: a canvas beside the chat for interactive designs. It shows an HTML artifact in a frame at phone, tablet, and
  * desktop sizes, keeps its versions to compare and go back to, holds shared comments pinned to elements, edit and tweak
- * modes, a grid for variations, and a present mode for decks, and hands each change to Pi as a message for the person to
+ * modes, a grid for variations, and a present mode for decks, and hands each change to the agent as a message for the person to
  * send. The agent's side (tools, prompt guide, export) is in `../design/`; this module is the workspace.
  */
 import { randomUUID } from "node:crypto";
@@ -414,7 +414,7 @@ export default async function createDesign(host: PocketHost, web?: ExtensionWeb)
         steer,
     );
 
-    // Resolve every open comment of a design at once, for after "Send to Pi".
+    // Resolve every open comment of a design at once, for after "Send to the agent".
     web.conversationRoute(
         "POST",
         "c/:conversation/designs/:artifact/resolve",

@@ -1,9 +1,9 @@
 /**
  * GitHub through the `gh` command signed in on this machine: running it with nobody there to answer, naming
  * repositories and pull requests in each way people write them, and whether its account can push to a repository.
- * PR watches (`watches.ts`), repository watches (`repo-watches.ts`), and PiP's checkouts (`pip.ts`) use it. Pi and PiP
+ * PR watches (`watches.ts`), repository watches (`repo-watches.ts`), and Pia's checkouts (`pip.ts`) use it. The agent and Pia
  * act on GitHub only where `gh`'s account can push: a repository named in a page or a post that is someone else's
- * would let them hand Pi work.
+ * would let them hand the agent work.
  */
 import { execFile } from "node:child_process";
 import { describe, HttpError } from "./errors.ts";
@@ -72,7 +72,7 @@ export const apiArgs = (repo: string, ...rest: string[]): string[] => {
 
 /** The repository of a PR, from its address: `owner/name`, with the host when it is not github.com. */
 export function repoOfUrl(url: string): string {
-    // The whole address, and nothing after its number: it is stored, and Pi reads it.
+    // The whole address, and nothing after its number: it is stored, and the agent reads it.
     const match = /^https?:\/\/([^/\s]+)\/([^/\s]+)\/([^/\s]+)\/pull\/\d{1,9}$/.exec(url);
     const repo = match === null ? undefined : joined(match[1], match[2]!, match[3]!);
 
@@ -200,7 +200,7 @@ export async function requireHost(gh: Gh, host: string | undefined): Promise<voi
     if (user === "") {
         throw new HttpError(
             403,
-            `This machine's gh is not signed in to ${host}: Pi and PiP reach only GitHub hosts it is signed in to (gh auth login --hostname ${host}).`,
+            `This machine's gh is not signed in to ${host}: the agent and Pia reach only GitHub hosts it is signed in to (gh auth login --hostname ${host}).`,
         );
     }
 
@@ -237,7 +237,7 @@ export async function repoInfo(gh: Gh, repo: string): Promise<RepoInfo> {
     const named = host === undefined ? name : `${host}/${name}`;
     const defaultBranch = found.default_branch ?? "main";
 
-    // The name ends up in paths (`repos/<owner>/<name>`) and in what Pi reads: only one that reads as a repository.
+    // The name ends up in paths (`repos/<owner>/<name>`) and in what the agent reads: only one that reads as a repository.
     if (parseRepo(named) !== named) {
         throw new HttpError(502, `GitHub named ${repo} oddly: ${snippet(name, 100)}.`);
     }
@@ -259,8 +259,8 @@ export async function repoInfo(gh: Gh, repo: string): Promise<RepoInfo> {
 }
 
 /**
- * A repository Pi and PiP may act on: one `gh`'s account can push to. Throws a 403 for any other, saying why: what
- * comes from someone else's repository could hand Pi work as if it were yours.
+ * A repository the agent and Pia may act on: one `gh`'s account can push to. Throws a 403 for any other, saying why: what
+ * comes from someone else's repository could hand the agent work as if it were yours.
  */
 export async function requirePush(gh: Gh, repo: string): Promise<RepoInfo> {
     const info = await repoInfo(gh, repo);
@@ -268,7 +268,7 @@ export async function requirePush(gh: Gh, repo: string): Promise<RepoInfo> {
     if (!info.push) {
         throw new HttpError(
             403,
-            `This machine's gh account cannot push to ${info.repo}: Pi and PiP work only in repositories it can push to.`,
+            `This machine's gh account cannot push to ${info.repo}: the agent and Pia work only in repositories it can push to.`,
         );
     }
 
@@ -388,9 +388,9 @@ export async function fromWriter(
 const FOR_PI = /(^|[^\w@])@pi(?![\w-])/i;
 const QUOTED = /^\s*>.*$|```[\s\S]*?```|`[^`\n]*`/gm;
 
-/** Whether a comment asks for Pi: @pi in its own words, not in a quote or in code. */
+/** Whether a comment asks for the agent: @pi in its own words, not in a quote or in code. */
 export const mentionsPi = (body: string): boolean => FOR_PI.test(body.replace(QUOTED, ""));
 
-/** A GitHub login as Pi reads it: only what a login may hold (a bot's ends `[bot]`). */
+/** A GitHub login as the agent reads it: only what a login may hold (a bot's ends `[bot]`). */
 export const login = (name: string | undefined): string =>
     (name ?? "").replace(/[^\w.[\]-]/g, "").slice(0, 60) || "someone";

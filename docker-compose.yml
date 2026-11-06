@@ -1,11 +1,11 @@
-# Pi Pocket in Docker or Podman.
+# Pia in Docker or Podman.
 #
 #   cp .env.example .env       # optional: change ports and external folders
 #   docker compose up -d --build
 #   podman compose up -d --build
 #
 # The folders under ./data are yours: edit extensions and themes there, keep
-# Pi's sign-ins in ./data/pi, and put the projects Pi works on in ./data/workspace.
+# the agent's sign-ins in ./data/pi, and put the projects the agent works on in ./data/workspace.
 # Set the variables in .env (or the shell) to use folders anywhere else on the host.
 #
 # Sign in at the link the launcher prints:
@@ -43,15 +43,15 @@ services:
             # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
         volumes:
-            # Pi Pocket's database, people, settings, uploads, and worktrees.
+            # Pia's database, people, settings, uploads, and worktrees.
             - ${PI_POCKET_DATA:-./data}:/data
             # The owner's drop-in extensions, loaded from this external folder.
             - ${PI_POCKET_EXTENSIONS:-./data/extensions}:/data/extensions
-            # Pi's own folder: auth.json, settings.json, AGENTS.md, skills, prompts,
+            # the agent's own folder: auth.json, settings.json, AGENTS.md, skills, prompts,
             # trust.json, and sessions. Keeping it here lets a fresh database reuse the
-            # same sign-ins, and lets a Pi CLI on the host share the folder.
+            # same sign-ins, and lets an agent CLI on the host share the folder.
             - ${PI_POCKET_PI_DIR:-./data/pi}:/home/node/.pi
-            # Projects Pi works on. This is also where new sessions start.
+            # Projects the agent works on. This is also where new sessions start.
             - ${PI_POCKET_WORKSPACE:-./data/workspace}:/workspace
 
         working_dir: /workspace
@@ -63,7 +63,7 @@ services:
         # user: "1000:1000"
 
         # No process in the container gains privileges it did not start with (setuid,
-        # file capabilities). Pi's commands and the unsandboxed Chromium run with less.
+        # file capabilities). The agent's commands and the unsandboxed Chromium run with less.
         security_opt:
             - no-new-privileges:true
 

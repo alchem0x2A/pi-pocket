@@ -4,7 +4,7 @@ import { BACKGROUND_CONTEXT, withAbortSignal } from "@earendil-works/chord/conte
 import type { AgentState, ConversationId, DocumentReader, Tx } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { TurnsDoc } from "./docs.ts";
+import { assistantOwner, TurnsDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 import { mayUse } from "./extension-web.ts";
 import type { WebAccess, WebRequest } from "./host.ts";
@@ -54,7 +54,7 @@ export class ExtensionRequest implements RequestActor {
         if (this.#source !== undefined) {
             const meta = this.#app.sessionMeta(this.#source);
 
-            if (meta === undefined || meta.pip !== undefined) {
+            if (meta === undefined || assistantOwner(meta) !== undefined) {
                 throw new HttpError(404, "No such source conversation.");
             }
 

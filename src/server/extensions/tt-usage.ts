@@ -1,5 +1,5 @@
 /**
- * Provider usage: reads the remaining usage of each provider account (Codex, OpenAI, Claude org, Claude personal), with a page, a tool for Pi, and a probe session.
+ * Provider usage: reads the remaining usage of each provider account (Codex, OpenAI, Claude org, Claude personal), with a page, a tool for the agent, and a probe session.
  *
  * Read-only. It reads each account's access token from the file you name in the settings, sends it only to the
  * address you set for that account, and never prints, logs, stores, or returns it. It adds to the limit gate
@@ -422,8 +422,8 @@ export default function createUsage(host: Host, web: Web) {
     }
 
     /**
-     * Ask Pi's own provider to renew a sign-in (it renews a token near its end and writes `auth.json` itself; this
-     * module never writes it). Returns Pi's words when the provider refuses, else undefined.
+     * Ask the agent's own provider to renew a sign-in (it renews a token near its end and writes `auth.json` itself; this
+     * module never writes it). Returns the agent's words when the provider refuses, else undefined.
      */
     async function renewWithPi(spec: string | undefined): Promise<string | undefined> {
         if (spec === undefined || typeof host.modelProblem !== "function") {
@@ -491,13 +491,13 @@ export default function createUsage(host: Host, web: Web) {
                     return fail("No token in the credential file.", "none", "sign-in");
                 }
 
-                // An aged access token is not an expired login. Pi's own sign-ins (a `probeModel` of this account) are
-                // renewed by Pi; a Claude token belongs to the Claude CLI, which renews it itself.
+                // An aged access token is not an expired login. The agent's own sign-ins (a `probeModel` of this account) are
+                // renewed by the agent; a Claude token belongs to the Claude CLI, which renews it itself.
                 if (expires !== undefined && expires < started && id === "openai-codex") {
                     const refused = await renewWithPi(config.probeModel);
 
                     if (refused !== undefined) {
-                        return fail(`Pi could not renew this sign-in: ${refused}`);
+                        return fail(`the agent could not renew this sign-in: ${refused}`);
                     }
 
                     const again = JSON.parse(readFileSync(home(config.credential.file), "utf8"));
@@ -676,7 +676,7 @@ export default function createUsage(host: Host, web: Web) {
     };
 
     /**
-     * Pi's own model runtime (`api.models`), kept from the last tool call. A route has no `models`, so the Refresh
+     * the agent's own model runtime (`api.models`), kept from the last tool call. A route has no `models`, so the Refresh
      * button can probe only after a tool of this module ran once in this server's life.
      */
     let runtime:
@@ -687,7 +687,7 @@ export default function createUsage(host: Host, web: Web) {
         | undefined;
 
     /**
-     * One tiny completion through Pi's own runtime: no system prompt, no tools, nothing saved, no session. The runtime
+     * One tiny completion through the agent's own runtime: no system prompt, no tools, nothing saved, no session. The runtime
      * renews the sign-in and writes `auth.json` itself; this module reads no token. The reply text is never read.
      */
     async function probeDirect(id: string, signal: AbortSignal): Promise<Report> {
@@ -1065,7 +1065,7 @@ export default function createUsage(host: Host, web: Web) {
             }
 
             if (typeof host.linkedSessions?.start !== "function") {
-                throw new Error("This Pi Pocket has no linked sessions.");
+                throw new Error("This Pia has no linked sessions.");
             }
 
             const info = host.modelInfo(spec);
@@ -1218,7 +1218,7 @@ export default function createUsage(host: Host, web: Web) {
         }
     });
 
-    // Keeps Pi's model runtime from any session's next request. It changes nothing and returns nothing.
+    // Keeps the agent's model runtime from any session's next request. It changes nothing and returns nothing.
     const keepRuntime = hook(GenerationTask, {
         beforeRequest: (_request, api) => {
             runtime = api.models as never;

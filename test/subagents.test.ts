@@ -447,14 +447,14 @@ test("past its spend limit, an idle parent starts no turn for a report: it waits
     await until(() => app.spend.heldBack(id) !== undefined, "the limit reached");
     await until(async () => (await held(id)).why !== undefined, "the report held back", 15_000);
     assert.match(String((await held(id)).why), /this session reached its \$1\.00 spend limit/);
-    // Longer than a courier gathers for an idle parent: still nothing reached Pi, and Pi did not start.
+    // Longer than a courier gathers for an idle parent: still nothing reached the agent, and the agent did not start.
     await new Promise((resolve) => setTimeout(resolve, 2500));
     assert.deepEqual(await delivered(id), {});
     assert.equal(app.isBusy(id), false);
     assert.equal(await queued(id), 0);
     assert.equal((await held(id)).waiting, 1);
 
-    // Raised: it goes at once, once, and Pi answers it.
+    // Raised: it goes at once, once, and the agent answers it.
     await app.spend.setSessionBudget(owner(app), id, null);
     await until(
         async () => (await delivered(id)).paid === 1 && !app.isBusy(id),
@@ -465,7 +465,7 @@ test("past its spend limit, an idle parent starts no turn for a report: it waits
     slow = {};
 });
 
-test("reports taken out of the queue by something other than a person go again, and reach Pi once", async () => {
+test("reports taken out of the queue by something other than a person go again, and reach the agent once", async () => {
     const id = await orchestrate({ spawn: ["again-a", "again-b"], rounds: 1, sleep: 8 });
 
     await until(
@@ -474,7 +474,7 @@ test("reports taken out of the queue by something other than a person go again, 
         15_000,
     );
     // Not Stop: the run ends as Pi Durable ends it, which withdraws what waits. The courier sends them again; as
-    // anything queued while a run ends, they go to Pi with the next message.
+    // anything queued while a run ends, they go to the agent with the next message.
     await (await app.harness.conversation(id, context))!.abort(context);
     await until(
         async () => !app.isBusy(id) && (await queued(id)) === 1 && (await held(id)).waiting === 2,

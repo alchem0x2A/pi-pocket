@@ -1,4 +1,4 @@
-// Running now: everything Pi is doing, across sessions.
+// Running now: everything the agent is doing, across sessions.
 import { useEffect, useState } from "preact/hooks";
 import { folderColor } from "../avatar.js";
 import { api, attempt, canSteer, closeSheet, navigate, notify, store } from "../store.js";

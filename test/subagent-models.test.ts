@@ -1,7 +1,7 @@
-// Models are a person's to choose. A subagent runs on its session's model: with no models allowed (the default), Pi is
-// offered no model and one it names is refused; the owner may allow others, and Pi may use only those. A subagent on a
+// Models are a person's to choose. A subagent runs on its session's model: with no models allowed (the default), the agent is
+// offered no model and one it names is refused; the owner may allow others, and the agent may use only those. A subagent on a
 // model no longer allowed gets no more work. With a list, a subagent or a linked session runs only on a listed model:
-// the session's own when that is listed and none is named, else the one named, which is required when the session's is not listed. A subagent its model failed is reported as such, and Pi is told to stop
+// the session's own when that is listed and none is named, else the one named, which is required when the session's is not listed. A subagent its model failed is reported as such, and the agent is told to stop
 // and tell the user rather than try another model.
 import { type App, cleanUp, context, lastText, openApp, owner, until, work } from "./helpers.ts";
 import assert from "node:assert/strict";
@@ -135,7 +135,7 @@ async function ask(id: ConversationId, text: string) {
     };
 }
 
-test("with no models allowed, a subagent runs on its session's model, and Pi is offered no other", async () => {
+test("with no models allowed, a subagent runs on its session's model, and the agent is offered no other", async () => {
     const id = await session();
     const started = await ask(id, "spawn plain");
 
@@ -148,7 +148,7 @@ test("with no models allowed, a subagent runs on its session's model, and Pi is 
     assert.ok(offered !== undefined, "the parent was offered the tool");
     assert.equal("model" in offered, false, "no model parameter");
 
-    // One it names anyway is refused, nothing made, and Pi is told to ask the user.
+    // One it names anyway is refused, nothing made, and the agent is told to ask the user.
     const refused = await ask(id, "spawn sneaky faux/pricey");
 
     assert.match(refused.answer, /cannot choose another/);
@@ -156,7 +156,7 @@ test("with no models allowed, a subagent runs on its session's model, and Pi is 
     assert.equal(refused.agents.sneaky, undefined);
 });
 
-test("the owner allows models: Pi may use those, and is refused any other and told to choose from the list", async () => {
+test("the owner allows models: the agent may use those, and is refused any other and told to choose from the list", async () => {
     const me = owner(app);
     const guest = app.config.addUser("Guest", "guest").user;
 
@@ -190,7 +190,7 @@ test("the owner allows models: Pi may use those, and is refused any other and to
     assert.equal("model" in (offered ?? {}), false, "the tool offers no model again");
 });
 
-test("a subagent its model failed is reported with the model, and Pi is told to stop and tell the user", async () => {
+test("a subagent its model failed is reported with the model, and the agent is told to stop and tell the user", async () => {
     const id = await session();
 
     failing.add("expired");
@@ -214,7 +214,7 @@ test("a subagent its model failed is reported with the model, and Pi is told to 
     );
 
     assert.match(said, /\[subagent expired failed: faux\/mine: OAuth refresh failed for faux\]/);
-    assert.ok(said.includes(MODEL_FAILED), "Pi is told to stop and tell the user");
+    assert.ok(said.includes(MODEL_FAILED), "the agent is told to stop and tell the user");
 });
 
 test("models allowed together, as from two tabs, all count, and only the owner may allow", async () => {
@@ -283,7 +283,7 @@ test("with a list, a subagent with no model runs on the session's model if liste
 
         assert.match(own.answer, /Started own on faux\/mine\./);
 
-        // Not listed: Pi must choose one from the list; there is no default.
+        // Not listed: the agent must choose one from the list; there is no default.
         await app.setSubagentModels(me, ["faux/pricey", "faux/other"]);
         const none = await ask(id, "spawn none");
 

@@ -1,6 +1,6 @@
 /**
  * Local session tool policy: a small initial set, with tool_search for discovery and tool_load for explicit loading.
- * This registry view leaves the upstream registry, extension loader, execution environment, and PiP unchanged.
+ * This registry view leaves the upstream registry, extension loader, execution environment, and Pia unchanged.
  */
 import { access, stat } from "node:fs/promises";
 import { constants } from "node:fs";
@@ -48,7 +48,7 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
     background: "Manage background shell commands",
     memory: "Propose and manage saved lessons",
     watch_pr: "Monitor pull requests on GitHub",
-    request_restart: "Request Pi Pocket server restart",
+    request_restart: "Request Pia server restart",
     design_preview: "Preview designs at screen sizes",
     design_export: "Export designs to files",
     design_system: "Read or write design rules",
@@ -362,13 +362,13 @@ function loadTool(): ToolRegistration {
     );
 }
 
-/** Tools of these extensions stay offered: the Pia chat's session management must not need discovery first. */
+/** Tools of this extension stay offered: Pia's session management must not need discovery first. */
 const NEVER_DEFERRED = new Set(["pocket-pip"]);
 
 const TASK_FOCUS =
     "Focus on the request this session was given, and finish it; do not start unrelated work.";
 
-/** A synthetic extension is selected by default, but not by PiP's explicit extension list. */
+/** A synthetic extension exposes local tool discovery. */
 function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[]): Extension {
     const wraps: Wrap[] = [];
 
@@ -416,7 +416,7 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
                 () =>
                     "The available_tools catalog lists enabled tools, not loaded schemas. If a tool's purpose is clear, use tool_load with its exact name; already-offered tools need no loading. If unsure, use tool_search with an exact name or keywords for descriptions, then load only the tools needed for this session. Search loads nothing. tool_load supplies authoritative schemas and guides on the next request; they persist in this conversation. Disabled tools cannot be loaded.",
             ),
-            // Task sessions only: the Pia chat, which has the session tools, gets its own prompt from PiP's extension.
+            // Task sessions only: the Pia chat, which has the session tools, gets its own prompt from Pia's extension.
             section("task_focus", (input) => {
                 const all = [...input.agent.tools, ...input.agent.deferred];
 
@@ -432,13 +432,11 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
 
 /**
  * A cached read-only view follows loader publications without mutating installed extensions or stored agent choices.
- * `active` says whether discovery is on now: the Pia profile only (`pia.ts`), so Classic keeps upstream's registry as it
- * is. `PI_POCKET_TOOL_DISCOVERY=off` turns it off and `=on` turns it on whatever the profile (rollback and tests).
+ * `PI_POCKET_TOOL_DISCOVERY=off` turns it off for rollback and tests.
  */
 export function localToolRegistry(
     registry: RegistryReader,
     ripgrep: boolean,
-    active: () => boolean = () => true,
 ): RegistryReader & { changed(): void } {
     // A local rollback switch also lets legacy scripted-model tests keep their fixed, eager tool manifests.
     if (process.env.PI_POCKET_TOOL_DISCOVERY === "off") {
@@ -448,8 +446,6 @@ export function localToolRegistry(
             changed() {},
         };
     }
-
-    const on = process.env.PI_POCKET_TOOL_DISCOVERY === "on" ? () => true : active;
 
     const extras = [
         directoryTool(),
@@ -472,7 +468,7 @@ export function localToolRegistry(
                 off();
             };
         },
-        // The profile changed: wake the harness as a registry publication does, so it resolves agents again.
+        // Rebuild the cached policy after a registry publication.
         changed() {
             previous = undefined;
 
@@ -482,11 +478,6 @@ export function localToolRegistry(
         },
         snapshot() {
             const snapshot = registry.snapshot();
-
-            // Classic: upstream's own snapshot, so nothing is deferred and no discovery tool exists.
-            if (!on()) {
-                return snapshot;
-            }
 
             if (snapshot !== previous) {
                 const local = policy(snapshot, extras);

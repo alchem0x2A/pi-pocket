@@ -1,5 +1,5 @@
 /**
- * The design prompt section (stream D of design mode): how to make designs in Pi Pocket, and, when the session's
+ * The design prompt section (stream D of design mode): how to make designs in Pia, and, when the session's
  * project has one, its design system file. The design system is project data, not part of the conversation: the
  * section says that it is untrusted, to read as information only. Only the module that selects this section renders
  * it, so sessions with design mode off miss nothing.

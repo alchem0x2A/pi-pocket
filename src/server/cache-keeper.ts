@@ -1,7 +1,7 @@
 /**
  * The cache keeper: while a run waits on a tool call, it re-sends the last model request with a one-token output cap
- * just before its prompt cache entry expires, when that costs less than the expected rebill. Pi's own cache warmer
- * (`cache-warmer.ts` in pi-coding-agent, its "streaming" mode) does this for Pi's CLI; Pi Durable has none.
+ * just before its prompt cache entry expires, when that costs less than the expected rebill. The agent's own cache warmer
+ * (`cache-warmer.ts` in pi-coding-agent, its "streaming" mode) does this for the agent's CLI; Pi Durable has none.
  *
  * It warms only between the requests of one run: a request that ended in a tool call will be followed by another when
  * the tool ends, so the chance of a real request is high. It never warms an idle session: in the owner's own history

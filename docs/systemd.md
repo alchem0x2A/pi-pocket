@@ -1,6 +1,6 @@
-# Running Pi Pocket as a systemd service
+# Running Pia as a systemd service
 
-Pi Pocket ships a systemd template unit at [`contrib/systemd/pi-pocket@.service`](../contrib/systemd/pi-pocket@.service). The instance name is the access mode, so one file starts the server in any mode:
+Pia ships a systemd template unit at [`contrib/systemd/pi-pocket@.service`](../contrib/systemd/pi-pocket@.service). The instance name is the access mode, so one file starts the server in any mode:
 
 ```bash
 sudo systemctl enable --now pi-pocket@lan
@@ -13,14 +13,14 @@ Enable one instance at a time. Every instance uses the same port and data folder
 ## Before you start
 
 - Node.js 22.19 or newer, installed for the whole system and found through `PATH`. A copy in a home folder, such as one from `nvm` or `mise`, is not visible to the service.
-- A checkout of Pi Pocket with its packages installed (`npm install`).
+- A checkout of Pia with its packages installed (`npm install`).
 - A user for the service. Give it an account of its own: agents run commands as this user, and anyone who can steer a session can run them too.
 
 The access mode also needs its own tools:
 
 - `local`: nothing. Listens on `127.0.0.1`.
 - `lan`: the port open in the firewall (TCP 8787 by default). Plain http.
-- `cloudflare`: `cloudflared` on `PATH`, or in `/var/lib/pi-pocket/bin`. The service has no terminal, so it cannot download it. Run Pi Pocket once in a terminal as the service user, or install it yourself. The quick tunnel address changes each time the launcher starts.
+- `cloudflare`: `cloudflared` on `PATH`, or in `/var/lib/pi-pocket/bin`. The service has no terminal, so it cannot download it. Run Pia once in a terminal as the service user, or install it yourself. The quick tunnel address changes each time the launcher starts.
 - `tailscale`: Tailscale connected (`tailscale up`). Listens on the Tailscale address only.
 - `tailscale-serve`: `tailscaled` running, HTTPS certificates enabled in the tailnet, and the service user as its operator: `sudo tailscale set --operator=pi-pocket`. The launcher adds and removes the Serve mapping.
 
@@ -40,7 +40,7 @@ sudo cp contrib/systemd/pi-pocket@.service /etc/systemd/system/
 Edit the copy in `/etc/systemd/system/` when your paths differ:
 
 - `POCKET_HOME` is the checkout, `/opt/pi-pocket` in the unit. It must contain `bin/pi-pocket.js`.
-- `HOME` and `--data` are `/var/lib/pi-pocket`: Pi's config, sign-ins, database, uploads, and extensions live there.
+- `HOME` and `--data` are `/var/lib/pi-pocket`: the agent's config, sign-ins, database, uploads, and extensions live there.
 - `WorkingDirectory` and `--cwd` are `/srv/pi-pocket`: new sessions start there, and it must be writable by the service user.
 
 Then start an instance:
@@ -100,7 +100,7 @@ sudo systemctl start pi-pocket@lan
 
 If the unit file changed, copy it again and run `sudo systemctl daemon-reload` before starting.
 
-Menu → **Update Pi Pocket** can also update the checkout from the app, when the service user owns it (`sudo chown -R pi-pocket: /opt/pi-pocket`). With the checkout owned by another user, as in the steps above, the sheet only says when a new version is out. A global npm install (`npm install -g pi-pocket`) updates from the sheet the same way, when the service user can write the folder that holds the package. An update from the app does not back up the data folder: for a release whose notes have a warning, back it up first, as above.
+Menu → **Update Pia** can also update the checkout from the app, when the service user owns it (`sudo chown -R pi-pocket: /opt/pi-pocket`). With the checkout owned by another user, as in the steps above, the sheet only says when a new version is out. A global npm install (`npm install -g pi-pocket`) updates from the sheet the same way, when the service user can write the folder that holds the package. An update from the app does not back up the data folder: for a release whose notes have a warning, back it up first, as above.
 
 ## When it does not start
 

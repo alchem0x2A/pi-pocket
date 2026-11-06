@@ -1,4 +1,4 @@
-/** Addresses for the built-in browser: what people and Pi type, made into URLs, and URLs made short to show. */
+/** Addresses for the built-in browser: what people and the agent type, made into URLs, and URLs made short to show. */
 import { homedir } from "node:os";
 import { posix, win32 } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,8 +32,8 @@ const POSIX_PATH = /^(\/|~\/|~$|\.\.?\/)/;
 const WINDOWS_PATH = /^(\/|\\|[a-z]:[\\/]|~[\\/]|~$|\.\.?[\\/])/i;
 
 /**
- * An address as people and Pi type it, as a URL the browser may open. `localhost:5173` and other local addresses
- * become http, other bare host names https. With `trusted` (Pi, or the owner), paths to files on this machine become
+ * An address as people and the agent type it, as a URL the browser may open. `localhost:5173` and other local addresses
+ * become http, other bare host names https. With `trusted` (the agent, or the owner), paths to files on this machine become
  * file URLs, and file and data URLs are allowed. Undefined for anything else, such as `javascript:` or `chrome:` URLs.
  * `windows` reads paths as Windows does (the default on Windows).
  */

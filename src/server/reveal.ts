@@ -1,5 +1,5 @@
 /**
- * Show a file in the file manager of the machine Pi Pocket runs on (Files, Dolphin, Finder, Explorer), selected in its
+ * Show a file in the file manager of the machine Pia runs on (Files, Dolphin, Finder, Explorer), selected in its
  * folder; a folder opens itself. For the owner at that machine: a Ctrl+click on a path (`web/ui.js`).
  */
 import { spawn } from "node:child_process";

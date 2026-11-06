@@ -38,17 +38,22 @@ test("Pia can run an explicitly enabled ordinary subagent and receive its report
 
         return fauxAssistantMessage([fauxText("optional-helper-result")]);
     });
-    const app = await openApp(model, join(root, "pia-optional-subagent"));
+    const app = await openApp(
+        model,
+        join(root, "pia-optional-subagent"),
+        undefined,
+        undefined,
+        false,
+    );
 
     try {
         const person = owner(app);
 
         await newSession(app);
-        await app.setAssistantProfile(person, "pia");
         assert.equal(app.loader.enabled("subagents.ts"), false);
         await app.setExtensionEnabled(person, "subagents.ts", true);
 
-        const id = await app.pip.ensure(person);
+        const id = await app.pia.ensure(person);
 
         await say(app, id, "Start the optional helper.");
         await until(async () => {

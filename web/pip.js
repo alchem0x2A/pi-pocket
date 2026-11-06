@@ -1,14 +1,14 @@
-// PiP, "Pi in Pocket": the owner's assistant, in a small window over whatever is open. It stays out of the way until
-// called: Alt+A, the rail's PiP button, the places, the launcher, or `/pip`; and a small mark in the corner shows only
-// while PiP works, or has something new. The panel watches PiP's conversation through a view of its own (`pipview`
+// Pia, the owner's assistant, in a small window over whatever is open. It stays out of the way until
+// called: Alt+A, the rail's Pia button, the places, the launcher, or `/pia`; and a small mark in the corner shows only
+// while Pia works, or has something new. The panel watches Pia's conversation through a view of its own (`piaview`
 // events), so the session behind it stays as it was.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { followUpText } from "./artifact-bridge.js";
 import { useBack } from "./back.js";
 import { boxKey, keyBox } from "./box-keys.js";
 import { useDragToClose } from "./gestures.js";
-import { createPipDraft } from "./pip-attachments.js";
-import { usePipResize } from "./pip-window.js";
+import { createPiaDraft } from "./pip-attachments.js";
+import { usePiaResize } from "./pip-window.js";
 import { api, attempt, isRow, navigate, notify, openSheet, store, uid } from "./store.js";
 import { spendTap } from "./taps.js";
 import { memoryAvailable, useMemory } from "./sheets/memory.js";
@@ -32,21 +32,25 @@ import {
 } from "./ui.js";
 import { MicButton, useDictation } from "./voice.js";
 
-const OPEN_KEY = "pocket.pip";
-const SEEN_KEY = "pocket.pip.seen";
-const DRAFT_KEY = "pocket.pip.draft";
-// Image previews and in-flight work outlive the panel, but never their PiP/account scope.
-const composerDraft = createPipDraft({
-    loadText: () => localStorage.getItem(DRAFT_KEY) ?? "",
+const OPEN_KEY = "pocket.pia";
+const SEEN_KEY = "pocket.pia.seen";
+const DRAFT_KEY = "pocket.pia.draft";
+const LEGACY_SEEN_KEY = "pocket.pip.seen";
+const LEGACY_DRAFT_KEY = "pocket.pip.draft";
+// Image previews and in-flight work outlive the panel, but never their Pia/account scope.
+const composerDraft = createPiaDraft({
+    loadText: () => localStorage.getItem(DRAFT_KEY) ?? localStorage.getItem(LEGACY_DRAFT_KEY) ?? "",
     saveText: (text) => {
         if (text === "") {
             localStorage.removeItem(DRAFT_KEY);
+            localStorage.removeItem(LEGACY_DRAFT_KEY);
         } else {
             localStorage.setItem(DRAFT_KEY, text);
+            localStorage.removeItem(LEGACY_DRAFT_KEY);
         }
     },
     upload: (id, file) => api(`c/${id}/upload?name=${encodeURIComponent(file.name)}`, file),
-    onError: (message) => notify("error", message.replaceAll("PiP", assistantName())),
+    onError: (message) => notify("error", message.replaceAll("Pia", assistantName())),
 });
 const syncDraftScope = (state) =>
     composerDraft.scope(
@@ -54,17 +58,17 @@ const syncDraftScope = (state) =>
         state.me === undefined || (state.me === null && !state.server)
             ? undefined
             : (state.me?.id ?? null),
-        state.pip?.id,
+        state.pia?.id,
     );
 
 syncDraftScope(store.state);
-/** How many of PiP's newest rows the panel shows: it is for the moment, and the full conversation is a tap away. */
+/** How many of Pia's newest rows the panel shows: it is for the moment, and the full conversation is a tap away. */
 const ROWS = 80;
 /** Below this width the panel is a sheet from the bottom edge; above it, a window in the corner. */
 const NARROW = matchMedia("(max-width: 699px)");
 const REPORT = "[report] ";
 /**
- * What came from outside, as PiP gets it: a post to one of the person's webhooks (`hooks.ts`), or what happened on a
+ * What came from outside, as Pia gets it: a post to one of the person's webhooks (`hooks.ts`), or what happened on a
  * repository they watch (`repo-watches.ts`). Which one, then the instructions and what came.
  */
 const WEBHOOK = /^\[via webhook ([^\]\n]{1,300})\] /;
@@ -72,7 +76,7 @@ const REPO_WATCH = /^\[via watch ([^\]\n]{1,300})\] /;
 
 /**
  * A webhook's post or a watch's news for reading: the person's instructions, and what came as plain text (never
- * Markdown: it is anyone's), without the note to PiP about it.
+ * Markdown: it is anyone's), without the note to Pia about it.
  */
 function post(text) {
     const body = text.replace(
@@ -91,7 +95,7 @@ const SCHEDULED = "[scheduled] ";
 const INTRO =
     "I keep an eye on your sessions and repositories: ask what’s going on, start new work, have me check back later, or watch a repository and act when something happens.";
 
-/** Things to ask PiP on its first open: sent at once, or (ending in "…") put in the box to finish. */
+/** Things to ask Pia on its first open: sent at once, or (ending in "…") put in the box to finish. */
 const SUGGESTIONS = [
     "What needs me?",
     "What happened today?",
@@ -100,19 +104,19 @@ const SUGGESTIONS = [
     "When CI fails on main in …",
 ];
 
-/** The server lets this person have a PiP: the owner, while its extension is on. */
-export const pipAvailable = () => store.state.server?.pip === true;
+/** The server lets this person have a Pia: the owner, while its extension is on. */
+export const piaAvailable = () => store.state.server?.pia === true;
 
-/** What the assistant is called: "PiP" in the Classic profile, the owner's name for it (default "Pia") in Pia's. */
-export const assistantName = () => store.state.server?.assistant?.name || "PiP";
+/** The configurable name of the assistant. */
+export const assistantName = () => store.state.server?.assistant?.name || "Pia";
 
 let seq = 0;
 /** The connection the panel's last "open" went to: a new one (a reconnect) is told again. */
 let toldConnection = null;
-/** The server's answer to the last "open": PiP's state, with its conversation's id. */
+/** The server's answer to the last "open": Pia's state, with its conversation's id. */
 let opening = null;
 
-/** Tell the server whether this tab's panel shows: while it does, the server sends PiP's conversation. */
+/** Tell the server whether this tab's panel shows: while it does, the server sends Pia's conversation. */
 function tellServer(on) {
     const connection = store.state.streamId;
 
@@ -123,15 +127,17 @@ function tellServer(on) {
     toldConnection = on ? connection : null;
     const asked = api("pip", { connection, on, seq: ++seq }).then(
         (answer) => {
-            if (answer.pip) {
-                store.set({ pip: answer.pip });
+            const state = answer.pia ?? answer.pip ?? null;
+
+            if (state) {
+                store.set({ pia: state });
             }
 
-            return answer.pip ?? null;
+            return state;
         },
         (error) => {
             if (on) {
-                closePip();
+                closePia();
                 notify("error", error.message ?? String(error));
             }
 
@@ -146,62 +152,66 @@ function tellServer(on) {
     return asked;
 }
 
-// A reconnect (or the first connection, with the panel kept open across a reload) gets the panel's view again; PiP
+// A reconnect (or the first connection, with the panel kept open across a reload) gets the panel's view again; Pia
 // turned off in Extensions closes the panel.
 store.subscribe((state) => {
     syncDraftScope(state);
 
-    if (!state.pipOpen) {
+    if (!state.piaOpen) {
         return;
     }
 
-    if (state.server && !pipAvailable()) {
-        closePip();
+    if (state.server && !piaAvailable()) {
+        closePia();
     } else if (state.streamId && state.streamId !== toldConnection) {
         tellServer(true);
     }
 });
 
-// A PiP notification tapped while a window is open: the worker asks that window for the panel (`sw.js`).
+// A Pia notification tapped while a window is open: the worker asks that window for the panel (`sw.js`).
 navigator.serviceWorker?.addEventListener("message", (event) => {
-    if (event.data?.type === "pocket.pip") {
-        openPip();
+    if (event.data?.type === "pocket.pia" || event.data?.type === "pocket.pip") {
+        openPia();
     }
 });
 
-/** PiP's answers seen up to now: what the panel last showed, by the server's clock. */
+/** Pia's answers seen up to now: what the panel last showed, by the server's clock. */
 function markSeen() {
-    const ended = store.state.pip?.endedAt;
+    const ended = store.state.pia?.endedAt;
 
-    if (ended !== undefined && ended > Number(localStorage.getItem(SEEN_KEY) ?? 0)) {
+    if (
+        ended !== undefined &&
+        ended > Number(localStorage.getItem(SEEN_KEY) ?? localStorage.getItem(LEGACY_SEEN_KEY) ?? 0)
+    ) {
         localStorage.setItem(SEEN_KEY, String(ended));
     }
 }
 
-/** PiP answered since this browser last looked, and is not at work. */
-export function pipUnread(state = store.state) {
-    const pip = state.pip;
+/** Pia answered since this browser last looked, and is not at work. */
+export function piaUnread(state = store.state) {
+    const pia = state.pia;
 
     return Boolean(
-        pip &&
-        !state.pipOpen &&
-        !pip.busy &&
-        pip.endedAt !== undefined &&
-        pip.endedAt > Number(localStorage.getItem(SEEN_KEY) ?? 0),
+        pia &&
+        !state.piaOpen &&
+        !pia.busy &&
+        pia.endedAt !== undefined &&
+        pia.endedAt >
+            Number(localStorage.getItem(SEEN_KEY) ?? localStorage.getItem(LEGACY_SEEN_KEY) ?? 0),
     );
 }
 
-/** Open the panel; with `text`, put it in PiP's message box. */
-export function openPip(text) {
-    if (!pipAvailable()) {
+/** Open the panel; with `text`, put it in Pia's message box. */
+export function openPia(text) {
+    if (!piaAvailable()) {
         return;
     }
 
     if (text) {
-        store.set({ pipDraft: { text, n: (store.state.pipDraft?.n ?? 0) + 1 } });
+        store.set({ piaDraft: { text, n: (store.state.piaDraft?.n ?? 0) + 1 } });
     }
 
-    if (store.state.pipOpen) {
+    if (store.state.piaOpen) {
         focusComposer();
 
         return;
@@ -209,30 +219,30 @@ export function openPip(text) {
 
     sessionStorage.setItem(OPEN_KEY, "1");
     // The subscriber above tells the server, from inside this `set`: once, not twice.
-    store.set({ pipOpen: true, launcher: false, drawer: false });
+    store.set({ piaOpen: true, launcher: false, drawer: false });
 }
 
-export function closePip() {
-    if (!store.state.pipOpen) {
+export function closePia() {
+    if (!store.state.piaOpen) {
         return;
     }
 
     sessionStorage.removeItem(OPEN_KEY);
     markSeen();
-    store.set({ pipOpen: false });
+    store.set({ piaOpen: false });
     tellServer(false);
 }
 
-export const togglePip = () => (store.state.pipOpen ? closePip() : openPip());
+export const togglePia = () => (store.state.piaOpen ? closePia() : openPia());
 
-/** Get PiP's conversation id without showing its panel; the server creates it the first time if needed. */
-export async function ensurePipId() {
-    if (!pipAvailable()) {
+/** Get Pia's conversation id without showing its panel; the server creates it the first time if needed. */
+export async function ensurePiaId() {
+    if (!piaAvailable()) {
         return null;
     }
 
-    if (store.state.pip?.id !== undefined) {
-        return store.state.pip.id;
+    if (store.state.pia?.id !== undefined) {
+        return store.state.pia.id;
     }
 
     const connection = store.state.streamId;
@@ -243,36 +253,36 @@ export async function ensurePipId() {
 
     const opened = await api("pip", { connection, on: true, seq: ++seq });
 
-    if (opened.pip) {
-        store.set({ pip: opened.pip });
+    if (opened.pia) {
+        store.set({ pia: opened.pia });
     }
 
-    // This brief server-side view makes the existing PiP API return its id, but does not open the local panel.
-    if (!store.state.pipOpen) {
+    // This brief server-side view makes the existing Pia API return its id, but does not open the local panel.
+    if (!store.state.piaOpen) {
         try {
             const closed = await api("pip", { connection, on: false, seq: ++seq });
 
-            if (closed.pip) {
-                store.set({ pip: closed.pip });
+            if (closed.pia) {
+                store.set({ pia: closed.pia });
             }
         } catch {
             // A disconnect removes the server-side view; the accepted id still lets the inbox retry safely.
         }
     }
 
-    return store.state.pip?.id ?? opened.pip?.id ?? null;
+    return store.state.pia?.id ?? opened.pia?.id ?? null;
 }
 
-/** Put `text` in PiP's box, after what is there, and open the panel. */
-function draftPip(text) {
+/** Put `text` in Pia's box, after what is there, and open the panel. */
+function draftPia(text) {
     const draft = localStorage.getItem(DRAFT_KEY)?.trim();
 
-    openPip(draft ? `${draft}\n\n${text}` : text);
+    openPia(draft ? `${draft}\n\n${text}` : text);
 }
 
-/** Send PiP a message from anywhere (`/pip …`), and open the panel to show what it says; true when it went. */
-export async function askPip(text) {
-    if (!pipAvailable()) {
+/** Send Pia a message from anywhere (`/pia …`), and open the panel to show what it says; true when it went. */
+export async function askPia(text) {
+    if (!piaAvailable()) {
         notify("error", `${assistantName()} is not on here.`);
 
         return false;
@@ -280,46 +290,46 @@ export async function askPip(text) {
 
     const account = store.state.me?.id;
 
-    openPip();
-    const pip = store.state.pip ?? (await opening);
+    openPia();
+    const pia = store.state.pia ?? (await opening);
 
     if (account !== store.state.me?.id) {
         return false;
     }
 
-    if (!pip) {
+    if (!pia) {
         notify("error", `${assistantName()} is not ready yet: your message waits in its box.`);
     }
 
-    // Not sent: the words wait in PiP's box rather than be lost (`send` said why), after what was there already.
-    if (pip && (await send(pip.id, text, false))) {
+    // Not sent: the words wait in Pia's box rather than be lost (`send` said why), after what was there already.
+    if (pia && (await send(pia.id, text, false))) {
         return true;
     }
 
-    if (account === store.state.me?.id && (!pip || store.state.pip?.id === pip.id)) {
-        draftPip(text);
+    if (account === store.state.me?.id && (!pia || store.state.pia?.id === pia.id)) {
+        draftPia(text);
     }
 
     return false;
 }
 
-const pipUnavailable = () => `${assistantName()} is not available`;
+const piaUnavailable = () => `${assistantName()} is not available`;
 
 /**
- * What `pocket.pip.ask` does for the browser module `source` names: put its text in PiP's box for the person to read,
+ * What `pocket.pia.ask` does for the browser module `source` names: put its text in Pia's box for the person to read,
  * edit, and send; or, with `send` and only just after a tap or a key press, send it as the person's own message. The
  * text starts with where it came from, as an artifact's follow-up does, so it never reads as a command. The answer says
  * why nothing happened, or whether the message went (`sent` is false when it waits in the box).
  */
-export async function askPipFrom(source, text, send) {
-    if (!pipAvailable()) {
-        return { ok: false, reason: pipUnavailable() };
+export async function askPiaFrom(source, text, send) {
+    if (!piaAvailable()) {
+        return { ok: false, reason: piaUnavailable() };
     }
 
     const words = followUpText(text.trim(), undefined, source);
 
     if (!send) {
-        draftPip(words);
+        draftPia(words);
 
         return { ok: true, sent: false };
     }
@@ -328,15 +338,15 @@ export async function askPipFrom(source, text, send) {
         return { ok: false, reason: "Sending needs a click or a key press just before" };
     }
 
-    return { ok: true, sent: await askPip(words) };
+    return { ok: true, sent: await askPia(words) };
 }
 
-/** Send PiP a message; false when it did not go (a notice says why). PiP made just now is waited for. */
+/** Send Pia a message; false when it did not go (a notice says why). Pia made just now is waited for. */
 async function send(id, text, busy, attachments = []) {
     const account = store.state.me?.id;
-    const target = id ?? store.state.pip?.id ?? (await opening)?.id;
+    const target = id ?? store.state.pia?.id ?? (await opening)?.id;
 
-    if (account !== store.state.me?.id || (id !== undefined && store.state.pip?.id !== id)) {
+    if (account !== store.state.me?.id || (id !== undefined && store.state.pia?.id !== id)) {
         return false;
     }
 
@@ -351,7 +361,7 @@ async function send(id, text, busy, attachments = []) {
             text,
             ...(attachments.length > 0 ? { attachments } : {}),
             requestId: uid(),
-            // Words for PiP while it works change what it does now, rather than wait for it.
+            // Words for Pia while it works change what it does now, rather than wait for it.
             ...(busy ? { mode: "steer" } : {}),
         }),
     );
@@ -359,11 +369,8 @@ async function send(id, text, busy, attachments = []) {
     return sent !== undefined;
 }
 
-/**
- * Compact PiP's context: older messages become a summary PiP writes without what came from outside (`pip-compact.ts`).
- * `focus`, the person's words, is what the summary should keep in mind. A notice says when it is done.
- */
-function compactPip(id, focus, model) {
+/** Request ordinary session compaction for Pia's conversation. */
+function compactPia(id, focus, model) {
     return attempt(() =>
         api(`c/${id}/compact`, {
             ...(focus ? { instructions: focus } : {}),
@@ -372,33 +379,23 @@ function compactPip(id, focus, model) {
     );
 }
 
-/** `/compact`, or `/compact --model provider/modelId [what to keep]`, typed in PiP's box. */
+/** `/compact`, or `/compact --model provider/modelId [what to keep]`, typed in Pia's box. */
 const COMPACT = /^\/compact(?:\s+([\s\S]*))?$/;
 const COMPACT_MODEL = /^--model\s+(?:"([^"]+)"|'([^']+)'|(\S+))(?:\s+([\s\S]*))?$/i;
 
-/** How close PiP is to its own compaction limit, never beyond the model's context window. */
-function PipContext({ stats, window }) {
+/** How full Pia's context window is. */
+function PiaContext({ stats, window }) {
     if (!window || stats?.contextTokens === undefined) {
         return null;
     }
 
     const used = stats.contextTokens;
-    const at = store.state.server?.pipCompactAt;
-    const limit = at > 0 ? Math.min(at, window) : window;
-    const percent = Math.min(100, Math.round((used / limit) * 100));
+    const percent = Math.min(100, Math.round((used / window) * 100));
     const about = stats.contextEstimated ? "~" : "";
-    const tokens = `${about}${formatTokens(used)} of ${formatTokens(limit)} tokens in ${assistantName()}'s context.`;
-    const when =
-        at > window
-            ? `${assistantName()}'s idle compaction limit is ${formatTokens(at)} tokens.`
-            : at > 0
-              ? `${assistantName()} compacts itself above ${formatTokens(at)} once idle.`
-              : "Compact it when it grows.";
-    const cap = at > window ? " The meter is capped at the model's context window." : "";
-    const title = `${tokens} ${when}${cap}`;
+    const title = `${about}${formatTokens(used)} of ${formatTokens(window)} tokens in ${assistantName()}'s context window.`;
 
     return html`<span
-        class="pip-context"
+        class="pia-context"
         role="img"
         aria-label=${`Context ${about}${percent}% full`}
         title=${title}
@@ -409,18 +406,18 @@ function PipContext({ stats, window }) {
 }
 
 function focusComposer() {
-    requestAnimationFrame(() => document.querySelector(".pip-composer textarea")?.focus());
+    requestAnimationFrame(() => document.querySelector(".pia-composer textarea")?.focus());
 }
 
-/** A message in PiP's conversation without the "[from: Name]" a server with several people puts first. */
+/** A message in Pia's conversation without the "[from: Name]" a server with several people puts first. */
 const written = (text) => text.replace(/^\[from: [^\]\n]{1,60}\] /, "");
 
 /**
- * PiP's words with bare session addresses (`/s/12`, as reports and tool results write them) made links named after
+ * Pia's words with bare session addresses (`/s/12`, as reports and tool results write them) made links named after
  * their sessions. Links already written stay as they are.
  */
 function linkSessions(text) {
-    // What sessions said comes fenced for PiP (`pip.ts`); people read it as it is.
+    // What sessions said comes fenced for Pia (`pip.ts`); people read it as it is.
     text = text.replace(/\n?<\/?session-output>\n?/g, "\n");
     // `“Title” (/s/12)`, as reports name a session: one link.
     const named = text.replace(/“([^”\n[\]]{1,120})” \(\/s\/(\d+)\)/g, "[$1](/s/$2)");
@@ -433,7 +430,7 @@ function linkSessions(text) {
     });
 }
 
-/** The session a link in PiP's words opens: `/s/12`, written whole or as an address of this app. */
+/** The session a link in Pia's words opens: `/s/12`, written whole or as an address of this app. */
 function sessionOf(anchor) {
     const href = anchor.getAttribute("href") ?? "";
     const match = /^(?:https?:\/\/[^/]+)?\/s\/(\d+)\/?$/.exec(href);
@@ -445,27 +442,27 @@ function sessionOf(anchor) {
 
 // ─── The panel ──────────────────────────────────────────────────────────────
 
-/** A report from a session PiP follows, or a webhook's post (with what came as `data`): folded until opened. */
+/** A report from a session Pia follows, or a webhook's post (with what came as `data`): folded until opened. */
 function Report({ text, label = "Report", data = null, conversationId }) {
     const [open, setOpen] = useState(false);
 
-    return html`<div class=${`pip-report ${open ? "open" : ""}`}>
+    return html`<div class=${`pia-report ${open ? "open" : ""}`}>
         <button
             type="button"
-            class="pip-report-head"
+            class="pia-report-head"
             aria-expanded=${open}
             onClick=${() => setOpen(!open)}
         >
             <${Icon} name="pulse" size=${13} />
             <span>${label}</span>
-            <${Icon} name="down" size=${13} class="pip-report-fold" />
+            <${Icon} name="down" size=${13} class="pia-report-fold" />
         </button>
         <${Markdown}
             text=${linkSessions(text)}
-            class="pip-report-text"
+            class="pia-report-text"
             conversationId=${conversationId}
         />
-        ${data !== null && html`<pre class="pip-report-data">${data}</pre>`}
+        ${data !== null && html`<pre class="pia-report-data">${data}</pre>`}
     </div>`;
 }
 
@@ -496,7 +493,7 @@ function attachedFiles(block) {
     });
 }
 
-/** One of the panel's rows: a message, a report, a group of PiP's calls, or its words. */
+/** One of the panel's rows: a message, a report, a group of Pia's calls, or its words. */
 function Item({ item, last, busy, conversationId }) {
     if (item.type === "row") {
         const entry = item.entry;
@@ -529,7 +526,7 @@ function Item({ item, last, busy, conversationId }) {
             }
 
             if (body.startsWith(SCHEDULED)) {
-                return html`<div class="pip-event">
+                return html`<div class="pia-event">
                     <${Icon} name="pulse" size=${13} />
                     <span>${body.slice(SCHEDULED.length)}</span>
                 </div>`;
@@ -541,7 +538,7 @@ function Item({ item, last, busy, conversationId }) {
             const pictures = files.filter((file) => file.mime.startsWith("image/"));
             const others = files.filter((file) => !pictures.includes(file));
 
-            return html`<div class="pip-you">
+            return html`<div class="pia-you">
                 ${text && html`<div>${text}</div>`}
                 ${
                     others.length > 0 &&
@@ -582,13 +579,13 @@ function Item({ item, last, busy, conversationId }) {
                     ? `${entry.name} ${entry.text}`
                     : null;
 
-        return line && html`<div class="pip-event"><span>${line}</span></div>`;
+        return line && html`<div class="pia-event"><span>${line}</span></div>`;
     }
 
     // A page it showed in a reply (`artifact_inline`): in this panel, a line like its other work.
     if (item.type === "inline") {
-        return html`<div class="pip-steps">
-            <span class="pip-tick"><${Icon} name="check" size=${10} /></span>
+        return html`<div class="pia-steps">
+            <span class="pia-tick"><${Icon} name="check" size=${10} /></span>
             <span>${summarize([item.step], false)}</span>
         </div>`;
     }
@@ -598,8 +595,8 @@ function Item({ item, last, busy, conversationId }) {
             item.steps.at(-1)?.streaming && item.steps.at(-1).block.type === "thinking";
         const working = busy && last;
 
-        return html`<div class=${`pip-steps ${working ? "working" : ""}`}>
-            ${working ? html`<${Spinner} hidden=${true} />` : html`<span class="pip-tick"><${Icon} name="check" size=${10} /></span>`}
+        return html`<div class=${`pia-steps ${working ? "working" : ""}`}>
+            ${working ? html`<${Spinner} hidden=${true} />` : html`<span class="pia-tick"><${Icon} name="check" size=${10} /></span>`}
             <span>${summarize(item.steps, thinking)}</span>
         </div>`;
     }
@@ -609,7 +606,7 @@ function Item({ item, last, busy, conversationId }) {
         const growing = item.blocks.some((each) => each.growing);
         const entry = item.entry;
 
-        return html`<div class="pip-reply">
+        return html`<div class="pia-reply">
             ${
                 text.trim() !== "" &&
                 html`<${Markdown}
@@ -618,10 +615,10 @@ function Item({ item, last, busy, conversationId }) {
                     conversationId=${conversationId}
                 />`
             }
-            ${entry?.stopReason === "aborted" && html`<div class="pip-event"><span>Stopped</span></div>`}
+            ${entry?.stopReason === "aborted" && html`<div class="pia-event"><span>Stopped</span></div>`}
             ${
                 entry?.stopReason === "error" &&
-                html`<div class="pip-error">${entry.error ?? "The model request failed."}</div>`
+                html`<div class="pia-error">${entry.error ?? "The model request failed."}</div>`
             }
         </div>`;
     }
@@ -632,31 +629,31 @@ function Item({ item, last, busy, conversationId }) {
 function Welcome({ id, name, hasModel }) {
     const first = (name ?? "").split(/\s+/)[0];
 
-    return html`<div class="pip-welcome">
-        <p class="pip-hello">Hi${first ? ` ${first}` : ""}. I’m ${assistantName()}.</p>
-        <p class="pip-intro">${INTRO}</p>
+    return html`<div class="pia-welcome">
+        <p class="pia-hello">Hi${first ? ` ${first}` : ""}. I’m ${assistantName()}.</p>
+        <p class="pia-intro">${INTRO}</p>
         ${
             !hasModel &&
-            html`<p class="pip-intro">
+            html`<p class="pia-intro">
                 <button
                     type="button"
                     class="button small"
-                    onClick=${() => openSheet({ type: "model", pipId: id })}
+                    onClick=${() => openSheet({ type: "model", piaId: id })}
                 >
                     Choose a model to use these suggestions
                 </button>
             </p>`
         }
-        <div class="pip-chips">
+        <div class="pia-chips">
             ${SUGGESTIONS.map(
                 (suggestion) => html`<button
                     type="button"
-                    class="pip-chip"
+                    class="pia-chip"
                     key=${suggestion}
                     disabled=${!hasModel && !suggestion.endsWith("…")}
                     onClick=${() =>
                         suggestion.endsWith("…")
-                            ? openPip(suggestion.slice(0, -1))
+                            ? openPia(suggestion.slice(0, -1))
                             : send(id, suggestion, false)}
                 >
                     ${suggestion}
@@ -675,7 +672,7 @@ function Composer({ id, busy }) {
     const { text, files, pending } = saved;
     const ref = useRef(null);
     const picker = useRef(null);
-    const draft = store.state.pipDraft;
+    const draft = store.state.piaDraft;
     const change = composerDraft.changeText;
     const uploading = files.some((file) => file.state === "uploading");
     const hasMessage = text.trim() !== "" || files.length > 0;
@@ -699,7 +696,7 @@ function Composer({ id, busy }) {
         }
     };
 
-    // PiP's box takes Alt+V while it shows, over the session's.
+    // Pia's box takes Alt+V while it shows, over the session's.
     const dictation = useDictation(ref, change, { top: true });
 
     useLayoutEffect(fit, [text]);
@@ -715,7 +712,7 @@ function Composer({ id, busy }) {
             change(draft.text);
             ref.current?.focus();
             // Used: opened again later, the box keeps what was typed since.
-            store.set({ pipDraft: null });
+            store.set({ piaDraft: null });
         }
     }, [draft?.n]);
 
@@ -752,7 +749,7 @@ function Composer({ id, busy }) {
         try {
             // Compact never sends or removes the attachments waiting in the box.
             success = compact
-                ? (await compactPip(id, compactFocus || undefined, compactSpec)) !== undefined
+                ? (await compactPia(id, compactFocus || undefined, compactSpec)) !== undefined
                 : await send(
                       id,
                       message,
@@ -789,7 +786,7 @@ function Composer({ id, busy }) {
     };
 
     return html`<div
-        class="pip-composer-wrap"
+        class="pia-composer-wrap"
         onDragOver=${(event) => {
             if ([...(event.dataTransfer?.types ?? [])].includes("Files")) {
                 event.preventDefault();
@@ -806,11 +803,11 @@ function Composer({ id, busy }) {
     >
         ${
             files.length > 0 &&
-            html`<div class="pip-attachments" aria-label=${`Files attached to ${assistantName()}`}>
+            html`<div class="pia-attachments" aria-label=${`Files attached to ${assistantName()}`}>
                 ${files.map(
-                    (file) => html`<div class="pip-attachment" key=${file.key}>
+                    (file) => html`<div class="pia-attachment" key=${file.key}>
                         ${file.preview && html`<${Thumb} src=${file.preview} alt=${file.name} />`}
-                        <span class="pip-attachment-name">${file.name}</span>
+                        <span class="pia-attachment-name">${file.name}</span>
                         <span class="muted">${formatBytes(file.size)}</span>
                         ${
                             file.state === "uploading" &&
@@ -818,7 +815,7 @@ function Composer({ id, busy }) {
                         }
                         <button
                             type="button"
-                            class="icon-button pip-attachment-remove"
+                            class="icon-button pia-attachment-remove"
                             aria-label=${`Remove ${file.name}`}
                             onClick=${() => composerDraft.removeFile(file.key)}
                         >
@@ -828,9 +825,9 @@ function Composer({ id, busy }) {
                 )}
             </div>`
         }
-        <form class="pip-composer" onSubmit=${submit}>
+        <form class="pia-composer" onSubmit=${submit}>
             <input
-                class="pip-file-picker"
+                class="pia-file-picker"
                 ref=${picker}
                 type="file"
                 multiple
@@ -843,7 +840,7 @@ function Composer({ id, busy }) {
             />
             <button
                 type="button"
-                class="icon-button pip-attach"
+                class="icon-button pia-attach"
                 aria-label=${`Attach files to ${assistantName()}`}
                 title="Attach files. Images need an image-capable model to be read inline."
                 disabled=${id === undefined}
@@ -862,7 +859,7 @@ function Composer({ id, busy }) {
                 onPaste=${onPaste}
                 onKeyDown=${(event) => {
                     // A module's key (`pocket.composerKey`) comes first, as in the session's box.
-                    const keyed = keyBox(event.currentTarget, "pip", (value, start, end) => {
+                    const keyed = keyBox(event.currentTarget, "pia", (value, start, end) => {
                         change(value);
                         requestAnimationFrame(() => ref.current?.setSelectionRange(start, end));
                     });
@@ -883,12 +880,12 @@ function Composer({ id, busy }) {
                     }
                 }}
             ></textarea>
-            <${MicButton} dictation=${dictation} class="pip-mic" size=${18} />
+            <${MicButton} dictation=${dictation} class="pia-mic" size=${18} />
             ${
                 busy && !hasMessage && !pending
                     ? html`<button
                           type="button"
-                          class="icon-button pip-send"
+                          class="icon-button pia-send"
                           aria-label=${`Stop ${assistantName()}`}
                           title="Stop"
                           onClick=${() => attempt(() => api(`c/${id}/abort`, {}))}
@@ -897,7 +894,7 @@ function Composer({ id, busy }) {
                       </button>`
                     : html`<button
                           type="submit"
-                          class="icon-button pip-send"
+                          class="icon-button pia-send"
                           aria-label=${`Send to ${assistantName()}`}
                           disabled=${sendDisabled}
                       >
@@ -908,7 +905,7 @@ function Composer({ id, busy }) {
     </div>`;
 }
 
-/** The owner's private review queue, not just the memories that apply in the conversation behind PiP. */
+/** The owner's private review queue, not just the memories that apply in the conversation behind Pia. */
 function PendingMemories({ id }) {
     const data = useMemory(id, true);
     const count = data?.pendingAll === true ? data.lessons.length : null;
@@ -918,21 +915,21 @@ function PendingMemories({ id }) {
           ? "Loading…"
           : `${count} pending`;
 
-    return html`<div class="pip-memory">
+    return html`<div class="pia-memory">
         <button
             type="button"
             class="button small ghost"
             aria-label="Pending memories"
-            aria-describedby="pip-memory-count"
+            aria-describedby="pia-memory-count"
             onClick=${() => {
-                closePip();
+                closePia();
                 openSheet({ type: "memory", conversationId: id, pendingOnly: true });
             }}
         >
             <span>Pending memories</span>
             <span
-                id="pip-memory-count"
-                class=${`pip-memory-count ${count > 0 ? "waiting" : ""}`}
+                id="pia-memory-count"
+                class=${`pia-memory-count ${count > 0 ? "waiting" : ""}`}
                 aria-live="polite"
                 aria-atomic="true"
             >
@@ -942,7 +939,7 @@ function PendingMemories({ id }) {
     </div>`;
 }
 
-/** When PiP takes a message that waits: a steer at its next pause, a queued one when it finishes its work. */
+/** When Pia takes a message that waits: a steer at its next pause, a queued one when it finishes its work. */
 const pendingWhen = (item, busy) =>
     !busy
         ? `Waiting for ${assistantName()}`
@@ -950,15 +947,15 @@ const pendingWhen = (item, busy) =>
           ? `${assistantName()} reads this at its next pause`
           : `${assistantName()} reads this when it finishes`;
 
-/** Who sent a message, as the server writes it at the start when several people use Pi (`FROM_PREFIX`). */
+/** Who sent a message, as the server writes it at the start when several people use the agent (`FROM_PREFIX`). */
 const FROM = /^\[from: [^\]\n]{1,60}\] /;
 
-function PipPanel({ leaving, scrim }) {
-    const { pip, pipView: view, me } = store.state;
+function PiaPanel({ leaving, scrim }) {
+    const { pia, piaView: view, me } = store.state;
     const ref = useRef(null);
     const body = useRef(null);
     const pinned = useRef(true);
-    const id = pip?.id;
+    const id = pia?.id;
     const ready = id !== undefined && view.conversation?.id === id;
     const live = ready ? view.live : { busy: false };
     const rows = ready
@@ -967,7 +964,7 @@ function PipPanel({ leaving, scrim }) {
               .filter((entry) => entry && isRow(entry))
               .slice(-ROWS)
         : [];
-    // Your messages that wait while PiP works: shown at once, as waiting, until PiP takes them.
+    // Your messages that wait while Pia works: shown at once, as waiting, until Pia takes them.
     const pending = ready
         ? (view.inbox ?? []).filter(
               (item) => item.by === me?.id && (item.mode === "steer" || item.mode === "followUp"),
@@ -979,7 +976,7 @@ function PipPanel({ leaving, scrim }) {
     const busy = live.busy === true;
     const model = modelLabel(view.agent);
     const thinking = view.agent?.thinkingLevel === "off" ? "" : (view.agent?.thinkingLevel ?? "");
-    // Calls of PiP's held for approval: the panel cannot answer them, so it says so and leads to where they can be.
+    // Calls of Pia's held for approval: the panel cannot answer them, so it says so and leads to where they can be.
     const waiting = ready ? (view.approvals ?? []) : [];
     const compacting = ready && (live.compactions ?? []).length > 0;
     const status =
@@ -987,8 +984,8 @@ function PipPanel({ leaving, scrim }) {
     // Where the focus was before the panel: read as it first renders, before its box takes the focus.
     const [before] = useState(() => document.activeElement);
 
-    usePipResize(ref, me?.id);
-    useDragToClose(ref, { dir: "down", onClose: closePip, enabled: NARROW.matches, scrim });
+    usePiaResize(ref, me?.id);
+    useDragToClose(ref, { dir: "down", onClose: closePia, enabled: NARROW.matches, scrim });
     // Focus goes back where it was when the panel closes.
     useEffect(() => {
         const panel = ref.current;
@@ -1006,7 +1003,7 @@ function PipPanel({ leaving, scrim }) {
         };
     }, []);
     // What shows now counts as seen.
-    useEffect(markSeen, [pip?.endedAt]);
+    useEffect(markSeen, [pia?.endedAt]);
     // Stay at the newest words while they come, unless someone scrolled up to read.
     useLayoutEffect(() => {
         const box = body.current;
@@ -1029,38 +1026,38 @@ function PipPanel({ leaving, scrim }) {
 
         // On a phone the session is behind the panel: it steps aside.
         if (NARROW.matches) {
-            closePip();
+            closePia();
         }
     };
 
     return html`<section
-        class=${`pip-panel ${leaving ? "leaving" : ""}`}
-        data-part="pip"
+        class=${`pia-panel ${leaving ? "leaving" : ""}`}
+        data-part="pia"
         data-state=${leaving ? "closing" : undefined}
         ref=${ref}
         role="dialog"
         aria-modal=${NARROW.matches ? "true" : undefined}
         aria-label=${`${assistantName()}, your assistant`}
     >
-        <div class="pip-resize pip-resize-left" data-pip-resize="left" aria-hidden="true"></div>
-        <div class="pip-resize pip-resize-top" data-pip-resize="top" aria-hidden="true"></div>
-        <div class="pip-resize pip-resize-corner" data-pip-resize="corner" aria-hidden="true"></div>
-        <header class="pip-head">
+        <div class="pia-resize pia-resize-left" data-pia-resize="left" aria-hidden="true"></div>
+        <div class="pia-resize pia-resize-top" data-pia-resize="top" aria-hidden="true"></div>
+        <div class="pia-resize pia-resize-corner" data-pia-resize="corner" aria-hidden="true"></div>
+        <header class="pia-head">
             <div class="grip"></div>
-            <span class=${`pip-mark ${busy ? "working" : ""}`} aria-hidden="true">
-                <${Icon} name="pip" size=${18} />
+            <span class=${`pia-mark ${busy ? "working" : ""}`} aria-hidden="true">
+                <${Icon} name="pia" size=${18} />
             </span>
-            <div class="pip-heading">
-                <div class="pip-title-line">
+            <div class="pia-heading">
+                <div class="pia-title-line">
                     <h2>${assistantName()}</h2>
-                    <span class="pip-status" aria-live="polite">${status}</span>
+                    <span class="pia-status" aria-live="polite">${status}</span>
                 </div>
                 <button
-                    class="model-chip pip-model"
+                    class="model-chip pia-model"
                     disabled=${!ready || busy || compacting}
                     aria-label=${`${assistantName()} model: ${model}${thinking ? ` · ${thinking}` : ""}`}
                     title=${`Change ${assistantName()}'s model and thinking level`}
-                    onClick=${() => openSheet({ type: "model", pipId: id })}
+                    onClick=${() => openSheet({ type: "model", piaId: id })}
                 >
                     <span class="model-name">
                         ${model.replace(/^(?:anthropic:\s*)?claude\s+/i, "")}
@@ -1070,14 +1067,14 @@ function PipPanel({ leaving, scrim }) {
             </div>
             ${
                 ready &&
-                html`<${PipContext} stats=${view.stats} window=${view.agent?.contextWindow} />`
+                html`<${PiaContext} stats=${view.stats} window=${view.agent?.contextWindow} />`
             }
             <button
                 class="icon-button"
                 aria-label="Compact"
                 title=${`Compact: ${assistantName()} keeps a summary of older messages, and reads less each time`}
                 disabled=${!ready || busy || compacting || rows.length === 0}
-                onClick=${() => openSheet({ type: "compact", pipId: id })}
+                onClick=${() => openSheet({ type: "compact", piaId: id })}
             >
                 <${Icon} name="compact" size=${18} />
             </button>
@@ -1099,18 +1096,18 @@ function PipPanel({ leaving, scrim }) {
                 title="Open as a conversation, with every step"
                 disabled=${!ready}
                 onClick=${() => {
-                    closePip();
+                    closePia();
                     navigate(id);
                 }}
             >
                 <${Icon} name="external" size=${18} />
             </button>
-            <button class="icon-button" aria-label=${`Close ${assistantName()}`} title="Close (Esc)" onClick=${closePip}>
+            <button class="icon-button" aria-label=${`Close ${assistantName()}`} title="Close (Esc)" onClick=${closePia}>
                 <${Icon} name="close" size=${18} />
             </button>
         </header>
         <div
-            class="pip-body"
+            class="pia-body"
             ref=${body}
             onClick=${openLink}
             onScroll=${(event) => {
@@ -1121,7 +1118,7 @@ function PipPanel({ leaving, scrim }) {
         >
             ${
                 !ready
-                    ? html`<div class="pip-loading"><${Spinner} label=${`Waking ${assistantName()}`} /></div>`
+                    ? html`<div class="pia-loading"><${Spinner} label=${`Waking ${assistantName()}`} /></div>`
                     : rows.length === 0 && !busy
                       ? html`<${Welcome}
                             id=${id}
@@ -1144,19 +1141,19 @@ function PipPanel({ leaving, scrim }) {
                 busy &&
                 !speaking &&
                 items.at(-1)?.type !== "activity" &&
-                html`<div class="pip-steps working">
+                html`<div class="pia-steps working">
                     <${Spinner} hidden=${true} />
                     <span>Thinking</span>
                 </div>`
             }
             ${pending.map(
-                (item) => html`<div class="pip-you pending" key=${`pending-${item.id}`}>
+                (item) => html`<div class="pia-you pending" key=${`pending-${item.id}`}>
                     <div>${(item.text ?? "").replace(FROM, "")}</div>
-                    <div class="pip-pending-line">
+                    <div class="pia-pending-line">
                         <span>${pendingWhen(item, busy)}</span>
                         <button
                             type="button"
-                            class="pip-pending-withdraw"
+                            class="pia-pending-withdraw"
                             onClick=${() =>
                                 attempt(() => api(`c/${id}/withdraw`, { submissionId: item.id }))}
                         >
@@ -1168,14 +1165,14 @@ function PipPanel({ leaving, scrim }) {
         </div>
         ${
             waiting.length > 0 &&
-            html`<div class="pip-approval" role="status">
+            html`<div class="pia-approval" role="status">
                 <${Icon} name="shield" size=${14} />
                 <span class="grow">${assistantName()} waits for your approval: ${waiting[0].tool}</span>
                 <button
                     type="button"
                     class="button small"
                     onClick=${() => {
-                        closePip();
+                        closePia();
                         navigate(id);
                     }}
                 >
@@ -1193,12 +1190,12 @@ function PipPanel({ leaving, scrim }) {
     </section>`;
 }
 
-/** The mark in the corner: only while PiP works, or has something new. */
-function PipBubble() {
-    const { pip } = store.state;
-    const unread = pipUnread();
+/** The mark in the corner: only while Pia works, or has something new. */
+function PiaBubble() {
+    const { pia } = store.state;
+    const unread = piaUnread();
     const [kept, leaving] = usePresence(
-        pip && (pip.busy || unread) ? (pip.busy ? "busy" : "news") : null,
+        pia && (pia.busy || unread) ? (pia.busy ? "busy" : "news") : null,
         150,
     );
 
@@ -1207,67 +1204,67 @@ function PipBubble() {
     }
 
     return html`<button
-        class=${`pip-bubble ${kept} ${leaving ? "leaving" : ""}`}
+        class=${`pia-bubble ${kept} ${leaving ? "leaving" : ""}`}
         aria-label=${
             kept === "busy"
                 ? `${assistantName()} is working: open ${assistantName()}`
                 : `${assistantName()} has something new: open ${assistantName()}`
         }
         title=${`${assistantName()} (Alt+A)`}
-        onClick=${() => openPip()}
+        onClick=${() => openPia()}
     >
-        <${Icon} name="pip" size=${22} />
-        ${kept === "news" && html`<span class="pip-dot" aria-hidden="true"></span>`}
+        <${Icon} name="pia" size=${22} />
+        ${kept === "news" && html`<span class="pia-dot" aria-hidden="true"></span>`}
     </button>`;
 }
 
-/** PiP's panel while it is open (kept a moment after, to animate out), or its mark while it is not. */
-export function PipHost() {
-    const open = store.state.pipOpen && pipAvailable();
+/** Pia's panel while it is open (kept a moment after, to animate out), or its mark while it is not. */
+export function PiaHost() {
+    const open = store.state.piaOpen && piaAvailable();
     const [kept, leaving] = usePresence(open || null, 180);
     // What a drag on the sheet dims as it goes: the scrim, not the app behind it.
     const scrim = useRef(null);
 
     // Back closes it, as it closes a sheet.
-    useBack(Boolean(open), closePip);
+    useBack(Boolean(open), closePia);
 
-    if (!pipAvailable()) {
+    if (!piaAvailable()) {
         return null;
     }
 
     if (!kept) {
-        return html`<${PipBubble} />`;
+        return html`<${PiaBubble} />`;
     }
 
     // On phones a scrim dims what is behind the sheet, and a tap on it closes it; wide screens have none.
     return html`<div
-            class=${`pip-scrim ${leaving ? "leaving" : ""}`}
+            class=${`pia-scrim ${leaving ? "leaving" : ""}`}
             ref=${scrim}
             aria-hidden="true"
-            onClick=${closePip}
+            onClick=${closePia}
         ></div>
-        <${PipPanel} leaving=${leaving} scrim=${scrim} />`;
+        <${PiaPanel} leaving=${leaving} scrim=${scrim} />`;
 }
 
-/** PiP in the rail: the way to it that is always there, marked while it works or has something new. */
-export function PipRailButton() {
-    if (!pipAvailable()) {
+/** Pia in the rail: the way to it that is always there, marked while it works or has something new. */
+export function PiaRailButton() {
+    if (!piaAvailable()) {
         return null;
     }
 
-    const { pip, pipOpen } = store.state;
-    const unread = pipUnread();
+    const { pia, piaOpen } = store.state;
+    const unread = piaUnread();
 
     return html`<button
-        class=${`rail-button rail-pip ${pip?.busy ? "lit" : ""} ${pipOpen ? "open" : ""}`}
+        class=${`rail-button rail-pia ${pia?.busy ? "lit" : ""} ${piaOpen ? "open" : ""}`}
         data-part="rail-button"
-        data-state=${railState(pipOpen, Boolean(pip?.busy))}
+        data-state=${railState(piaOpen, Boolean(pia?.busy))}
         title=${`${assistantName()}, your assistant (Alt+A)`}
-        aria-label=${[assistantName(), pip?.busy && "working", unread && "something new"].filter(Boolean).join(", ")}
-        aria-pressed=${pipOpen}
-        onClick=${togglePip}
+        aria-label=${[assistantName(), pia?.busy && "working", unread && "something new"].filter(Boolean).join(", ")}
+        aria-pressed=${piaOpen}
+        onClick=${togglePia}
     >
-        <${Icon} name="pip" size=${18} />
+        <${Icon} name="pia" size=${18} />
         ${unread && html`<span class="rail-news" aria-hidden="true"></span>`}
     </button>`;
 }

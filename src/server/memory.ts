@@ -1,10 +1,10 @@
 /**
- * Memory: short lessons Pi keeps across sessions, each for one project or for everywhere, and linked to the session it
+ * Memory: short lessons the agent keeps across sessions, each for one project or for everywhere, and linked to the session it
  * came from. A project is a git repository with all its worktrees (they share one git folder), or a folder outside
- * any repository. Pi saves lessons with its memory tool and gets those that apply in its system prompt
+ * any repository. The agent saves lessons with its memory tool and gets those that apply in its system prompt
  * (`extensions/memory.ts`); people see, add, change, and remove them in the Memory sheet.
  *
- * A lesson added or changed for someone who is not the owner waits for the owner's approval before Pi uses it: a guest
+ * A lesson added or changed for someone who is not the owner waits for the owner's approval before the agent uses it: a guest
  * could otherwise write instructions into every later session.
  */
 import { randomUUID } from "node:crypto";
@@ -16,7 +16,7 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import { addActivity } from "./collab.ts";
 import type { User } from "./config.ts";
-import { ChatDoc, type Lesson, MemoryDoc } from "./docs.ts";
+import { assistantOwner, ChatDoc, type Lesson, MemoryDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 import { INVISIBLE_CLASS } from "./fence.ts";
 import { git } from "./git.ts";
@@ -31,7 +31,7 @@ export const MAX_LESSON = 300;
 /** Lessons a project keeps, and lessons for everywhere, approved ones: pending ones do not take their room. */
 export const MAX_PROJECT_LESSONS = 40;
 export const MAX_EVERYWHERE_LESSONS = 30;
-/** Lessons waiting for approval that one person (or Pi for them) may have, so nobody fills the owner's list. */
+/** Lessons waiting for approval that one person (or the agent for them) may have, so nobody fills the owner's list. */
 export const MAX_PENDING = 20;
 /** How long a folder's project is kept before git is asked again (a folder can become a repository). */
 const PROJECT_FOR_MS = 60_000;
@@ -39,7 +39,7 @@ const PROJECT_FOR_MS = 60_000;
 export type Project = { key: string; name: string };
 export type LessonScope = "project" | "everywhere";
 
-/** Who writes: a person, or Pi working for one (`userId` undefined when nobody is known). */
+/** Who writes: a person, or the agent working for one (`userId` undefined when nobody is known). */
 export type Writer = { userId: string | undefined; byPi: boolean; name: string };
 
 /** A lesson as a person's Memory sheet shows it. */
@@ -66,7 +66,7 @@ export type LessonView = {
 export type MemoryView = {
     /** Present only for the all-project pending queue, so an older server's scoped view is not mistaken for it. */
     pendingAll?: true;
-    /** This session's project; null for PiP or the all-project pending queue. */
+    /** This session's project; null for Pia or the all-project pending queue. */
     project: { name: string } | null;
     lessons: LessonView[];
     owner: boolean;
@@ -79,14 +79,14 @@ const copy = (lesson: Lesson): Lesson => JSON.parse(JSON.stringify(lesson)) as L
 /**
  * Characters nobody sees: controls, format characters (zero-width, bidi, tags), lone surrogates, private use,
  * unassigned, the variation selectors, and the blank letters (Hangul fillers, the braille blank). The owner approves the
- * text they see, so Pi must read no other.
+ * text they see, so the agent must read no other.
  */
 const INVISIBLE = new RegExp("[" + INVISIBLE_CLASS + "]", "gu");
 
 /** Text on one line with nothing hidden: whitespace first, so a newline becomes a space before controls go. */
 export const flat = (text: string) =>
     text.replace(/\s+/g, " ").replace(INVISIBLE, "").replace(/ {2,}/g, " ").trim();
-/** A folder's name as Pi's prompt and the sheet show it. */
+/** A folder's name as the agent's prompt and the sheet show it. */
 // Cut by code points, so an emoji at the 80th is kept whole, not halved into a lone surrogate.
 const cut = (text: string) => Array.from(text).slice(0, 80).join("");
 const named = (name: string, key: string) => cut(flat(name)) || cut(flat(key));
@@ -124,14 +124,14 @@ export class Memory {
         this.#app = app;
     }
 
-    /** The project of a conversation working in `cwd`; undefined for PiP, which has lessons for everywhere only. */
+    /** The project of a conversation working in `cwd`; undefined for Pia, which has lessons for everywhere only. */
     async project(
         conversationId: ConversationId,
         cwd: string | undefined,
     ): Promise<Project | undefined> {
         const app = this.#app;
 
-        if (app.sessionMeta(app.rootOf(conversationId))?.pip !== undefined) {
+        if (assistantOwner(app.sessionMeta(app.rootOf(conversationId))) !== undefined) {
             return undefined;
         }
 
@@ -163,7 +163,7 @@ export class Memory {
         );
     }
 
-    /** What Pi's prompt has: the lessons in force for a conversation working in `cwd`, and its project. */
+    /** What the agent's prompt has: the lessons in force for a conversation working in `cwd`, and its project. */
     async inForce(
         conversationId: ConversationId,
         cwd: string | undefined,
@@ -179,9 +179,9 @@ export class Memory {
     }
 
     /**
-     * Whether a write waits for the owner: every one of Pi's, and every one of someone who is not the owner. What Pi
+     * Whether a write waits for the owner: every one of the agent's, and every one of someone who is not the owner. What the agent
      * read (a web page, a post, a comment, a file) can talk it into "a lesson", and a lesson reaches every later session:
-     * Pi proposes, the owner approves.
+     * the agent proposes, the owner approves.
      */
     #held(writer: Writer): boolean {
         return writer.byPi || !this.#isOwner(writer.userId);
@@ -209,14 +209,17 @@ export class Memory {
         return this.#isOwner(userId) || (userId !== undefined && lesson.by === userId);
     }
 
-    /** Cross-project review is for the human owner in their private PiP, before reading any lesson or writing activity. */
+    /** Cross-project review is for the human owner in their private Pia, before reading any lesson or writing activity. */
     #requirePendingOwner(writer: Writer, conversationId: ConversationId): void {
         if (writer.byPi || !this.#isOwner(writer.userId)) {
             throw new HttpError(403, "Only the owner can review all pending lessons.");
         }
 
-        if (this.#app.sessionMeta(this.#app.rootOf(conversationId))?.pip !== writer.userId) {
-            throw new HttpError(403, "Review all pending lessons from your private PiP.");
+        if (
+            assistantOwner(this.#app.sessionMeta(this.#app.rootOf(conversationId))) !==
+            writer.userId
+        ) {
+            throw new HttpError(403, "Review all pending lessons from your private Pia.");
         }
     }
 
@@ -248,7 +251,7 @@ export class Memory {
         addActivity(
             await tx.doc(ChatDoc, root),
             writer.byPi
-                ? { id: "pi", name: "Pi" }
+                ? { id: "pi", name: "the agent" }
                 : { id: writer.userId ?? "someone", name: writer.name },
             text,
         );
@@ -273,7 +276,7 @@ export class Memory {
 
     /**
      * Save a lesson. The same `key` saves it once: a tool call run again finds the one it made. Throws an HttpError a
-     * person (or Pi) can act on when it will not do.
+     * person (or the agent) can act on when it will not do.
      */
     async add(
         conversationId: ConversationId,
@@ -357,12 +360,12 @@ export class Memory {
 
     /**
      * Change a lesson's text or forget it; approve or discard what waits. Only the owner, or whoever saved a lesson,
-     * changes or forgets it; only the owner approves. A change from Pi or a guest to a lesson in force is a proposal:
+     * changes or forgets it; only the owner approves. A change from the agent or a guest to a lesson in force is a proposal:
      * the lesson stays as it is until the owner approves it. One that waits anyway changes as it is.
      *
      * An approval says what the owner saw (`expected`): what waits can change between their look and their tap, so
      * approving holds only when it would make true what they saw. `pendingOnly` is a cross-project review mode for the
-     * human owner in their private PiP, limited to approving or discarding lessons that still wait; the Pi tool never sets it.
+     * human owner in their private Pia, limited to approving or discarding lessons that still wait; the agent tool never sets it.
      */
     async change(
         conversationId: ConversationId,
@@ -375,7 +378,7 @@ export class Memory {
     ): Promise<Lesson> {
         const app = this.#app;
 
-        // Never let Pi, a guest, or a shared-session review use the cross-project lookup.
+        // Never let the agent, a guest, or a shared-session review use the cross-project lookup.
         if (pendingOnly) {
             this.#requirePendingOwner(writer, conversationId);
 
@@ -485,7 +488,7 @@ export class Memory {
             const inForce = lesson.pending !== true;
 
             if (change === "remove") {
-                // Forgetting one's own (or one nobody uses yet) goes at once; Pi's forgetting one in force is a proposal.
+                // Forgetting one's own (or one nobody uses yet) goes at once; the agent's forgetting one in force is a proposal.
                 if (inForce && writer.byPi) {
                     if (lesson.proposal?.forget !== true) {
                         lesson.proposal = {
@@ -571,7 +574,7 @@ export class Memory {
         return { userId: user.id, byPi: false, name: user.name };
     }
 
-    /** The session's lessons, or the human owner's pending lessons across all projects and everywhere in their private PiP. */
+    /** The session's lessons, or the human owner's pending lessons across all projects and everywhere in their private Pia. */
     async view(id: ConversationId, user: User, pendingOnly = false): Promise<MemoryView> {
         const app = this.#app;
 

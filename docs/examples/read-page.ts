@@ -1,5 +1,5 @@
 /**
- * Reads a public web page for Pi: a read_page tool that fetches only public addresses and fences the page's text.
+ * Reads a public web page for the agent: a read_page tool that fetches only public addresses and fences the page's text.
  */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
@@ -42,7 +42,7 @@ export default function createReadPage(host: Host) {
 
             // An older server has no fetchPublic: never fall back to fetch, which reaches private addresses.
             if (typeof host.fetchPublic !== "function") {
-                return say("read_page needs Pi Pocket 0.20.0 or later.");
+                return say("read_page needs Pia 0.20.0 or later.");
             }
 
             const max = Math.min(Math.max(Math.floor(args.maxChars ?? 20_000), 100), 100_000);

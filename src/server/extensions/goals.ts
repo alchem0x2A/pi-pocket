@@ -1,6 +1,6 @@
 /**
- * Done when: Pi keeps working until a session's check command passes, such as npm test, up to five checks. After
- * each of Pi's final answers the check runs in the session's folder; while it fails, Pi gets the end of its output
+ * Done when: the agent keeps working until a session's check command passes, such as npm test, up to five checks. After
+ * each of the agent's final answers the check runs in the session's folder; while it fails, the agent gets the end of its output
  * and goes on. While this is off, goals do nothing.
  */
 import { defineExtension, GenerationTask, hook, section } from "@earendil-works/pi-durable";
@@ -46,7 +46,7 @@ export default function createGoals(host: PocketHost) {
                         return undefined;
                     }
 
-                    // In plan mode Pi only proposes: the check waits until the plan is approved and Pi gets to work.
+                    // In plan mode the agent only proposes: the check waits until the plan is approved and the agent gets to work.
                     if ((await api.snapshot(PlanDoc, api.conversationId, context))?.on === true) {
                         return undefined;
                     }

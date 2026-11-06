@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
-# Pi Pocket in a container. The app runs straight from its source (Node strips the
-# TypeScript), so this image only installs the runtime packages and the tools Pi's
+# Pia in a container. The app runs straight from its source (Node strips the
+# TypeScript), so this image only installs the runtime packages and the tools the agent's
 # built-in extensions use: git, GitHub's gh, ripgrep, fd, Chromium, and cloudflared.
 #
 # Build from the repository root:
@@ -58,7 +58,7 @@ RUN set -eux; \
     chmod 0755 /usr/local/bin/cloudflared; \
     /usr/local/bin/cloudflared --version
 
-# The app: source, web app, docs it tells Pi about, and types for drop-ins.
+# The app: source, web app, docs it tells the agent about, and types for drop-ins.
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
@@ -70,7 +70,7 @@ COPY types ./types
 COPY test ./test
 COPY README.md AGENTS.md SECURITY.md LICENSE ./
 
-# Pi's folder (sign-ins, settings, skills, sessions) and Pi Pocket's data folder
+# the agent's folder (sign-ins, settings, skills, sessions) and Pia's data folder
 # are bind mounts in docker-compose.yml. These are the fallbacks for `docker run`.
 ENV HOME=/home/node \
     PI_POCKET_DIR=/data \

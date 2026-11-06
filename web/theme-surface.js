@@ -234,7 +234,7 @@ export const PARTS = [
     "peek-tile",
     "files-panel",
     "browser-panel",
-    "pip",
+    "pia",
     "subagents-board",
     "extension-page",
     "extension-panel",

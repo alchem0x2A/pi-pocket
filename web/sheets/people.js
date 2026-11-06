@@ -16,8 +16,8 @@ import {
 import { copyText, html, Icon, Loader, Sheet, timeAgo } from "../ui.js";
 
 const ROLE_TEXT = {
-    guest: "Can steer Pi, which can run commands on this machine",
-    viewer: "Can read along, react, and chat, but not steer Pi",
+    guest: "Can steer the agent, which can run commands on this machine",
+    viewer: "Can read along, react, and chat, but not steer the agent",
 };
 
 /** How long an invite may last: minutes, its button, and how the help text says it. */
@@ -106,7 +106,7 @@ export function InviteSheet({ session = null }) {
             if (asOwner && answer.grant?.role !== "owner") {
                 setFailed(true);
 
-                throw new Error("Restart Pi Pocket to sign in another device as the owner.");
+                throw new Error("Restart Pia to sign in another device as the owner.");
             }
 
             shown.current = answer;
@@ -166,7 +166,7 @@ export function InviteSheet({ session = null }) {
                     </button>
                 </div>
                 <div class="muted small">
-                    ${ROLE_TEXT[role]}.${role === "guest" && only ? " Seeing one session in the app does not limit what Pi can reach on the machine." : ""}
+                    ${ROLE_TEXT[role]}.${role === "guest" && only ? " Seeing one session in the app does not limit what the agent can reach on the machine." : ""}
                 </div>
             </div>
             ${
@@ -226,7 +226,7 @@ export function InviteSheet({ session = null }) {
                     ${
                         invite.local &&
                         html`<div class="error-box">
-                            This link only works on this device. To let other devices in, press <span class="mono">a</span> in the Pi Pocket terminal (or start it with <span class="mono">--access</span>) and pick Local network, Cloudflare Tunnel, or Tailscale. Then make a new invite.
+                            This link only works on this device. To let other devices in, press <span class="mono">a</span> in the Pia terminal (or start it with <span class="mono">--access</span>) and pick Local network, Cloudflare Tunnel, or Tailscale. Then make a new invite.
                         </div>`
                     }
                     <div class="invite-details">

@@ -1,6 +1,6 @@
 // Files to mention with @ in the message box ("look at @src/app.ts"). The session folder's list comes from the server
 // once and is checked again in the background (an unchanged list costs one short reply); matching happens here as
-// people type, so suggestions never wait on the network. Pi gets the text as written and reads what it names.
+// people type, so suggestions never wait on the network. The agent gets the text as written and reads what it names.
 import { api, store } from "./store.js";
 
 /** How old a list may be before a new mention checks it again. */

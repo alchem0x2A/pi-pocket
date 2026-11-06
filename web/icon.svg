@@ -1,16 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-	<!--
-		Pi Pocket's icon. See docs/map.md#icons for PNG regeneration commands.
-		Apple's rounded mask reaches as far in at the corners as the frame starts, so the frame's corners are
-		rounded to follow the mask's and stay clear of it.
-	-->
-	<defs>
-		<linearGradient id="active" x1="0" y1="1" x2="1" y2="0">
-			<stop offset="0" stop-color="#33ccff" />
-			<stop offset="1" stop-color="#00ff99" />
-		</linearGradient>
-	</defs>
-	<rect width="512" height="512" fill="#13141c" />
-	<rect x="40" y="40" width="432" height="432" rx="75" fill="#1a1b26" stroke="url(#active)" stroke-width="12" />
-	<text x="256" y="350" font-family="Georgia, 'Times New Roman', serif" font-size="280" text-anchor="middle" fill="#ff9e64">π</text>
+    <style>
+        .background { fill: #191724; }
+        .ribbon { stroke: #f97c9e; }
+        .knot { fill: #f97c9e; }
+        @media (prefers-color-scheme: light) {
+            .background { fill: #faf4ed; }
+            .ribbon { stroke: #a7576e; }
+            .knot { fill: #a7576e; }
+        }
+    </style>
+    <rect class="background" width="512" height="512" rx="112" />
+    <g class="ribbon" fill="none" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M246 252C198 216 128 160 116 108 104 57 151 43 189 83c37 39 57 105 68 166" />
+        <path d="M266 252c48-36 118-92 130-144 12-51-35-65-73-25-37 39-57 105-68 166" />
+        <path d="M238 273c-31 47-79 105-118 165 41-16 81-28 123-39 7-42 12-84 17-125" />
+        <path d="M274 273c31 47 79 105 118 165-41-16-81-28-123-39-7-42-12-84-17-125" />
+    </g>
+    <path class="knot" d="M224 239c0-27 64-27 64 0v37c0 27-64 27-64 0z" />
 </svg>

@@ -27,7 +27,7 @@ export class ModelRefresh {
         this.#timeoutMs = timeoutMs;
     }
 
-    /** Pi suppresses internally cancelled refresh errors. Track outside refreshes and credential changes so we can retry. */
+    /** the agent suppresses internally cancelled refresh errors. Track outside refreshes and credential changes so we can retry. */
     watch(models: ModelRuntime): void {
         this.#refreshRuntime = models.refresh.bind(models);
 
@@ -58,7 +58,7 @@ export class ModelRefresh {
     }
 
     async #refresh(): Promise<ModelRefreshResult> {
-        // Scope belongs to Pi settings, not models.json. Read it before publishing refreshed choices.
+        // Scope belongs to the agent settings, not models.json. Read it before publishing refreshed choices.
         await this.#app.settings.reload();
         const models = this.#app.models;
         const keys = () =>
@@ -85,7 +85,7 @@ export class ModelRefresh {
             };
         };
 
-        // Pi treats an invalid models.json as empty. Check through its public API before reloading the live runtime,
+        // the agent treats an invalid models.json as empty. Check through its public API before reloading the live runtime,
         // so a typo does not remove working custom providers. No credentials, cache restoration or network here.
         const checked = await this.#bounded(() => ModelRuntime.create({ refreshOnCreate: false }));
 
@@ -141,7 +141,7 @@ export class ModelRefresh {
 
         this.#app.providers.modelsChanged();
         // Only configured providers need network discovery. Each partial refresh leaves the other providers alone,
-        // publishes its result as soon as it ends, and uses Pi's existing generation-checked cache publication.
+        // publishes its result as soon as it ends, and uses the agent's existing generation-checked cache publication.
         await Promise.all(
             models
                 .getProviders()
@@ -169,7 +169,7 @@ export class ModelRefresh {
                                 continue;
                             }
 
-                            // A sign-in fixed in Pi outside Pocket can leave an old needs-sign-in mark in Pocket.
+                            // A sign-in fixed in the agent outside Pocket can leave an old needs-sign-in mark in Pocket.
                             if (this.#app.providers.needsSignIn(provider.id) !== undefined) {
                                 await this.#app.providers.check(provider.id);
                             }

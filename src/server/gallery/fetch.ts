@@ -38,7 +38,7 @@ export async function download(
         if (target.protocol !== "https:") {
             throw new HttpError(
                 502,
-                `${what}: Pi Pocket reads only https addresses, not ${target.protocol}//${target.host}`,
+                `${what}: Pia reads only https addresses, not ${target.protocol}//${target.host}`,
             );
         }
 

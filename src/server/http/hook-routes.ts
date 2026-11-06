@@ -1,6 +1,6 @@
 /**
  * `/hook/<id>/<secret>`, and `/hook/<id>` with GitHub's signature: posts from other services, which `hooks.ts` turns
- * into messages to Pi. No sign-in and no `X-Pocket` header: the secret is what lets a post in.
+ * into messages to the agent. No sign-in and no `X-Pocket` header: the secret is what lets a post in.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PocketApp } from "../app.ts";

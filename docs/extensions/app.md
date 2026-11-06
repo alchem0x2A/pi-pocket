@@ -1,6 +1,6 @@
 # Adding to the app
 
-A module can add to the app what a tool cannot: a page that shows something without Pi, a button on the rail, or a row in the menu. This page tells about the parts that it can add. The members of `web` are in [the web reference](reference/web.md).
+A module can add to the app what a tool cannot: a page that shows something without the agent, a button on the rail, or a row in the menu. This page tells about the parts that it can add. The members of `web` are in [the web reference](reference/web.md).
 
 ## The parts
 
@@ -34,4 +34,4 @@ The parts install and go with the module's extensions:
 
 - An edit replaces them in one step.
 - When a new version does not load, the parts of the version before stay.
-- When the owner turns the module off, Pi Pocket removes them, and closes a page of the module that is open.
+- When the owner turns the module off, Pia removes them, and closes a page of the module that is open.

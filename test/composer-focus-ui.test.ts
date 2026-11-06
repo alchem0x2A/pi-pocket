@@ -179,7 +179,7 @@ test(
     },
 );
 
-/** Pretend Pi works in the open session, or stops: the composer reads `view.live.busy`. */
+/** Pretend the agent works in the open session, or stops: the composer reads `view.live.busy`. */
 const setBusy = (busy: boolean) =>
     page.evaluate(`
         const { store } = await import("/store.js");
@@ -221,7 +221,7 @@ test("a chosen Queue stays chosen for the next run", real, async () => {
 });
 
 test(
-    "at 320 px and 350 px wide, Stop stays inside the message box while Pi works",
+    "at 320 px and 350 px wide, Stop stays inside the message box while the agent works",
     real,
     async () => {
         for (const width of [320, 350]) {

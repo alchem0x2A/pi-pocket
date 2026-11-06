@@ -1,4 +1,4 @@
-// How the transcript reads a conversation (web/turns.js): Pi's answers as runs of words and groups of calls, and which
+// How the transcript reads a conversation (web/turns.js): the agent's answers as runs of words and groups of calls, and which
 // calls can still run.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -55,7 +55,7 @@ const shape = (items: Items) =>
     );
 const INLINE = "artifact_inline";
 
-test("Pi's calls across answers fold into one group, and words end it", () => {
+test("the agent's calls across answers fold into one group, and words end it", () => {
     const rows = [
         user(1),
         answer(2, [thought, call("a", "grep")]),

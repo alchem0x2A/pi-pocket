@@ -1,10 +1,10 @@
 <div align="center">
 
-# Pi Pocket
+# Pia
 
-**Your Pi coding agent, in your pocket.**
+**Your coding work, wherever you are.**
 
-A durable, multiplayer, mobile-first web app for Pi agents, built on [Pi Durable](https://earendil.com/posts/pi-durable/).<br>
+A durable, multiplayer, mobile-first web app for coding sessions, built on [Pi Durable](https://earendil.com/posts/pi-durable/).<br>
 Runs on your own machine or directly on your phone. No cloud VM.
 
 [![Release](https://img.shields.io/github/v/release/TannerMidd/pi-pocket?color=7aa2f7)](https://github.com/TannerMidd/pi-pocket/releases)
@@ -13,33 +13,33 @@ Runs on your own machine or directly on your phone. No cloud VM.
 
 [Website](https://tannermidd.github.io/pi-pocket/) · [Quick start](#quick-start) · [Feature tour](docs/features.md) · [Docs](https://tannermidd.github.io/pi-pocket/docs/)
 
-<img src="docs/showcase-0.12.1.png" alt="Pi Pocket on a desktop and a phone. On the desktop, the session list beside a conversation where Pi has fixed a sign-in redirect loop, its edits and a passing run of 48 tests folded into a timeline. On the phone, the same session after a teammate, Alex, asks for the push: Lancet Guard waits for approval before git push." width="100%">
+<img src="docs/showcase-0.12.1.png" alt="Pia on a desktop and a phone. The desktop shows a coding session, its changes, a passing test run, and a second session waiting for approval. The phone shows Pia following a delegated task and reporting its result." width="100%">
 
 </div>
 
 ## Highlights
 
 - **Durable.** Every model call, tool call, and subagent is stored as it happens. Restart the server mid-run, and the work continues.
-- **Multiplayer.** Share a live session with presence, a side chat Pi does not see, invites, and roles.
-- **Made for phones.** Push notifications, dictation, sharing into Pi from other apps, and a home-screen app.
-- **PiP.** An assistant that starts, follows, and reports on your other sessions, and watches GitHub for you.
-- **Your models.** Pi's own providers, sign-ins, skills, and prompt templates, with the model chosen per session.
-- **Live-editable.** No build step. Pi can change Pi Pocket while it runs, and you can add your own extensions.
+- **Multiplayer.** Share a live session with presence, a side chat the agent does not see, invites, and roles.
+- **Made for phones.** Push notifications, dictation, sharing text from other apps, and a home-screen app.
+- **Pia.** An assistant that starts, follows, and reports on your other sessions, and watches GitHub for you.
+- **Your models.** Provider sign-ins, skills, and prompt templates, with a model chosen per session.
+- **Live-editable.** No build step. Web files reload in open browsers, and extensions reload while the server runs.
 
 The [feature tour](docs/features.md) covers everything else, from plan mode and peek tiles to the built-in browser.
 
 ## Quick start
 
-Requires Node.js 22.19 or newer. Runs on Linux, macOS, Windows, and Android (Termux); Linux is the most tested. Sign in to a provider with Pi first (`pi`, then `/login`), or later from the app's Providers sheet.
+Requires Node.js 22.19 or newer. Runs on Linux, macOS, Windows, and Android (Termux); Linux is the most tested. Sign in to a provider with the `pi` CLI first (`pi`, then `/login`), or later from the app's Providers sheet.
 
 ```bash
 npm install -g pi-pocket
 pi-pocket
 ```
 
-Newer npm may print "install-scripts ... not yet covered by allowScripts" for `@google/genai` and `protobufjs`, which come from Pi's model library. The warning is expected: Pi Pocket needs neither script. `npm config set allow-scripts=@google/genai,protobufjs --location=user` quiets it by letting both run, which does no harm.
+Newer npm may print "install-scripts ... not yet covered by allowScripts" for `@google/genai` and `protobufjs`, which come from `@earendil-works/pi-coding-agent`. The warning is expected: Pia needs neither script. `npm config set allow-scripts=@google/genai,protobufjs --location=user` quiets it by letting both run, which does no harm.
 
-Or try it with `npx pi-pocket`. To change Pi Pocket's code, run a git checkout instead:
+Or try it with `npx pi-pocket`. To change Pia's code, run a git checkout instead:
 
 ```bash
 git clone https://github.com/TannerMidd/pi-pocket.git
@@ -52,7 +52,7 @@ The launcher asks how your devices should connect, then prints a sign-in link an
 
 While it runs: **q** quit · **r** restart server · **a** change access · **o** open in browser · **s** show QR code.
 
-**Updating:** Pi Pocket does not update itself. When a new version is out, a notice says so. Menu → **Update Pi Pocket** → **Start a migration session** fetches the `upstream` remote and starts a Pi session that reports what changed ([features](docs/features.md)). You do the merge by hand. **Sync** in the same sheet fast-forwards your `main` to `upstream/main` when it has no commits of its own. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
+**Updating:** Pia does not update itself. When a new version is out, a notice says so. Menu → **Update Pia** → **Start a migration session** fetches the `upstream` remote and starts an agent session that reports what changed ([features](docs/features.md)). You do the merge by hand. **Sync** in the same sheet fast-forwards your `main` to `upstream/main` when it has no commits of its own. By hand: stop the server, back up `~/.pi-pocket`, pull, run `npm install`, and start again. An npm install updates with `npm install -g pi-pocket@latest`. Read the [release notes](https://github.com/TannerMidd/pi-pocket/releases) first: 0.21.0 upgrades the database one way, so going back needs the backup.
 
 ### Other ways to run it
 
@@ -81,16 +81,16 @@ Choose a mode in the launcher, or pass `--access`:
 | `cloudflare` | Anyone with the link | Free https quick tunnel, no account; needs `cloudflared` |
 | `tailscale`  | Your tailnet         | Tailscale address only                                   |
 
-Other options: `--port` (8787), `--cwd`, `--data` (`~/.pi-pocket`), `--host`, and `-y` to reuse the last access choice. `npm start -- --help` lists them all. `PI_POCKET_BROWSER` and `PI_POCKET_BROWSER_ARGS` pick the built-in browser and its flags when Chromium or Chrome is not found by itself. `PI_POCKET_PROMPT_DATE=1` puts today's date in Pi's system prompt; it is left out by default, so the prompt cache does not start over when the date changes. `PI_POCKET_CACHE_KEEPER=off` turns off the prompt cache keeper, which keeps a model's prompt cache warm while a run waits on a tool call ([features](docs/features.md)).
+Other options: `--port` (8787), `--cwd`, `--data` (`~/.pi-pocket`), `--host`, and `-y` to reuse the last access choice. `npm start -- --help` lists them all. `PI_POCKET_BROWSER` and `PI_POCKET_BROWSER_ARGS` pick the built-in browser and its flags when Chromium or Chrome is not found by itself. `PI_POCKET_PROMPT_DATE=1` puts today's date in the session prompt; it is left out by default, so the prompt cache does not start over when the date changes. `PI_POCKET_CACHE_KEEPER=off` turns off the prompt cache keeper, which keeps a model's prompt cache warm while a run waits on a tool call ([features](docs/features.md)).
 
 > [!WARNING]
-> Anyone who can steer a session can make Pi run commands on this machine, as you. That reaches your files, Pi Pocket's own settings and tokens, and its code. Invite only people you would trust at your keyboard. View-only users cannot make Pi act. [SECURITY.md](SECURITY.md) says what is protected and what is not.
+> Anyone who can steer a session can make the agent run commands on this machine, as you. That reaches your files, Pia's own settings and tokens, and its code. Invite only people you would trust at your keyboard. View-only users cannot make the agent act. [SECURITY.md](SECURITY.md) says what is protected and what is not.
 
 ## Documentation
 
 - [Feature tour](docs/features.md): every feature, in full.
-- [Docs site](https://tannermidd.github.io/pi-pocket/docs/): customizing Pi without code, and writing extensions.
-- [Engineering](https://tannermidd.github.io/pi-pocket/engineering.html) and [code map](docs/map.md): how Pi Pocket is built.
+- [Docs site](https://tannermidd.github.io/pi-pocket/docs/): customizing session instructions without code, and writing extensions.
+- [Engineering](https://tannermidd.github.io/pi-pocket/engineering.html) and [code map](docs/map.md): how Pia is built.
 
 ## Development
 
@@ -101,13 +101,13 @@ npm run format  # ESLint's layout fixes, then Prettier
 npm run lint    # check the layout rules
 ```
 
-`web/` changes reload every open browser, and extensions reload into the running server. `node test/serve.ts` runs a throwaway copy to check a change on. [AGENTS.md](AGENTS.md) covers editing Pi Pocket safely from inside itself, and [CONTRIBUTING.md](CONTRIBUTING.md) how to send a change.
+`web/` changes reload every open browser, and extensions reload into the running server. `node test/serve.ts` runs a throwaway copy to check a change on. [AGENTS.md](AGENTS.md) covers editing Pia safely from inside itself, and [CONTRIBUTING.md](CONTRIBUTING.md) how to send a change.
 
 ## Limitations
 
 - Pi Durable is experimental, and its API can change between releases. Versions are pinned in `package.json`.
 - Only one server process can use the database at a time.
-- Pi's own extensions are not supported. Pi Pocket runs its own, on Pi Durable.
+- Extensions from the coding agent's CLI are not supported. Pia uses its own extensions on Pi Durable.
 - A git worktree keeps a session's files apart; it is not a sandbox.
 - The built-in browser needs Chromium, Chrome, Brave, or Edge on the server. It is tested on Linux and macOS.
 
@@ -115,6 +115,6 @@ The [full list](docs/features.md#limitations) has the details.
 
 ## Credits and license
 
-Inspired by [Mario Zechner's demo](https://x.com/badlogicgames/status/2106452296087302173) of his own Pi app. Pi Pocket is an independent project, not affiliated with Earendil. The bundled fonts keep their own licenses, which are beside them in [web/fonts/](web/fonts/).
+Inspired by [Mario Zechner's demo](https://x.com/badlogicgames/status/2106452296087302173) of his own terminal app. Pia is an independent project, not affiliated with Earendil. The bundled fonts keep their own licenses, which are beside them in [web/fonts/](web/fonts/).
 
 [MIT](LICENSE). To report a security problem, see [SECURITY.md](SECURITY.md).

@@ -48,7 +48,7 @@ async function counts(app: App) {
             messages += sent;
             chatMessages += (await tx.doc(ChatDoc, conversation.id)).messages.length;
 
-            if (sessions[String(conversation.id)]?.pip !== undefined) {
+            if (sessions[String(conversation.id)]?.pia !== undefined) {
                 piaMessages += sent;
             }
         }
@@ -143,7 +143,6 @@ test(
         try {
             console.log(`Recovery proof address: ${base}; temporary data: ${dataDir}`);
             app = await openApp(model(), dataDir);
-            await app.setAssistantProfile(owner(app), "pia");
             app.config.lastModel = { provider: "faux", modelId: "faux-1", thinkingLevel: "off" };
             server = await listen();
             browsers = new Browsers({
@@ -186,8 +185,8 @@ test(
             await see(`navigator.serviceWorker.controller !== null`, "worker controls online app");
             // Let the front-page Pia panel finish its initial, idle setup before measuring capture.
             await see(
-                `(await import('/store.js')).store.state.server?.assistant?.profile === 'pia'`,
-                "Pia profile active",
+                `(await import('/store.js')).store.state.server?.assistant?.name === 'Pia'`,
+                "Pia name received",
             );
             await new Promise((resolve) => setTimeout(resolve, 500));
             const before = await counts(app);
@@ -205,7 +204,7 @@ test(
             await see(`document.querySelector('#unlock') !== null`, "worker offline shell loaded");
             assert.equal(
                 await inPage<string>(`return JSON.stringify(document.title)`),
-                "Pi Pocket · Offline inbox",
+                "Pia · Offline inbox",
             );
             assert.equal(
                 await inPage<boolean>(

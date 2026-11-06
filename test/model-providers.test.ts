@@ -1,4 +1,4 @@
-// Extension modules' model providers: registered with Pi's runtime, and taken out only by the version that put them in.
+// Extension modules' model providers: registered with the agent's runtime, and taken out only by the version that put them in.
 import {
     type App,
     cleanUp,
@@ -67,11 +67,14 @@ after(async () => {
     cleanUp();
 });
 
-test("a module's provider serves Pi's model runtime, a reload keeps it, and turning the module off takes it out", async () => {
+test("a module's provider serves the agent's model runtime, a reload keeps it, and turning the module off takes it out", async () => {
     assert.equal(app.models.getProvider("dropin"), undefined, "off until the owner turns it on");
 
     await app.setExtensionEnabled(owner(app), file, true);
-    assert.ok(app.models.getModel("dropin", "one"), "the provider's model is in Pi's runtime");
+    assert.ok(
+        app.models.getModel("dropin", "one"),
+        "the provider's model is in the agent's runtime",
+    );
 
     // A new version starts before the old one's cleanups run: the old cleanup must leave the new provider in place.
     write(file, module("two"));
@@ -121,13 +124,13 @@ test("a version that registers and then fails to load leaves the old version's p
     );
 });
 
-test("a config Pi refuses throws, keeps the provider before it, and leaves nothing behind", async () => {
+test("a config the agent refuses throws, keeps the provider before it, and leaves nothing behind", async () => {
     const name = "refused.ts";
 
     write(name, module("one", { provider: "refused" }));
     await app.setExtensionEnabled(owner(app), name, true);
 
-    // Pi needs an `api` with `streamSimple`.
+    // the agent needs an `api` with `streamSimple`.
     write(
         name,
         module("two", { provider: "refused", extra: "streamSimple: () => {}, api: undefined," }),

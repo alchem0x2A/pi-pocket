@@ -1,5 +1,5 @@
 /**
- * Background tasks: commands Pi starts and does not wait for, such as a dev server, a long build, or a test run. Each
+ * Background tasks: commands the agent starts and does not wait for, such as a dev server, a long build, or a test run. Each
  * runs detached from the server, as the leader of its own process group, with its output in a log file in the data
  * folder, so it goes on across a restart of the server. A small wrapper writes its exit code to a file next to the log,
  * which a restarted server can still read, and every process of the task carries a marker in its environment.
@@ -10,10 +10,10 @@
  * it never ran.
  *
  * The watch is a durable task: it looks every second whether any process of the group still runs (a leader that is
- * gone is no end while a child it left runs on), and when none does, tells Pi in the session, with the exit code and
- * the end of the output, as schedules send their messages. Stopping the task (Pi's tool, or Running now) stops the
+ * gone is no end while a child it left runs on), and when none does, tells the agent in the session, with the exit code and
+ * the end of the output, as schedules send their messages. Stopping the task (the agent's tool, or Running now) stops the
  * group, and any process with its marker that left it: politely, then by force. A sweep, apart from the watches, keeps
- * each log under its limit. The background extension (`extensions/background.ts`) installs the task and gives Pi its
+ * each log under its limit. The background extension (`extensions/background.ts`) installs the task and gives the agent its
  * tool; while it is off, the watches wait.
  */
 import { spawn, spawnSync } from "node:child_process";
@@ -39,7 +39,7 @@ import {
     type TaskRuntime,
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
-import { BackgroundDoc, type BackgroundTask } from "./docs.ts";
+import { assistantOwner, BackgroundDoc, type BackgroundTask } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 import { defang, quoted } from "./fence.ts";
 import { requestFor } from "./requests.ts";
@@ -50,7 +50,7 @@ const context = BACKGROUND_CONTEXT;
 
 /** The extension that runs background tasks; while it is off, none can start and their watches wait. */
 export const BACKGROUND_EXTENSION = "pocket-background";
-/** How a background task's message to Pi starts, so Pi (and people reading along) know where it came from. */
+/** How a background task's message to the agent starts, so the agent (and people reading along) know where it came from. */
 export const BACKGROUND_PREFIX = "[background] ";
 /** The environment variable that marks each process of a task: `<data folder>#<conversation>/<id>`. */
 export const BACKGROUND_MARKER = "PI_POCKET_BACKGROUND";
@@ -63,7 +63,7 @@ export const DEFAULT_BACKGROUND_LIMITS: Readonly<BackgroundLimits> = { running: 
 export type ByteRange = { from: number; to: number };
 
 const MAX_COMMAND = 4000;
-/** How much a read gives Pi, and how much of the end of the output Pi's message holds. */
+/** How much a read gives the agent, and how much of the end of the output the agent's message holds. */
 const READ_CHARS = 20_000;
 const TELL_CHARS = 3000;
 /** Terminal escape codes (colors, cursor moves): some tools print them even when nobody reads a terminal. */
@@ -109,9 +109,9 @@ export class StartCutOff extends Error {}
 
 export type BackgroundStart = {
     command: string;
-    /** Whether Pi gets a message when it ends: true unless Pi says otherwise. */
+    /** Whether the agent gets a message when it ends: true unless the agent says otherwise. */
     notify?: boolean;
-    /** Whom Pi works for. */
+    /** Whom the agent works for. */
     requestedBy?: string;
     /** The same key starts the same task once: a tool call replayed after a restart finds the one it started. */
     key?: string;
@@ -300,7 +300,7 @@ function ending(item: BackgroundTask): string {
         case "running":
             return "running";
         case "stopped":
-            return item.why === undefined ? "stopped" : `stopped by Pi Pocket: ${item.why}`;
+            return item.why === undefined ? "stopped" : `stopped by Pia: ${item.why}`;
         case "lost":
             return item.pid === 0
                 ? "has an unknown outcome: a restart cut its start off, and no process or exit code of it was found (it may have run and ended, or never started)"
@@ -429,7 +429,7 @@ export class BackgroundTasks {
                 tell: (task, runtime, context) =>
                     this.#tell(task.input.backgroundId, runtime, context),
             },
-            // Stopped from Pi's tool or Running now: the processes go too.
+            // Stopped from the agent's tool or Running now: the processes go too.
             abort: async (task, runtime, context) => {
                 const conversationId = runtime.conversationId;
                 const id = task.input.backgroundId;
@@ -880,7 +880,7 @@ export class BackgroundTasks {
         return true;
     }
 
-    /** Tell Pi the task ended, once: the request id is the task's. */
+    /** Tell the agent the task ended, once: the request id is the task's. */
     async #tell(id: string, runtime: Runtime, context: Context): Promise<void> {
         const app = this.#app;
         const conversationId = runtime.conversationId;
@@ -891,7 +891,7 @@ export class BackgroundTasks {
             return runtime.commit(() => finished, context);
         }
 
-        // Not while a spend limit holds Pi back, nor for someone who can no longer steer here: Pi finds out with list.
+        // Not while a spend limit holds the agent back, nor for someone who can no longer steer here: the agent finds out with list.
         const person =
             item.requestedBy === undefined ? undefined : app.config.userById(item.requestedBy);
         const mayAsk =
@@ -922,7 +922,7 @@ export class BackgroundTasks {
         await runtime.commit(() => finished, context);
     }
 
-    /** Pi's message about a task that ended: how, its command quoted, and the end of its output fenced, as data. */
+    /** the agent's message about a task that ended: how, its command quoted, and the end of its output fenced, as data. */
     #message(conversationId: ConversationId, item: BackgroundTask): string {
         const took = duration((item.endedAt ?? this.#app.now()) - item.startedAt);
         const lines = [
@@ -946,7 +946,7 @@ export class BackgroundTasks {
         return lines.join("\n");
     }
 
-    /** A task's command for Pi or people to read: hidden values hidden, on one line, quoted. */
+    /** A task's command for the agent or people to read: hidden values hidden, on one line, quoted. */
     describe(conversationId: ConversationId, item: BackgroundTask, max = 120): string {
         return quoted(this.#app.hidden.replace(item.command, conversationId), max);
     }
@@ -1123,7 +1123,7 @@ export class BackgroundTasks {
         }
     }
 
-    /** Where Pi can start one: a session's own conversation, not a subagent's or PiP's. */
+    /** Where the agent can start one: a session's own conversation, not a subagent's or Pia's. */
     #check(conversationId: ConversationId): void {
         if (!this.running) {
             throw new HttpError(409, "Background tasks are turned off in Extensions.");
@@ -1143,14 +1143,17 @@ export class BackgroundTasks {
             throw new HttpError(400, "Only sessions can run background tasks, not subagents.");
         }
 
-        // A Pia chat runs commands as sessions do (`pia.ts`); a Classic PiP does not.
-        if (meta.pip !== undefined && this.#app.pip.runsCommands?.(conversationId) !== true) {
-            throw new HttpError(400, "PiP does not run commands.");
+        // Pia runs commands as sessions do.
+        if (
+            assistantOwner(meta) !== undefined &&
+            this.#app.pia.runsCommands?.(conversationId) !== true
+        ) {
+            throw new HttpError(400, "Pia does not run commands.");
         }
     }
 
     /**
-     * Start a command in the background. Throws an HttpError Pi can act on when it may not start. A start that `signal`
+     * Start a command in the background. Throws an HttpError the agent can act on when it may not start. A start that `signal`
      * cancels before its process starts leaves nothing behind.
      */
     async start(
@@ -1361,7 +1364,7 @@ export class BackgroundTasks {
     }
 
     /**
-     * What a task printed since Pi last read it, up to `READ_CHARS` (the end, when there is more). `pin` keeps the part
+     * What a task printed since the agent last read it, up to `READ_CHARS` (the end, when there is more). `pin` keeps the part
      * a call reads, durably: a call run again reads the same part, whatever other reads did since. The end of the part
      * waits while it could be half of a character or of a hidden value, unless the task has ended.
      */

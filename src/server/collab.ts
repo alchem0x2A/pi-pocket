@@ -1,6 +1,6 @@
 /**
- * The people beside Pi: their side chat with mentions and quotes, activity lines ("Alex stopped the run"), typing,
- * reactions, pins, shared notes, and take turns. Pi sees none of it.
+ * The people beside the agent: their side chat with mentions and quotes, activity lines ("Alex stopped the run"), typing,
+ * reactions, pins, shared notes, and take turns. The agent sees none of it.
  */
 import { randomUUID } from "node:crypto";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -79,7 +79,7 @@ export class Collab {
         this.#app = app;
     }
 
-    /** Post to the people's side chat of a conversation. Pi does not see it. */
+    /** Post to the people's side chat of a conversation. The agent does not see it. */
     async postChat(
         id: ConversationId,
         user: User,
@@ -228,7 +228,7 @@ export class Collab {
 
     /**
      * A line of activity in the chat ("Alex stopped the run"), and a notice to the others here. Activity is how people
-     * learn who changed what; it never reaches Pi.
+     * learn who changed what; it never reaches the agent.
      */
     async activity(id: ConversationId, user: User, text: string, notify = true): Promise<void> {
         try {
@@ -260,7 +260,7 @@ export class Collab {
         }
     }
 
-    /** Show others that this person is typing, in the chat or to Pi, or that they stopped. */
+    /** Show others that this person is typing, in the chat or to the agent, or that they stopped. */
     setTyping(id: ConversationId, user: User, where: unknown): void {
         const place: TypingPlace | null =
             where === "chat" || (where === "pi" && user.role !== "viewer") ? where : null;
@@ -349,7 +349,7 @@ export class Collab {
             ];
             const author =
                 entry.kind === "assistant"
-                    ? "Pi"
+                    ? "the agent"
                     : (app.config.userById(authorId ?? "")?.name ?? entry.from ?? "Someone");
 
             pin = {

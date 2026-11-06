@@ -9,7 +9,7 @@ const HISTORY_PAGE = 400;
 
 const FIND_PAGES = 25;
 
-/** What an entry says, to find text in: messages, Pi's calls' paths and commands, commands people ran, notes. */
+/** What an entry says, to find text in: messages, the agent's calls' paths and commands, commands people ran, notes. */
 function searchText(entry) {
     switch (entry.kind) {
         case "user":
@@ -46,7 +46,7 @@ function speaker(entry) {
     const { view, users, me } = store.state;
 
     if (entry.kind === "assistant") {
-        return "Pi";
+        return "the agent";
     }
 
     if (entry.kind === "shell" || entry.kind === "command" || entry.kind === "note") {

@@ -1,6 +1,6 @@
 # Tools
 
-A tool is a function that Pi can call. Pi gets the name, the description, and the parameters of each tool with each request, and calls a tool when its task needs it.
+A tool is a function that the agent can call. The agent gets the name, the description, and the parameters of each tool with each request, and calls a tool when its task needs it.
 
 ## Define a tool
 
@@ -17,7 +17,7 @@ const wordCount = defineTool({
     }),
 });
 
-// It returns `output`, so it needs version 2 of the extension API: Pi Pocket 0.18 says so, and does not load it.
+// It returns `output`, so it needs version 2 of the extension API: Pia 0.18 says so, and does not load it.
 export const pocketApi = 2;
 
 export default function createMyWords() {
@@ -47,7 +47,7 @@ This is local catalog metadata, not an upstream or MCP field. Keep it at most 5 
 ## Return a result
 
 - Return `{ output: [{ type: "text", text }] }`. The model reads the text.
-- Pi Durable 1.2 renamed the result field `content` to `output`. Pi Pocket still reads `content` from what `execute` of a drop-in's tool returns, but new code must use `output`. A hook (`afterTool`) or a wrap (`wrapTool`) that reads or returns a result must use `output` too. A module that returns `output` exports `pocketApi = 2` ([API versions](reference/api-versions.md)): Pi Pocket 0.18 then refuses it with a clear message.
+- Pi Durable 1.2 renamed the result field `content` to `output`. Pia still reads `content` from what `execute` of a drop-in's tool returns, but new code must use `output`. A hook (`afterTool`) or a wrap (`wrapTool`) that reads or returns a result must use `output` too. A module that returns `output` exports `pocketApi = 2` ([API versions](reference/api-versions.md)): Pia 0.18 then refuses it with a clear message.
 - To give the model an error, throw an `Error`. The model gets its message as an error result.
 - `api.output(text)` streams output while the tool runs. When `execute` returns no `output`, this output becomes the result.
 
@@ -62,7 +62,7 @@ A restart of the server can stop a tool call while it runs. Then the call is rep
 
 ## Plan mode
 
-`annotations: { readOnlyHint: true }`, as in Pi's tool definitions, says that the tool does not change files or other state. Plan mode lets such a tool run. Pi Pocket does not check this: it is your promise. A tool that only changes the conversation, such as context management, can also use it. Plan mode ignores the hint on a built-in tool, so a wrap cannot let a built-in tool run in plan mode.
+`annotations: { readOnlyHint: true }`, as in the agent's tool definitions, says that the tool does not change files or other state. Plan mode lets such a tool run. Pia does not check this: it is your promise. A tool that only changes the conversation, such as context management, can also use it. Plan mode ignores the hint on a built-in tool, so a wrap cannot let a built-in tool run in plan mode.
 
 Pi Durable's type for `defineTool` does not have `annotations` yet. TypeScript reports it as an unknown property, but the module loads and works, because Node does not check types. To keep the type checker quiet, add it after `defineTool`:
 
@@ -73,7 +73,7 @@ const lookup = Object.assign(defineTool({ … }), { annotations: { readOnlyHint:
 ## Files, documents, and the session
 
 - `api.env` gives the files and the shell of the session's folder. `(await api.agent(context)).cwd` is the folder.
-- `api.snapshot(Doc, api.conversationId, context)` reads a document, for example one of Pi Pocket's in `src/server/docs.ts`.
+- `api.snapshot(Doc, api.conversationId, context)` reads a document, for example one of Pia's in `src/server/docs.ts`.
 
 ## Call a model
 
@@ -98,9 +98,9 @@ const reply = await api.models.completeSimple(model, {
 });
 ```
 
-- The provider's request limits apply, as to Pi's own requests.
-- The session's spend does not count this reply by itself. Add `reply.usage` to Pi Durable's `UsageDoc` for the session, in a `commit`, as Pi Pocket's titles do ([titles.ts](../../src/server/titles.ts)). Check `host.heldBack` before each call, so a spend limit stops your tool too.
-- Say in your tool's result what the model decided, so Pi and the people can follow it.
+- The provider's request limits apply, as to the agent's own requests.
+- The session's spend does not count this reply by itself. Add `reply.usage` to Pi Durable's `UsageDoc` for the session, in a `commit`, as Pia's titles do ([titles.ts](../../src/server/titles.ts)). Check `host.heldBack` before each call, so a spend limit stops your tool too.
+- Say in your tool's result what the model decided, so the agent and the people can follow it.
 
 ## See also
 

@@ -1,4 +1,4 @@
-// End-to-end tests of the server core with a scripted model: no network, no API keys, no Pi config.
+// End-to-end tests of the server core with a scripted model: no network, no API keys, no the agent config.
 import {
     type App,
     cleanUp,
@@ -312,7 +312,7 @@ test("each conversation sends its own provider session id, the same on every req
     assert.equal(sent("session id four"), sent("session id one"));
 });
 
-test("a sign-in that needs this installation's id gets Pi's, the same every time", async () => {
+test("a sign-in that needs this installation's id gets the agent's, the same every time", async () => {
     const calls: unknown[][] = [];
     const login = app.models.login;
 
@@ -342,7 +342,7 @@ test("a sign-in that needs this installation's id gets Pi's, the same every time
                 readFileSync(join(process.env.PI_CODING_AGENT_DIR!, "settings.json"), "utf8"),
             ).deviceId,
             ids[0],
-            "kept in Pi's settings",
+            "kept in the agent's settings",
         );
     } finally {
         app.models.login = login;
@@ -595,7 +595,7 @@ test("anyone signed in can list extensions; only the owner can change them", asy
     }
 });
 
-test("people chat beside Pi: presence, one post per request, and the chat survives a reopen", async () => {
+test("people chat beside the agent: presence, one post per request, and the chat survives a reopen", async () => {
     const id = await newSession();
     const guest = app.config.addUser("Alex", "guest");
 
@@ -1059,7 +1059,7 @@ test("a tab does not get the session list again when it did not change", async (
     }
 });
 
-test("interrupt stops a streaming run and withdraws the queue, then Pi answers the new message", async () => {
+test("interrupt stops a streaming run and withdraws the queue, then the agent answers the new message", async () => {
     const id = await newSession();
     const started = Date.now();
 
@@ -1109,7 +1109,7 @@ test("a queued message moves between Queue and Steer, by its sender only", async
     }
 });
 
-test("a queued message moved to Interrupt goes now, as Pi answers it, and the other queued messages stay", async () => {
+test("a queued message moved to Interrupt goes now, as the agent answers it, and the other queued messages stay", async () => {
     const id = await newSession();
     const started = Date.now();
 
@@ -1128,7 +1128,7 @@ test("a queued message moved to Interrupt goes now, as Pi answers it, and the ot
         "the answer to the moved message",
     );
     assert.ok(Date.now() - started < 4000, "it did not wait for the long answer");
-    // The steer stayed queued: Pi answers it as well.
+    // The steer stayed queued: the agent answers it as well.
     await until(
         async () => (await modelTexts(app, id)).some((text) => text.includes("echo: a steer")),
         "the answer to the message that stayed",

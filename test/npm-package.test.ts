@@ -1,4 +1,4 @@
-// Pi Pocket installed from npm: it lands in a node_modules folder, where Node strips no types, and an npx or local
+// Pia installed from npm: it lands in a node_modules folder, where Node strips no types, and an npx or local
 // install puts its packages in a node_modules folder above it.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -12,7 +12,7 @@ import { prepareDropInFolder } from "../src/server/reload.ts";
 
 const ROOT = new URL("..", import.meta.url);
 
-test("Pi Pocket's TypeScript runs from a node_modules folder with bin/strip-types.js", (t) => {
+test("Pia's TypeScript runs from a node_modules folder with bin/strip-types.js", (t) => {
     const temp = mkdtempSync(join(tmpdir(), "pocket-npm-"));
 
     t.after(() => rmSync(temp, { recursive: true, force: true }));
@@ -43,7 +43,7 @@ test("Pi Pocket's TypeScript runs from a node_modules folder with bin/strip-type
     assert.equal(run.stderr, "");
 });
 
-test("modulesWith finds packages that npm put in a node_modules folder above Pi Pocket", (t) => {
+test("modulesWith finds packages that npm put in a node_modules folder above Pia", (t) => {
     const temp = mkdtempSync(join(tmpdir(), "pocket-npm-"));
 
     t.after(() => rmSync(temp, { recursive: true, force: true }));
@@ -63,7 +63,7 @@ test("modulesWith finds packages that npm put in a node_modules folder above Pi 
 });
 
 // `files` in package.json says what npm packs. Read here, not with `npm pack`, which tests in a sandbox may not run.
-test("the npm package has what Pi Pocket runs and reads, and not its tests", () => {
+test("the npm package has what Pia runs and reads, and not its tests", () => {
     const { files } = JSON.parse(readFileSync(new URL("package.json", ROOT), "utf8")) as {
         files: string[];
     };

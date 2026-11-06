@@ -1,7 +1,7 @@
 /**
  * Makes the five screenshots on the product site (`site/shots/*.webp`) from the current web app: a throwaway app with
  * made-up people and projects, a scripted model (so nothing costs money and every run looks the same), and Chromium
- * driven over the DevTools protocol. It needs Chromium and ImageMagick (`magick`).
+ * driven over the DevTools protocol. It needs Chromium and ImageMagick (`magick` or `convert`).
  *
  *   node test/site-shots.ts              writes the five files into site/shots/
  *   node test/site-shots.ts --serve      stages the same data and keeps the app up, to look at it by hand
@@ -9,7 +9,7 @@
  * The phones use a mobile viewport with safe-area insets (the site draws the status bar and the home bar over them);
  * the desktop shot is 1440×900 at 2×.
  */
-// helpers.ts first: it points Pi's folder at a temporary one before anything from src/ loads.
+// helpers.ts first: it points the agent's folder at a temporary one before anything from src/ loads.
 import {
     type App,
     cleanUp,
@@ -162,7 +162,7 @@ const call = (words: string, name: string, args: Parameters<typeof fauxToolCall>
         stopReason: "toolUse",
     });
 
-/** What Pi says in answer to a message that contains `match`: one step per model request, the last one a reply. */
+/** What the agent says in answer to a message that contains `match`: one step per model request, the last one a reply. */
 const scripts: { match: RegExp; steps: Step[] }[] = [];
 const script = (match: RegExp, ...steps: Step[]) => scripts.push({ match, steps });
 
@@ -300,15 +300,15 @@ function lastUser(request: { messages: { role: string; content: unknown }[] }) {
     };
 }
 
-/** PiP: start the session Riley asks for, say so, then say what the report said. */
-const pipRoute = (request: unknown): AssistantMessage => {
+/** Pia: start the session Riley asks for, say so, then say what the report said. */
+const piaRoute = (request: unknown): AssistantMessage => {
     const { words } = lastUser(request as never);
     const messages = (request as { messages: { role: string; content: unknown }[] }).messages;
     const last = messages.at(-1)!;
 
     if (words.startsWith("[report]")) {
         return text(
-            "Pi added a regression test for the Safari redirect. All 4 tests pass in its worktree, and nothing needs you there.",
+            "the agent added a regression test for the Safari redirect. All 4 tests pass in its worktree, and nothing needs you there.",
         );
     }
 
@@ -333,8 +333,8 @@ const pipRoute = (request: unknown): AssistantMessage => {
 const route: FauxResponseStep = (request) => {
     const messages = (request as { messages: { role: string; content: unknown }[] }).messages;
 
-    if (JSON.stringify(messages).includes("You are PiP")) {
-        return pipRoute(request);
+    if (JSON.stringify(messages).includes("You are Pia")) {
+        return piaRoute(request);
     }
 
     const { index, words } = lastUser(request as never);
@@ -441,7 +441,7 @@ const DESKTOP: Look = { width: 1440, height: 900, mobile: false };
 let SHOP = "";
 
 async function stage() {
-    // The scripted model, under a neutral name: the message box and PiP's panel show it.
+    // The scripted model, under a neutral name: the message box and Pia's panel show it.
     const model = fauxProvider({
         tokensPerSecond: 2000,
         models: [{ id: "faux-1", name: "Demo" }],
@@ -457,7 +457,7 @@ async function stage() {
 
     // Lancet Guard is off in tests. Turn its module on, make it "on", and make it ask about a push.
     await app.setExtensionEnabled(riley, "guard.ts", true);
-    // PiP's panel would show a "Pending memories" row.
+    // Pia's panel would show a "Pending memories" row.
     await app.setExtensionEnabled(riley, "memory.ts", false);
 
     app.guard.status = async () => ({
@@ -525,7 +525,7 @@ async function stage() {
         alex,
         "Safari users get stuck in a redirect loop after signing in. Can you find out why? I think it's the cookie.",
     );
-    // Committed, so the worktree that PiP's session gets starts from the fix.
+    // Committed, so the worktree that Pia's session gets starts from the fix.
     git(SHOP, "commit", "-q", "-am", "Fix the Safari sign-in redirect loop");
 
     await start(
@@ -579,25 +579,25 @@ async function stage() {
         await recordCost(app, id, dollars);
     }
 
-    // Riley asks Pi to push. The guard asks, and the call waits for an answer.
+    // Riley asks the agent to push. The guard asks, and the call waits for an answer.
     void send(app, ids.login, riley, "Looks good. Push the branch, and I'll open the PR.", false);
     await until(() => app.approvals.forConversation(ids.login).length > 0, "the push to wait");
 
-    // PiP starts a session in a worktree, follows it, and reports.
-    const pip = await app.pip.ensure(riley);
+    // Pia starts a session in a worktree, follows it, and reports.
+    const pia = await app.pia.ensure(riley);
 
-    await app.commands.configure(pip, riley, {
+    await app.commands.configure(pia, riley, {
         model: { provider: "faux", modelId: "faux-1" },
         thinkingLevel: "off",
     });
     await send(
         app,
-        pip,
+        pia,
         riley,
         "Start a session in shop-web that adds a regression test for the Safari redirect, in a worktree, and tell me when it's done.",
     );
     await until(async () => {
-        const entries = await app.transcripts.allEntries(pip, true);
+        const entries = await app.transcripts.allEntries(pia, true);
 
         return entries.some(
             (entry) =>
@@ -606,7 +606,7 @@ async function stage() {
                     (block) => block.type === "text" && block.text.includes("nothing needs you"),
                 ),
         );
-    }, "PiP's report");
+    }, "Pia's report");
 
     ids.tests = app
         .sessions()
@@ -631,10 +631,10 @@ async function stage() {
     await say(sam, "Does iOS have the same problem?");
     await say(alex, "Yes. Chrome on iOS uses WebKit too, so the fix covers it.");
 
-    return { app, riley, alex, sam, ids, pip, tabs };
+    return { app, riley, alex, sam, ids, pia, tabs };
 }
 
-/** Send a message as `user`; wait for Pi's answer unless `wait` is false. */
+/** Send a message as `user`; wait for the agent's answer unless `wait` is false. */
 async function send(app: App, id: ConversationId, user: User, words: string, wait = true) {
     const { submissionId } = await app.commands.submit(id, user, {
         text: words,
@@ -766,7 +766,16 @@ async function shoot(name: string) {
 
     const out = join(OUT, `${name}.webp`);
 
-    execFileSync("magick", [file, "-quality", "82", "-define", "webp:method=6", out]);
+    try {
+        execFileSync("magick", [file, "-quality", "82", "-define", "webp:method=6", out]);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+            throw error;
+        }
+
+        execFileSync("convert", [file, "-quality", "82", "-define", "webp:method=6", out]);
+    }
+
     console.log(`${name}.webp  ${(readFileSync(out).length / 1024).toFixed(0)} KB`);
 }
 
@@ -780,16 +789,19 @@ try {
         "sign-in",
     );
 
-    // PiP, over the session Riley is in. Closing it marks what it said as seen, so its corner mark stays away later.
-    await frame(PIXEL, `/s/${ids.login}?pip=1`);
-    await seen(`return document.querySelector(".pip-panel") !== null`, "PiP's panel");
+    await page(`const { setPrefs } = await import("/theme.js"); setPrefs({ mode: "dark" });`);
+    await seen(`return document.documentElement.dataset.mode === "dark"`, "dark appearance");
+
+    // Pia, over the session Riley is in. Closing it marks what it said as seen, so its corner mark stays away later.
+    await frame(PIXEL, `/s/${ids.login}?pia=1`);
+    await seen(`return document.querySelector(".pia-panel") !== null`, "Pia's panel");
     await seen(
-        `return /nothing needs you/.test(document.querySelector(".pip-panel").textContent)`,
-        "PiP's report",
+        `return /nothing needs you/.test(document.querySelector(".pia-panel").textContent)`,
+        "Pia's report",
     );
     await toEnd();
     await shoot("pip-phone");
-    await tap("^Close", `document.querySelector(".pip-panel")`);
+    await tap("^Close", `document.querySelector(".pia-panel")`);
     await pause(600);
 
     // The session, with Lancet Guard's card waiting.
@@ -799,7 +811,7 @@ try {
     await shoot("session-phone");
 
     // The People sheet, with the side chat.
-    await tap("^Chat with");
+    await page(`const { openSheet } = await import("/store.js"); openSheet({ type: "chat" });`);
     await seen(`return /covers it/.test(document.body.textContent)`, "the side chat");
     await toEnd();
     await shoot("chat-phone");
@@ -819,7 +831,7 @@ try {
         `localStorage.setItem("pocket.peekSeen." + ${ids.dark}, String(Date.now() + 60000))`,
     );
 
-    // The desktop: a session where Pi edited a test, and the other sessions' peek tiles.
+    // The desktop: a session where the agent edited a test, and the other sessions' peek tiles.
     await frame(DESKTOP, `/s/${ids.tests}`);
     await seen(`return /4 passed/.test(document.body.textContent)`, "the test result");
     await pause(1000);

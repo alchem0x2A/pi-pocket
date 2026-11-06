@@ -7,7 +7,7 @@ import { updatePaths } from "./update-state.ts";
 
 export type InstallKind = "git" | "npm-global" | "npm-local" | "npx" | "unknown";
 
-/** Use the npm beside the Node.js that runs Pi Pocket, else the one on PATH. */
+/** Use the npm beside the Node.js that runs Pia, else the one on PATH. */
 export function npmCommand(): { file: string; shell: boolean } {
     const windows = process.platform === "win32";
     const beside = join(dirname(process.execPath), windows ? "npm.cmd" : "npm");

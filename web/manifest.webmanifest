@@ -1,7 +1,7 @@
 {
-    "name": "Pi Pocket",
-    "short_name": "Pi Pocket",
-    "description": "Durable, multiplayer Pi agents in your browser",
+    "name": "Pia",
+    "short_name": "Pia",
+    "description": "Durable, multiplayer coding sessions in your browser",
     "start_url": "/",
     "scope": "/",
     "display": "standalone",

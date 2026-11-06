@@ -360,7 +360,7 @@ export function createDocks(env) {
                     ${
                         sent &&
                         html`<span class="muted small">
-                            ${"In your message box. After Pi makes the new version, "}
+                            ${"In your message box. After the agent makes the new version, "}
                             <button
                                 type="button"
                                 class="dsn-link"
@@ -374,7 +374,7 @@ export function createDocks(env) {
                         </span>`
                     }
                     <button type="button" class="button primary" onClick=${send}>
-                        <${Ico} name="send" size=${15} /> Send ${open.length} to Pi
+                        <${Ico} name="send" size=${15} /> Send ${open.length} to the agent
                     </button>
                 </footer>`
             }`;
@@ -443,7 +443,7 @@ export function createDocks(env) {
                 edits.length > 0 &&
                 html`<footer class="dsn-dock-foot">
                     <button type="button" class="button primary" onClick=${apply}>
-                        <${Ico} name="send" size=${15} /> Apply ${edits.length} with Pi
+                        <${Ico} name="send" size=${15} /> Apply ${edits.length} with the agent
                     </button>
                 </footer>`
             }`;
@@ -565,7 +565,7 @@ export function createDocks(env) {
                                         `Add tweaks to ${design.title} (artifact \`${design.id}\`): 3 to 8 knobs for the things I would want to adjust, such as the accent color, spacing, and type size, in the design's tweaks manifest.`,
                                     )}
                             >
-                                Ask Pi for tweaks
+                                Ask the agent for tweaks
                             </button>`
                         }
                     </div>`
@@ -598,7 +598,7 @@ export function createDocks(env) {
                         )}
                         <p class="muted small dsn-note">
                             Only you see your tweaks. They stay with you for this design. “Keep
-                            these” asks Pi to write them in.
+                            these” asks the agent to write them in.
                         </p>
                     </div>`
                 }

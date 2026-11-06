@@ -1,5 +1,5 @@
-// Ask someone's browser module: "Ask someone" under Pi's answers, the Questions sheet (drafts to edit and share, links
-// waiting for an answer, and answers to give Pi), a status item while a session has any, and how ask_someone's calls
+// Ask someone's browser module: "Ask someone" under the agent's answers, the Questions sheet (drafts to edit and share, links
+// waiting for an answer, and answers to give the agent), a status item while a session has any, and how ask_someone's calls
 // show. It uses only `pocket`.
 export const pocketApi = 2;
 
@@ -28,7 +28,7 @@ function until(at) {
     return "within the hour";
 }
 
-/** The answer as a message to Pi: quoted, with who wrote it as they gave it, and as information, not orders. */
+/** The answer as a message to the agent: quoted, with who wrote it as they gave it, and as information, not orders. */
 function answerMessage(question) {
     const who = question.answer.name
         ? `Someone who gave the name "${question.answer.name.replace(/"/g, "'")}" (not checked)`
@@ -398,7 +398,7 @@ export default function setup(pocket) {
                     Delete
                 </button>
                 <button class="button primary" onClick=${give}>
-                    ${question.used ? "Give to Pi again" : "Give to Pi"}
+                    ${question.used ? "Give to the agent again" : "Give to the agent"}
                 </button>
             </div>
         </div>`;
@@ -415,8 +415,8 @@ export default function setup(pocket) {
             ${
                 list.length === 0 &&
                 html`<p class="muted">
-                    No questions yet. Under one of Pi's answers, tap Ask someone, and Pi writes a
-                    question that someone outside this chat can answer.
+                    No questions yet. Under one of the agent's answers, tap Ask someone, and the
+                    agent writes a question that someone outside this chat can answer.
                 </p>`
             }
             ${list.map((question) =>
@@ -484,7 +484,7 @@ export default function setup(pocket) {
 
     pocket.on("drafted", ({ conversation, title }) => {
         if (conversation === shown) {
-            pocket.notify("info", `Pi drafted "${title}". Review it in Questions.`);
+            pocket.notify("info", `the agent drafted "${title}". Review it in Questions.`);
         }
     });
 

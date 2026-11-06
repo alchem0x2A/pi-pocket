@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <title>Engineering · Pi Pocket</title>
+        <title>Engineering · Pia</title>
         <meta
             name="description"
-            content="How Pi Pocket is built: one Node.js process, one SQLite file through Pi Durable, and a web app with no build step. Architecture, request path, durability rules, state, extensions, and security."
+            content="How Pia is built: one Node.js process, one SQLite file through Pi Durable, and a web app with no build step. Architecture, request path, durability rules, state, extensions, and security."
         />
         <meta name="theme-color" content="#111219" media="(prefers-color-scheme: dark)" />
         <meta name="theme-color" content="#f7f8fb" media="(prefers-color-scheme: light)" />
@@ -16,11 +16,11 @@
         <link rel="stylesheet" href="style.css" />
 
         <meta property="og:type" content="article" />
-        <meta property="og:site_name" content="Pi Pocket" />
-        <meta property="og:title" content="How Pi Pocket is built" />
+        <meta property="og:site_name" content="Pia" />
+        <meta property="og:title" content="How Pia is built" />
         <meta
             property="og:description"
-            content="Architecture, request path, durability rules, state, and extensions of a self-hosted web app for the Pi coding agent."
+            content="Architecture, request path, durability rules, state, and extensions of a self-hosted app for coding sessions."
         />
         <meta property="og:url" content="https://tannermidd.github.io/pi-pocket/engineering.html" />
         <meta property="og:image" content="https://tannermidd.github.io/pi-pocket/og.png" />
@@ -31,8 +31,8 @@
 
         <header class="nav">
             <div class="wrap">
-                <a class="logo" href="./" aria-label="Pi Pocket home"
-                    ><img src="icon.svg" alt="" width="26" height="26" />Pi Pocket</a
+                <a class="logo" href="./" aria-label="Pia home"
+                    ><img src="icon.svg" alt="" width="26" height="26" />Pia</a
                 >
                 <nav class="nav-links" aria-label="Sections">
                     <a href="#architecture">Architecture</a>
@@ -40,7 +40,7 @@
                     <a href="#durability">Durability</a>
                     <a href="#state">State</a>
                     <a href="#extensions">Extensions</a>
-                    <a href="#assistant">PiP</a>
+                    <a href="#assistant">Pia</a>
                     <a href="#practices">Practices</a>
                     <span class="nav-sep" aria-hidden="true"></span>
                     <a class="nav-guide" href="durable.html"
@@ -65,13 +65,13 @@
             <section class="page-head">
                 <div class="wrap">
                     <span class="kicker">Engineering</span>
-                    <h1>How Pi Pocket <span class="grad">is built.</span></h1>
+                    <h1>How Pia <span class="grad">is built.</span></h1>
                     <p class="lead">
-                        One Node.js process, one SQLite file, and a web app with no build step. Pi
-                        Durable runs the agent and commits every step before anyone sees it. Pi
-                        Pocket adds the people, the phone, and the ways in. This page covers the
-                        parts, how a message moves through them, and the rules that keep them
-                        consistent.
+                        One Node.js process, one SQLite file, and a web app with no build step. The
+                        agent Durable runs the agent and commits every step before anyone sees it.
+                        The agent Pocket adds the people, the phone, and the ways in. This page
+                        covers the parts, how a message moves through them, and the rules that keep
+                        them consistent.
                     </p>
                     <div class="facts">
                         <span>TypeScript, no build</span>
@@ -134,7 +134,7 @@
                                     <span>rooms</span><span>commands</span><span>collab</span
                                     ><span>attribution</span><span>alerts</span><span>spend</span
                                     ><span>schedules</span><span>goals</span><span>shell</span
-                                    ><span>memory</span><span>pip</span><span>watches</span
+                                    ><span>memory</span><span>pia</span><span>watches</span
                                     ><span>hooks</span><span>providers</span>
                                 </div>
                             </div>
@@ -181,23 +181,26 @@
                                 <div class="layer-head"><b>Chromium</b><code>browser.ts</code></div>
                                 <p>
                                     One headless browser driven over the DevTools protocol through a
-                                    pipe, with a page per session that Pi's browser tool and the
-                                    Browser panel share. Started on first use.
+                                    pipe, with a page per session that the agent's browser tool and
+                                    the Browser panel share. Started on first use.
                                 </p>
                             </div>
                             <div class="layer">
-                                <div class="layer-head"><b>Pi</b><code>~/.pi/agent/</code></div>
+                                <div class="layer-head">
+                                    <b>the agent</b><code>~/.pi/agent/</code>
+                                </div>
                                 <p>
                                     Sign-ins, settings, skills, prompt templates, and project trust,
-                                    shared with the Pi command line, and Lancet Guard when it is
-                                    installed. Pi's own sessions are only read, to continue one.
+                                    shared with the agent command line, and Lancet Guard when it is
+                                    installed. The agent's own sessions are only read, to continue
+                                    one.
                                 </p>
                             </div>
                             <div class="layer">
                                 <div class="layer-head"><b>GitHub</b><code>github.ts</code></div>
                                 <p>
                                     Pull request and repository watches, webhooks' checks of who can
-                                    write to a repository, and PiP's clones use the
+                                    write to a repository, and Pia's clones use the
                                     <code>gh</code> command signed in on the server.
                                 </p>
                             </div>
@@ -218,9 +221,9 @@
                             <code>commands.ts</code>
                             <h3>Commands</h3>
                             <p>
-                                Everything people ask of Pi checks role, invite scope, and take
-                                turns first. Changes others should know about become activity lines
-                                in the session's chat.
+                                Everything people ask of the agent checks role, invite scope, and
+                                take turns first. Changes others should know about become activity
+                                lines in the session's chat.
                             </p>
                         </article>
                         <article class="card">
@@ -269,7 +272,7 @@
                         <h2>A message, start to finish.</h2>
                         <p>
                             What happens between tapping send on a phone and every open tab showing
-                            Pi's answer.
+                            The agent's answer.
                         </p>
                     </div>
                     <ol class="trace">
@@ -289,8 +292,8 @@
                                 Role, invite scope, take turns, and spend limits are checked, and a
                                 prompt template expands. The message goes into the conversation's
                                 inbox with the request id <code>u:&lt;person&gt;:&lt;id&gt;</code>,
-                                which also says who wrote it. While Pi works, it joins the run or
-                                waits as a follow-up.
+                                which also says who wrote it. While the agent works, it joins the
+                                run or waits as a follow-up.
                             </p>
                         </li>
                         <li>
@@ -338,9 +341,8 @@
                         <span class="kicker">Durability</span>
                         <h2>Rules that survive a crash.</h2>
                         <p>
-                            Pi Durable provides tasks, checkpoints, and atomic commits. Pi Pocket
-                            uses them so that a restart at any moment changes nothing anyone can
-                            see.
+                            Pi Durable provides tasks, checkpoints, and atomic commits. Pia uses
+                            them so that a restart at any moment changes nothing anyone can see.
                         </p>
                     </div>
                     <div class="grid map">
@@ -348,19 +350,19 @@
                             <code>commit, then show</code>
                             <h3>Shown once stored</h3>
                             <p>
-                                Browsers render committed state only. Pi Pocket's documents change
-                                in the same commits as the transcript, so the two never disagree
-                                after a crash.
+                                Browsers render committed state only. Pia's documents change in the
+                                same commits as the transcript, so the two never disagree after a
+                                crash.
                             </p>
                         </article>
                         <article class="card">
                             <code>request ids</code>
                             <h3>Sent once</h3>
                             <p>
-                                Every message to Pi has a request id, which also says whose work it
-                                is. A retried send, a resend, a <code>!</code> command, a scheduled
-                                message, or a watch's message sent again after a restart finds the
-                                one already there.
+                                Every message to the agent has a request id, which also says whose
+                                work it is. A retried send, a resend, a <code>!</code> command, a
+                                scheduled message, or a watch's message sent again after a restart
+                                finds the one already there.
                             </p>
                         </article>
                         <article class="card">
@@ -377,7 +379,7 @@
                             <h3>Rerun only when harmless</h3>
                             <p>
                                 A tool call cut off by a restart runs again only if running it twice
-                                is harmless, as for artifacts, schedules, memory, and PiP's tools.
+                                is harmless, as for artifacts, schedules, memory, and Pia's tools.
                                 Otherwise the model is told it was interrupted and checks what
                                 happened. A <code>!</code> command someone ran is never run twice.
                             </p>
@@ -411,8 +413,8 @@
                         <span class="kicker">State</span>
                         <h2>Where everything lives.</h2>
                         <p>
-                            Pi Pocket's documents sit beside Pi Durable's own (the transcript, the
-                            agent's settings, the inbox, the live run, usage) in
+                            Pia's documents sit beside Pi Durable's own (the transcript, the agent's
+                            settings, the inbox, the live run, usage) in
                             <code>pocket.sqlite</code>. Their kinds are stored data, so they are
                             never renamed.
                         </p>
@@ -443,8 +445,8 @@
                                 <tr>
                                     <td><code>pocket.authors</code></td>
                                     <td>
-                                        Who wrote each message to Pi, and whose work the ones sent
-                                        for people are
+                                        Who wrote each message to the agent, and whose work the ones
+                                        sent for people are
                                     </td>
                                     <td>copies, to the fork point</td>
                                 </tr>
@@ -526,30 +528,33 @@
                                     <td><code>pocket.pr-watch</code></td>
                                     <td>
                                         A session's watch of its pull request: how it stands, and
-                                        what Pi was told
+                                        what the agent was told
                                     </td>
                                     <td>starts empty</td>
                                 </tr>
                                 <tr>
                                     <td><code>pocket.pip-follows</code></td>
-                                    <td>PiP's follows, by the tool call that made each</td>
+                                    <td>Pia's follows, by the tool call that made each</td>
                                     <td>starts empty</td>
                                 </tr>
                                 <tr>
                                     <td><code>pocket.pip-asked</code></td>
-                                    <td>Which provider pays, when PiP asked its person</td>
+                                    <td>Which provider pays, when Pia asked its person</td>
                                     <td>starts empty</td>
                                 </tr>
                                 <tr>
                                     <td><code>pocket.pip-compaction</code></td>
-                                    <td>PiP's own summaries, so each one's cost counts once</td>
+                                    <td>
+                                        retired assistant-summary accounting, so each one's cost
+                                        counts once
+                                    </td>
                                     <td>starts empty</td>
                                 </tr>
                                 <tr>
                                     <td><code>pocket.memory</code></td>
                                     <td>
-                                        Lessons Pi keeps across sessions, waiting or approved. One
-                                        for the server.
+                                        Lessons the agent keeps across sessions, waiting or
+                                        approved. One for the server.
                                     </td>
                                     <td>—</td>
                                 </tr>
@@ -579,11 +584,11 @@
                             ><b>config.json</b> people, roles, hashed tokens, settings</span
                         >
                         <span class="tag"><b>push.json</b> VAPID keys, push subscriptions</span>
-                        <span class="tag"><b>uploads/</b> files sent to Pi</span>
+                        <span class="tag"><b>uploads/</b> files sent to the agent</span>
                         <span class="tag"><b>worktrees/</b> sessions' git worktrees</span>
                         <span class="tag"><b>extensions/</b> the owner's drop-ins</span>
                         <span class="tag"><b>browser/</b> the built-in browser's profile</span>
-                        <span class="tag"><b>repos/</b> clones PiP makes of repositories</span>
+                        <span class="tag"><b>repos/</b> clones Pia makes of repositories</span>
                         <span class="tag"><b>launcher.json</b> the launcher's access choice</span>
                         <span class="tag"
                             ><b>bin/</b> <code>cloudflared</code>, when the launcher downloads
@@ -606,9 +611,9 @@
                         <span class="kicker">Extensions</span>
                         <h2>Features are extensions.</h2>
                         <p>
-                            Much of what Pi Pocket adds around the agent is Pi Durable extensions:
-                            tools, hooks, prompt sections, and task definitions, installed in this
-                            order. Editing one reinstalls it in the running server.
+                            Much of what Pia adds around the agent is Pi Durable extensions: tools,
+                            hooks, prompt sections, and task definitions, installed in this order.
+                            Editing one reinstalls it in the running server.
                         </p>
                     </div>
                     <ol class="ext">
@@ -616,8 +621,8 @@
                             <code>prompt.ts</code><span class="kinds">section</span>
                             <p>
                                 The system prompt: guidelines for a phone-sized screen, the
-                                project's AGENTS.md files, Pi's skills, and the working directory.
-                                Always on.
+                                project's AGENTS.md files, the agent's skills, and the working
+                                directory. Always on.
                             </p>
                         </li>
                         <li>
@@ -627,9 +632,9 @@
                         <li>
                             <code>browser.ts</code><span class="kinds">tool · section</span>
                             <p>
-                                A real browser Pi shares with the people in a session: snapshots
-                                with element refs, clicks, typing, screenshots, the console. In plan
-                                mode it may only look.
+                                A real browser the agent shares with the people in a session:
+                                snapshots with element refs, clicks, typing, screenshots, the
+                                console. In plan mode it may only look.
                             </p>
                         </li>
                         <li>
@@ -642,14 +647,15 @@
                         <li>
                             <code>schedules.ts</code><span class="kinds">tool · task</span>
                             <p>
-                                Scheduled messages, and Pi's tool for scheduling its own follow-ups.
+                                Scheduled messages, and the agent's tool for scheduling its own
+                                follow-ups.
                             </p>
                         </li>
                         <li>
                             <code>goals.ts</code><span class="kinds">hook · section</span>
                             <p>
-                                After each final answer, runs the session's check and keeps Pi going
-                                while it fails.
+                                After each final answer, runs the session's check and keeps the
+                                agent going while it fails.
                             </p>
                         </li>
                         <li>
@@ -676,21 +682,22 @@
                         <li>
                             <code>memory.ts</code><span class="kinds">tool · section</span>
                             <p>
-                                Lessons Pi keeps across sessions. Pi proposes them with its tool;
-                                the section lists the approved ones for the session's project.
+                                Lessons the agent keeps across sessions. The agent proposes them
+                                with its tool; the section lists the approved ones for the session's
+                                project.
                             </p>
                         </li>
                         <li>
                             <code>pip.ts</code><span class="kinds">tools · section · task</span>
                             <p>
-                                PiP's tools, its prompt, and the follow task that reports when a
-                                session's run ends. Only PiP's own conversation selects it.
+                                Pia's tools, its prompt, and the follow task that reports when a
+                                session's run ends. Only Pia's own conversation selects it.
                             </p>
                         </li>
                         <li>
                             <code>triggers.ts</code><span class="kinds">tool · tasks</span>
                             <p>
-                                Pull request and repository watches, and Pi's
+                                Pull request and repository watches, and the agent's
                                 <code>watch_pr</code> tool. Webhooks need it on.
                             </p>
                         </li>
@@ -703,14 +710,14 @@
                 </div>
             </section>
 
-            <!-- PiP and triggers -->
+            <!-- Pia and triggers -->
             <section class="section" id="assistant">
                 <div class="wrap">
                     <div class="section-head">
-                        <span class="kicker">PiP and triggers</span>
+                        <span class="kicker">Pia and triggers</span>
                         <h2>Work that crosses sessions.</h2>
                         <p>
-                            PiP, watches, and webhooks act for one person, with that person's checks
+                            Pia, watches, and webhooks act for one person, with that person's checks
                             and spend limit. Like memory, each keeps what it needs in storage, so it
                             carries on after a restart.
                         </p>
@@ -718,9 +725,9 @@
                     <div class="grid map">
                         <article class="card">
                             <code>pip.ts</code>
-                            <h3>PiP's conversation</h3>
+                            <h3>Pia's conversation</h3>
                             <p>
-                                A conversation marked as PiP's and left out of every session list.
+                                A conversation marked as Pia's and left out of every session list.
                                 It selects its own extensions, without bash, write, or edit. Only
                                 its person can see it, and its tools act through the same commands
                                 as that person.
@@ -730,8 +737,8 @@
                             <code>pocket.pip-follows</code>
                             <h3>Follows</h3>
                             <p>
-                                A follow is a durable task that reports to PiP when a session's run
-                                ends. A message PiP sends has a request id made from its tool call,
+                                A follow is a durable task that reports to Pia when a session's run
+                                ends. A message Pia sends has a request id made from its tool call,
                                 so a replayed call neither sends nor follows twice.
                             </p>
                         </article>
@@ -740,9 +747,9 @@
                             <h3>Watches</h3>
                             <p>
                                 A watch is a durable task that sleeps until its next look, asks
-                                GitHub through <code>gh</code>, and stores what to tell Pi in its
-                                checkpoint before it sends. The send's request id is the task and
-                                its count, so a restart sends it once.
+                                GitHub through <code>gh</code>, and stores what to tell the agent in
+                                its checkpoint before it sends. The send's request id is the task
+                                and its count, so a restart sends it once.
                             </p>
                         </article>
                         <article class="card">
@@ -751,7 +758,7 @@
                             <p>
                                 <code>/hook/…</code> is outside <code>/api</code> and its sign-in. A
                                 post gets in only with its hook's secret or, for GitHub, a signature
-                                made with it. What it brings reaches Pi between tags, as data
+                                made with it. What it brings reaches the agent between tags, as data
                                 (<code>fence.ts</code>).
                             </p>
                         </article>
@@ -760,17 +767,18 @@
                             <h3>Memory</h3>
                             <p>
                                 One document for the app. A project is keyed by its git common
-                                folder, so a repository and its worktrees share lessons. A lesson Pi
-                                or a guest saves waits until the owner approves the text they saw.
+                                folder, so a repository and its worktrees share lessons. A lesson
+                                the agent or a guest saves waits until the owner approves the text
+                                they saw.
                             </p>
                         </article>
                         <article class="card">
                             <code>model-names.ts</code>
                             <h3>Who chooses models</h3>
                             <p>
-                                Only people do. Subagents run on their session's model, or one the
-                                owner allowed. PiP passes a model only when its person named it: in
-                                their own messages, or in a watch or webhook they set up.
+                                People choose their own models and the model for Pia. Pia can choose
+                                or switch a model for delegated work. Subagents use their session's
+                                model, or a model the owner allowed.
                             </p>
                         </article>
                     </div>
@@ -784,8 +792,8 @@
                         <span class="kicker">Security</span>
                         <h2>Narrow ways in.</h2>
                         <p>
-                            Pi runs commands as the person who started the server, so the app limits
-                            who can ask it to, and what a page or a reply can do.
+                            The agent runs commands as the person who started the server, so the app
+                            limits who can ask it to, and what a page or a reply can do.
                         </p>
                         <ul class="points">
                             <li>
@@ -825,9 +833,9 @@
                     <div class="callout">
                         <b>!</b>
                         <p>
-                            <b>Steering means shell access.</b> Anyone who can steer can make Pi run
-                            commands on the machine. Worktrees keep a session's files apart, and
-                            spend limits stop runs, but neither is a sandbox.
+                            <b>Steering means shell access.</b> Anyone who can steer can make the
+                            agent run commands on the machine. Worktrees keep a session's files
+                            apart, and spend limits stop runs, but neither is a sandbox.
                             <a href="https://github.com/TannerMidd/pi-pocket/blob/main/SECURITY.md"
                                 >SECURITY.md</a
                             >
@@ -844,7 +852,7 @@
                         <span class="kicker">Practices</span>
                         <h2>Built to be changed.</h2>
                         <p>
-                            Pi Pocket is often edited by Pi from inside itself, so its code has to
+                            Pia is often edited by the agent from inside itself, so its code has to
                             stay easy to read and safe to change while it runs.
                         </p>
                     </div>
@@ -862,9 +870,9 @@
                             <code>dependencies</code>
                             <h3>Few dependencies</h3>
                             <p>
-                                Earendil's Pi packages, pinned to the versions tested, plus Preact,
-                                htm, marked, DOMPurify, qrcode, undici, and jiti. Web Push is built
-                                in.
+                                Earendil's coding-agent packages, pinned to the versions tested,
+                                plus Preact, htm, marked, DOMPurify, qrcode, undici, and jiti. Web
+                                Push is built in.
                             </p>
                         </article>
                         <article class="card">
@@ -912,9 +920,9 @@
             <div class="wrap">
                 <div>
                     <a class="logo" href="./"
-                        ><img src="icon.svg" alt="" width="26" height="26" />Pi Pocket</a
+                        ><img src="icon.svg" alt="" width="26" height="26" />Pia</a
                     >
-                    <small>A self-hosted web app for Pi.</small>
+                    <small>A self-hosted web app for the agent.</small>
                 </div>
                 <div>
                     <nav class="footer-links" aria-label="Footer">

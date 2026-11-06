@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 export const APP_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
 /**
- * The node_modules folder with the package `name`, as Node looks for it from `from`: Pi Pocket's own, or one above
- * it, where npm puts Pi Pocket's packages in an npx or local install. Pi Pocket's own when none has it.
+ * The node_modules folder with the package `name`, as Node looks for it from `from`: Pia's own, or one above
+ * it, where npm puts Pia's packages in an npx or local install. Pia's own when none has it.
  */
 export function modulesWith(name: string, from = APP_ROOT): string {
     for (let folder = from; ;) {
@@ -29,12 +29,12 @@ export function modulesWith(name: string, from = APP_ROOT): string {
     }
 }
 
-/** Where Pi Pocket keeps its database, users, uploads, and logs. */
+/** Where Pia keeps its database, users, uploads, and logs. */
 export function dataDir(): string {
     return process.env.PI_POCKET_DIR ?? join(homedir(), ".pi-pocket");
 }
 
-/** owner: everything. guest: steers Pi (which can run commands here). viewer: reads, chats, and reacts, never steers. */
+/** owner: everything. guest: steers the agent (which can run commands here). viewer: reads, chats, and reacts, never steers. */
 export type Role = "owner" | "guest" | "viewer";
 
 export interface User {
@@ -52,7 +52,7 @@ export interface User {
      * cookie works only there, and each tunnel gets a new address, so they are removed once that tunnel is gone.
      */
     tunnel?: string;
-    /** The most Pi may spend for this person, in dollars; never for the owner. */
+    /** The most the agent may spend for this person, in dollars; never for the owner. */
     budget?: number;
 }
 
@@ -91,10 +91,8 @@ interface PocketConfig {
     enabledExtensions?: string[];
     /** "others": a guest cannot allow a risky call that their own message led to. Absent: anyone who can steer may. */
     approvals?: ApprovalRule;
-    /** The tokens of context above which PiP compacts itself once idle; 0: only as sessions do. Absent: the default. */
-    pipCompactAt?: number;
     /**
-     * The models (`provider/modelId`) Pi may start subagents on, as the owner allowed them.
+     * The models (`provider/modelId`) the agent may start subagents on, as the owner allowed them.
      * Absent or empty: none, and subagents always run on their session's model.
      */
     subagentModels?: string[];
@@ -102,7 +100,7 @@ interface PocketConfig {
     limitWaitHours?: number;
     /**
      * The owner's values for the settings extension modules declare (`web.settings`), by module and setting name. A
-     * setting with no value here has its default. Since 0.22.0; an older Pi Pocket ignores it.
+     * setting with no value here has its default. Since 0.22.0; an older Pia ignores it.
      */
     extensionSettings?: Record<string, Record<string, string | number | boolean>>;
     /**
@@ -110,9 +108,7 @@ interface PocketConfig {
      * `systemctl --user reload pi-pocket`. Absent: the launcher restarts it (exit code 75).
      */
     restartCommand?: string;
-    /** The owner's assistant profile (`pia.ts`): absent or "classic" is PiP as upstream; "pia" is the Pia profile. */
-    assistantProfile?: string;
-    /** The name the Pia profile shows; absent: "Pia". Classic stays "PiP". */
+    /** The name of the assistant; absent: "Pia". */
     assistantName?: string;
 }
 
@@ -151,8 +147,18 @@ export class ConfigStore {
 
         if (existsSync(this.file)) {
             this.#config = JSON.parse(readFileSync(this.file, "utf8")) as PocketConfig;
-            // An older Pi Pocket kept the owner's default theme here: there are no themes now, so the next save drops it.
-            delete (this.#config as { themeDefault?: unknown }).themeDefault;
+            // Retire old settings without rejecting a config written by an earlier version.
+            const old = this.#config as PocketConfig & {
+                themeDefault?: unknown;
+                assistantProfile?: unknown;
+                pipCompactAt?: unknown;
+                piaCompactAt?: unknown;
+            };
+
+            delete old.themeDefault;
+            delete old.assistantProfile;
+            delete old.pipCompactAt;
+            delete old.piaCompactAt;
         } else {
             const ownerToken = newToken();
 
@@ -261,21 +267,6 @@ export class ConfigStore {
         this.save();
     }
 
-    /** The assistant profile as stored: a value an older or newer Pi Pocket wrote is checked by `pia.ts`. */
-    get assistantProfile(): unknown {
-        return this.#config.assistantProfile;
-    }
-
-    set assistantProfile(profile: "classic" | "pia") {
-        if (profile === "classic") {
-            delete this.#config.assistantProfile;
-        } else {
-            this.#config.assistantProfile = profile;
-        }
-
-        this.save();
-    }
-
     get assistantName(): unknown {
         return this.#config.assistantName;
     }
@@ -290,22 +281,7 @@ export class ConfigStore {
         this.save();
     }
 
-    /** The owner's choice of when PiP compacts itself (`pip-compact.ts`); undefined: its default. */
-    get pipCompactAt(): number | undefined {
-        return this.#config.pipCompactAt;
-    }
-
-    set pipCompactAt(tokens: number | undefined) {
-        if (tokens === undefined) {
-            delete this.#config.pipCompactAt;
-        } else {
-            this.#config.pipCompactAt = tokens;
-        }
-
-        this.save();
-    }
-
-    /** The models Pi may start subagents on (`provider/modelId`); empty: none. */
+    /** The models the agent may start subagents on (`provider/modelId`); empty: none. */
     get subagentModels(): readonly string[] {
         const models = this.#config.subagentModels;
 

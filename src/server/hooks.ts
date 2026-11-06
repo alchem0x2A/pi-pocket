@@ -1,9 +1,9 @@
 /**
  * Webhooks: addresses other services post to (GitHub, a deploy, a monitor), each of which turns every post into a
- * message to one session's Pi, or to PiP, as the work of the person who made it. The message is their instructions,
+ * message to the agent in one session, or to Pia, as the work of the person who made it. The message is their instructions,
  * then what came, trimmed and fenced as data. A GitHub hook is signed: a post gets in only with GitHub's signature made
  * with the hook's secret (`X-Hub-Signature-256`), which is not in its address. Any other hook has the secret in its
- * address. A post goes to Pi once even when sent again (by GitHub's delivery id, or an `Idempotency-Key`); anything
+ * address. A post goes to the agent once even when sent again (by GitHub's delivery id, or an `Idempotency-Key`); anything
  * else gets a 404, as if there were no such hook. GitHub's posts about what someone outside the repository wrote (an
  * issue, a comment, a PR) are dropped, unless the hook's person made it for anyone: its people are its owner, and the
  * members and collaborators GitHub tells `gh` can write to it. The address works only where the
@@ -14,7 +14,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ConversationId } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { type Hook, HooksDoc } from "./docs.ts";
+import { assistantOwner, type Hook, HooksDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 import { attribute, clip, defang } from "./fence.ts";
 import { BRANCH_EVENTS, canWrite, MAY_WRITE, parseRepo } from "./github.ts";
@@ -30,14 +30,14 @@ const MAX_INSTRUCTIONS = 2000;
 /** Posts one hook turns into messages in an hour; past it, 429. */
 const POSTS_PER_HOUR = 30;
 
-/** The largest post taken (GitHub's pushes can be big), and how much of it Pi gets. */
+/** The largest post taken (GitHub's pushes can be big), and how much of it the agent gets. */
 export const MAX_POST = 5 * 1024 * 1024;
 const PAYLOAD_CHARS = 8000;
 
-/** How a post's content reaches Pi: fenced, so it reads as data, not as instructions. */
+/** How a post's content reaches the agent: fenced, so it reads as data, not as instructions. */
 export const PAYLOAD_OPEN = "<webhook-payload";
 export const PAYLOAD_CLOSE = "</webhook-payload>";
-/** What Pi does with a post when its hook has no instructions. */
+/** What the agent does with a post when its hook has no instructions. */
 const DEFAULT_INSTRUCTIONS =
     "Something happened that you were set up to hear about. Say in a line what it is, and whether anything needs doing.";
 
@@ -68,11 +68,11 @@ function same(a: string, b: string): boolean {
     return timingSafeEqual(left, right) && a.length === b.length;
 }
 
-/** Keys that make a service's payload long and say nothing Pi needs: ids for machines, pictures. */
+/** Keys that make a service's payload long and say nothing the agent needs: ids for machines, pictures. */
 const NOISE = /^(node_id|gravatar_id|avatar_url)$/;
-/** An address for programs rather than people: an API's, or a template to fill in. Web pages stay, so Pi can link them. */
+/** An address for programs rather than people: an API's, or a template to fill in. Web pages stay, so the agent can link them. */
 const API_ADDRESS = /^https?:\/\/(api\.|[^/]+\/api\/)|\{/;
-/** Objects Pi needs only the name of. */
+/** Objects the agent needs only the name of. */
 const BY_NAME: Record<string, string> = {
     repository: "full_name",
     organization: "login",
@@ -83,7 +83,7 @@ const BY_NAME: Record<string, string> = {
     installation: "id",
 };
 
-/** A payload without its noise: API addresses, machine ids, and objects Pi needs only the name of. */
+/** A payload without its noise: API addresses, machine ids, and objects the agent needs only the name of. */
 export function trimPayload(value: unknown, depth = 0): unknown {
     if (depth > 12) {
         return "…";
@@ -143,7 +143,7 @@ export function contentOf(post: Post): { raw: string; json?: unknown } {
     }
 }
 
-/** What Pi gets of a post's content: JSON trimmed and compact, anything else as text; fenced safely, and cut. */
+/** What the agent gets of a post's content: JSON trimmed and compact, anything else as text; fenced safely, and cut. */
 export function payloadText(content: { raw: string; json?: unknown }): string {
     const text =
         content.json === undefined ? content.raw : JSON.stringify(trimPayload(content.json));
@@ -157,7 +157,7 @@ const AUTHORED = ["comment", "review", "issue", "pull_request", "discussion"];
 /** The members and collaborators a post's write access is asked of, at most: anyone past them counts as outside. */
 const MAX_ASKED = 8;
 
-/** What Pi gets instead of the words of someone outside the repository, in a post that goes. */
+/** What the agent gets instead of the words of someone outside the repository, in a post that goes. */
 export const LEFT_OUT = "(left out: written by someone outside the repository)";
 
 /** Events about a job or a check, which do not say which repository their run came from. */
@@ -314,7 +314,7 @@ export function screen(
 
     let foreign = false;
 
-    // As deep as `trimPayload` keeps: anything deeper never reaches Pi.
+    // As deep as `trimPayload` keeps: anything deeper never reaches the agent.
     const clean = (value: unknown, depth: number): unknown => {
         if (depth > 12) {
             return value;
@@ -401,7 +401,7 @@ export class Hooks {
         app.requireSteer(user);
 
         if (app.sessionMeta(target) === undefined) {
-            throw new HttpError(400, "Webhooks message sessions, or PiP.");
+            throw new HttpError(400, "Webhooks message sessions, or Pia.");
         }
 
         // One line, without brackets: it is the label of every message the hook sends (`[via webhook <name>]`).
@@ -567,7 +567,7 @@ export class Hooks {
 
         const event = header(post, "x-github-event");
 
-        // GitHub says hello when a hook is added: a sign it works, and nothing for Pi.
+        // GitHub says hello when a hook is added: a sign it works, and nothing for the agent.
         if (event === "ping") {
             return { status: 200, message: "pong" };
         }
@@ -588,14 +588,14 @@ export class Hooks {
             );
         }
 
-        // PiP turned off keeps its hooks: they come back when it is on again.
-        if (meta.pip !== undefined && !app.pip.available(person)) {
-            throw new HttpError(503, "PiP is turned off on this server.");
+        // Pia turned off keeps its hooks: they come back when it is on again.
+        if (assistantOwner(meta) !== undefined && !app.pia.available(person)) {
+            throw new HttpError(503, "Pia is turned off on this server.");
         }
 
         const content = contentOf(post);
 
-        // What a stranger wrote in an issue, a comment, or a fork's PR is not for Pi, unless the hook's person said
+        // What a stranger wrote in an issue, a comment, or a fork's PR is not for the agent, unless the hook's person said
         // anyone: a post they started is dropped, and their words in any other post are left out.
         if (event !== undefined && hook.anyone !== true && content.json !== undefined) {
             const { writers, untold } = await this.#writers(content.json);
@@ -672,6 +672,6 @@ export class Hooks {
             }
         }, context);
 
-        return { status: 202, message: "Sent to Pi." };
+        return { status: 202, message: "Sent to the agent." };
     }
 }

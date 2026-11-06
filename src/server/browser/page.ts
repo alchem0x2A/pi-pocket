@@ -1,5 +1,5 @@
 /**
- * One conversation's page in the built-in browser: its events, screencast frames, console, and navigation, and what Pi
+ * One conversation's page in the built-in browser: its events, screencast frames, console, and navigation, and what the agent
  * and people do to it.
  */
 import { BrowserError, type Connection, type Json } from "./cdp.ts";
@@ -39,7 +39,7 @@ export type LogEntry = { seq: number; at: number; level: string; text: string; s
 
 export type Frame = { seq: number; data: Buffer; width: number; height: number };
 
-/** Where Pi points: a ref from the last snapshot, a CSS selector, visible text, or a point. */
+/** Where the agent points: a ref from the last snapshot, a CSS selector, visible text, or a point. */
 export type Target = { ref?: string; selector?: string; label?: string; x?: number; y?: number };
 
 /** One control of a page's snapshot, as data. A password field's value is `••••` when it holds one, else "". */
@@ -181,7 +181,7 @@ export class BrowserPage {
     #castTimer: NodeJS.Timeout | undefined;
     #historyTimer: NodeJS.Timeout | undefined;
     #saveTimer: NodeJS.Timeout | undefined;
-    /** Last time Pi or a person used this page; idle pages close. */
+    /** Last time the agent or a person used this page; idle pages close. */
     usedAt = Date.now();
     readonly #popups = new Map<string, NodeJS.Timeout>();
     /** Tabs already sent here or closed, until the browser says they are gone: their later updates change nothing. */
@@ -1006,7 +1006,7 @@ export class BrowserPage {
         this.#save();
     }
 
-    // ─── What Pi does ─────────────────────────────────────────────────────────
+    // ─── What the agent does ─────────────────────────────────────────────────────────
 
     async #evaluate(expression: string, timeoutMs = 15_000): Promise<Json> {
         return evaluated(
@@ -1130,7 +1130,7 @@ export class BrowserPage {
     }
 
     /**
-     * Put a person's value into a field, replacing what it holds: for values that must not go through Pi, such as a
+     * Put a person's value into a field, replacing what it holds: for values that must not go through the agent, such as a
      * password. Only into a field (an input, a text area, or an editable element); the value is not in what it returns.
      */
     async fill(target: Target, value: string): Promise<string> {

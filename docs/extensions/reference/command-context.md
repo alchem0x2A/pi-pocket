@@ -126,7 +126,7 @@ commit<T>(change: (tx: Tx) => T | Promise<T>): Promise<T>;
 
 Since 0.14.0 · Stable
 
-Changes documents in one commit: `await ctx.commit(async (tx) => …)`. It returns what `change` returns. Do work outside Pi Pocket before or after the commit, not in it.
+Changes documents in one commit: `await ctx.commit(async (tx) => …)`. It returns what `change` returns. Do work outside Pia before or after the commit, not in it.
 
 ## The result
 
@@ -142,6 +142,6 @@ Since 0.14.0 · Stable
 What a handler returns.
 
 - `{ type: "toast", level, message }`: a notice for the person who ran the command, in that tab only. `level` is `"info"`, `"warning"`, or `"error"`. A long message is cut.
-- `{ type: "card", output }`: plain text in the session where the person typed the command, for all the people who see it. Pi never gets it, and it does not change the person Pi works for. Find in session and export include it. Only the end of a long card is kept, as for a `!` command. Put no secrets in it.
+- `{ type: "card", output }`: plain text in the session where the person typed the command, for all the people who see it. The agent never gets it, and it does not change the person the agent works for. Find in session and export include it. Only the end of a long card is kept, as for a `!` command. Put no secrets in it.
 
 [Limits](limits.md#commands) gives the lengths.

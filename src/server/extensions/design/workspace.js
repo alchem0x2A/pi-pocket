@@ -495,8 +495,9 @@ export function createWorkspace(env) {
             <${Ico} name="design" size=${34} />
             <h3>No designs yet</h3>
             <p class="muted">
-                Ask Pi to design something: a prototype, a screen, a one-pager, or a slide deck. It
-                shows up here, where you can point at things, comment, tweak, and compare versions.
+                Ask the agent to design something: a prototype, a screen, a one-pager, or a slide
+                deck. It shows up here, where you can point at things, comment, tweak, and compare
+                versions.
             </p>
             ${
                 canEdit &&
@@ -623,7 +624,7 @@ export function createWorkspace(env) {
             : 1;
         const group = design ? siblingsOf(designs, design) : [];
 
-        // Pi makes a new version while the person is in the middle of something (a mode, a draft, text edits): the page they
+        // the agent makes a new version while the person is in the middle of something (a mode, a draft, text edits): the page they
         // work on stays, with the way to the new one, instead of loading under them.
         useEffect(() => {
             const before = lastLatest.current;

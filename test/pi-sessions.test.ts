@@ -1,5 +1,5 @@
-// Pi's sessions from the terminal, continued here: Pi gets the context Pi itself builds from the file, people get the
-// whole conversation, nothing Pi did runs again, the file is never written, and only the owner can do it.
+// the agent's sessions from the terminal, continued here: the agent gets the context the agent itself builds from the file, people get the
+// whole conversation, nothing the agent did runs again, the file is never written, and only the owner can do it.
 import {
     type App,
     cleanUp,
@@ -52,7 +52,7 @@ after(async () => {
     cleanUp();
 });
 
-/** Write a session as Pi does, into the folder of its project in Pi's sessions folder; its path. */
+/** Write a session as the agent does, into the folder of its project in the agent's sessions folder; its path. */
 function save(manager: SessionManager, name = "session"): string {
     const folder = join(sessions, `--${manager.getCwd().replace(/^\//, "").replace(/\//g, "-")}--`);
     const path = join(folder, `${name}.jsonl`);
@@ -69,7 +69,7 @@ function save(manager: SessionManager, name = "session"): string {
 }
 
 /**
- * A session with everything Pi writes: a name, model and thinking changes, Pi's system messages, a tool call and its
+ * A session with everything the agent writes: a name, model and thinking changes, the agent's system messages, a tool call and its
  * result, an image, a branch left with a summary, an extension's message, `!` and `!!` commands, a compaction that
  * keeps the last turns, and context edits that replace one message and leave one out.
  */
@@ -79,7 +79,7 @@ function rich(cwd = work): SessionManager {
     manager.appendModelChange("faux", "faux-1");
     manager.appendThinkingLevelChange("off");
     manager.appendSessionInfo("Fix the checkout total");
-    manager.appendMessage({ role: "system", content: "Pi's own prompt", timestamp: 1 });
+    manager.appendMessage({ role: "system", content: "the agent's own prompt", timestamp: 1 });
     manager.appendMessage({
         role: "user",
         content: [{ type: "text", text: "The total is off by a cent." }, image],
@@ -140,15 +140,15 @@ function rich(cwd = work): SessionManager {
     manager.appendMessage(fauxAssistantMessage([fauxText("Round half to even.")]));
     manager.appendContextEdit(long, { content: "A short answer." });
     manager.appendContextEdit(noise, null);
-    // Pi's model is the last one picked or answering: picked last here.
+    // the agent's model is the last one picked or answering: picked last here.
     manager.appendModelChange("faux", "faux-2");
 
     return manager;
 }
 
 /**
- * What Pi in the terminal sends the model for this session, Pi's own system messages left out. A reply that failed or
- * was stopped is in Pi's context but never sent: pi-ai's `transformMessages` drops it from every request, as Pi
+ * What the agent in the terminal sends the model for this session, the agent's own system messages left out. A reply that failed or
+ * was stopped is in the agent's context but never sent: pi-ai's `transformMessages` drops it from every request, as the agent
  * Durable leaves it out of the context.
  */
 function piContext(path: string): Message[] {
@@ -164,7 +164,7 @@ function piContext(path: string): Message[] {
     );
 }
 
-/** What this session sends the model before Pi Pocket's own prompt joins it. */
+/** What this session sends the model before Pia's own prompt joins it. */
 async function pocketContext(id: ConversationId): Promise<Message[]> {
     const view = await (await app.harness.conversation(id, context))!.context(context);
 
@@ -183,7 +183,7 @@ async function shown(id: ConversationId) {
     return [...page.items].reverse();
 }
 
-test("Pi gets the context Pi builds from the file; people get the whole conversation", async () => {
+test("the agent gets the context the agent builds from the file; people get the whole conversation", async () => {
     const path = save(rich());
     const { id } = await app.commands.continuePiSession(owner(app), path);
     const expected = piContext(path);
@@ -194,11 +194,11 @@ test("Pi gets the context Pi builds from the file; people get the whole conversa
     const entries = await shown(id);
     const texts = JSON.stringify(entries.map((entry) => entry.model ?? []));
 
-    // Before the compaction, for people only; Pi's system messages and the `!!` command for nobody.
+    // Before the compaction, for people only; the agent's system messages and the `!!` command for nobody.
     assert.match(texts, /The total is off by a cent/);
     assert.match(texts, /Tried doubles/);
-    assert.match(texts, /Changing th/, "a stopped reply shows, as it does in Pi");
-    assert.doesNotMatch(texts, /Pi's own prompt/);
+    assert.match(texts, /Changing th/, "a stopped reply shows, as it does in the agent");
+    assert.doesNotMatch(texts, /the agent's own prompt/);
     assert.doesNotMatch(texts, /git status/);
     assert.ok(entries.some((entry) => entry.kind === "pi.compaction"));
     assert.equal(app.sessionMeta(id)?.title, "Fix the checkout total");
@@ -209,7 +209,7 @@ test("Pi gets the context Pi builds from the file; people get the whole conversa
     assert.deepEqual(await pocketContext(id), expected);
 });
 
-test("it continues with the session's model and folder, and Pi answers with the history", async () => {
+test("it continues with the session's model and folder, and the agent answers with the history", async () => {
     const path = save(rich(), "continued");
     const { id } = await app.commands.continuePiSession(owner(app), path);
     const agent = await (await app.harness.conversation(id, context))!.agent(context);
@@ -218,7 +218,7 @@ test("it continues with the session's model and folder, and Pi answers with the 
     assert.equal(agent.cwd, work);
     await say(app, id, "Carry on");
     assert.match(JSON.stringify(requested), /Round half to even/);
-    assert.match(JSON.stringify(requested), /A short answer/, "with Pi's context edit");
+    assert.match(JSON.stringify(requested), /A short answer/, "with the agent's context edit");
     assert.doesNotMatch(JSON.stringify(requested), /A long answer/);
     assert.match(lastText({ messages: requested } as never).text, /Carry on/);
 });
@@ -241,12 +241,12 @@ test("a tool call that never finished does not run: it gets a result saying so",
 
     assert.equal(results.length, 1);
     assert.equal(results[0]!.isError, true);
-    assert.match(JSON.stringify(results[0]!.content), /Not run: the Pi session ended/);
+    assert.match(JSON.stringify(results[0]!.content), /Not run: the agent session ended/);
     await say(app, id, "What happened?");
     assert.equal(existsSync(marker), false);
 });
 
-test("Pi's files are only read: one cut off mid-line stays as it is", async () => {
+test("the agent's files are only read: one cut off mid-line stays as it is", async () => {
     const path = save(rich(), "cut");
     const whole = readFileSync(path, "utf8");
     const cut = whole + '{"type":"message","id":"half';
@@ -260,7 +260,7 @@ test("Pi's files are only read: one cut off mid-line stays as it is", async () =
     assert.deepEqual(await pocketContext(id), piContext(path));
 });
 
-test("only files Pi lists, from a Pi this one knows, in a folder that is there", async () => {
+test("only files the agent lists, from an agent this one knows, in a folder that is there", async () => {
     const outside = join(root, "elsewhere.jsonl");
 
     writeFileSync(outside, readFileSync(save(rich(), "copy"), "utf8"));
@@ -272,7 +272,7 @@ test("only files Pi lists, from a Pi this one knows, in a folder that is there",
 
     lines[0] = JSON.stringify({ ...JSON.parse(lines[0]!), version: 99 });
     writeFileSync(newer, lines.join("\n"));
-    await assert.rejects(app.commands.continuePiSession(owner(app), newer), /newer Pi/);
+    await assert.rejects(app.commands.continuePiSession(owner(app), newer), /newer the agent/);
 
     const gone = save(rich(join(root, "deleted-project")), "gone");
 
@@ -280,7 +280,7 @@ test("only files Pi lists, from a Pi this one knows, in a folder that is there",
     await assert.rejects(app.commands.continuePiSession(owner(app), gone), /is not there/);
 });
 
-test("only the owner can list, look at, or continue Pi's sessions", async () => {
+test("only the owner can list, look at, or continue the agent's sessions", async () => {
     const path = save(rich(), "owners");
     const server = createServer(
         createHandler({ app, listen: { host: "127.0.0.1", port: 0 }, restart: () => {} }),
@@ -321,7 +321,7 @@ test("only the owner can list, look at, or continue Pi's sessions", async () => 
     }
 });
 
-test("two compactions, the second keeping messages from before the first: Pi's context still", async () => {
+test("two compactions, the second keeping messages from before the first: the agent's context still", async () => {
     const manager = SessionManager.inMemory(work);
 
     manager.appendMessage({ role: "user", content: "one", timestamp: 1 });
@@ -377,7 +377,7 @@ test("a message without content, as old or edited files have, reads; its session
     assert.equal(read.entries.length, 2);
 });
 
-test("a tool result without its call: Pi would send it, providers refuse it, Pi Pocket leaves it out", async () => {
+test("a tool result without its call: the agent would send it, providers refuse it, Pia leaves it out", async () => {
     const manager = SessionManager.inMemory(work);
 
     manager.appendMessage({ role: "user", content: "look", timestamp: 1 });

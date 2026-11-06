@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Pi Pocket server. Run it through `bin/pi-pocket.js`, which restarts it when the app asks to (exit code 75).
+ * Pia server. Run it through `bin/pi-pocket.js`, which restarts it when the app asks to (exit code 75).
  *
  *   node bin/pi-pocket.js [--host 127.0.0.1] [--port 8787] [--cwd DIR] [--data DIR] [--rotate-token]
  *
@@ -156,7 +156,7 @@ const server = createServer((request, response) => {
         "retry-after": "2",
         "cache-control": "no-store",
     });
-    response.end("Pi Pocket is starting…");
+    response.end("Pia is starting…");
 });
 
 // The whole request must arrive within this: long enough for a 50 MB upload on a slow phone connection. Event streams
@@ -179,7 +179,7 @@ try {
 
     console.error(
         code === "EADDRINUSE"
-            ? `Port ${options.port} is already in use on ${options.host}. Is Pi Pocket already running? Pick another with --port.`
+            ? `Port ${options.port} is already in use on ${options.host}. Is Pia already running? Pick another with --port.`
             : `Could not listen on ${options.host}:${options.port}: ${(error as Error).message}`,
     );
     process.exit(CONFIG_ERROR_CODE);
@@ -196,7 +196,7 @@ const opened = await App.open({
     dataDir: options.data,
     defaultCwd: options.cwd,
     supervised: process.env.PI_POCKET_SUPERVISED === "1",
-    // For updates of Pi Pocket itself, which restart the server once the new version is in place.
+    // For updates of Pia itself, which restart the server once the new version is in place.
     restart: () => void stop(RESTART_CODE),
 });
 
@@ -234,7 +234,7 @@ const token = encodeURIComponent(opened.config.ownerToken);
 // An update this process started for is done only now: a start that fails before here, the launcher undoes. One that
 // stopped part way is put back, and the server restarts on the files before.
 await opened.updates.recover().catch((error: unknown) => {
-    console.error(`Pi Pocket could not finish its update: ${(error as Error).message}`);
+    console.error(`Pia could not finish its update: ${(error as Error).message}`);
 });
 
 if (launcher) {
@@ -259,7 +259,7 @@ if (launcher) {
         }
     }
 
-    console.log("\nPi Pocket is running.");
+    console.log("\nPia is running.");
     console.log(`  data:     ${options.data}`);
     console.log(`  sessions: new sessions start in ${options.cwd}`);
     console.log(

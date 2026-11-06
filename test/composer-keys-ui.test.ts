@@ -162,19 +162,19 @@ test(
 );
 
 test("a taken app key opens neither a sheet nor the launcher, in both boxes", real, async () => {
-    for (const where of ["session", "pip"]) {
-        if (where === "pip") {
-            await inPage(`(await import("/pip.js")).openPip(); return "null"`);
+    for (const where of ["session", "pia"]) {
+        if (where === "pia") {
+            await inPage(`(await import("/pip.js")).openPia(); return "null"`);
             await until(
                 () =>
                     inPage<boolean>(
-                        `return JSON.stringify(Boolean(document.querySelector(".pip-composer textarea")))`,
+                        `return JSON.stringify(Boolean(document.querySelector(".pia-composer textarea")))`,
                     ),
-                "PiP's box",
+                "Pia's box",
             );
         }
 
-        const selector = where === "pip" ? ".pip-composer textarea" : ".composer textarea";
+        const selector = where === "pia" ? ".pia-composer textarea" : ".composer textarea";
 
         for (const init of [
             { key: "n", code: "KeyN", altKey: true },
@@ -198,7 +198,7 @@ test("a taken app key opens neither a sheet nor the launcher, in both boxes", re
     }
 
     assert.equal(await inPage<number>(`return JSON.stringify(globalThis.conflicts)`), 4);
-    await inPage(`(await import("/pip.js")).closePip(); return "null"`);
+    await inPage(`(await import("/pip.js")).closePia(); return "null"`);
 });
 
 test("the Keyboard shortcuts sheet lists the modules' keys", real, async () => {

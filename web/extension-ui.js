@@ -33,7 +33,7 @@ import {
     panelsBeside,
     store,
 } from "./store.js";
-import { askPipFrom } from "./pip.js";
+import { askPiaFrom } from "./pip.js";
 import { fromExtensions, SLOTS, slotsChanged } from "./slots.js";
 import { setCallSummary } from "./turns.js";
 import {
@@ -80,7 +80,7 @@ const KINDS = [
 const OPENS = ["page", "sheet", "panel"];
 /** The event core sends a module's tabs when the owner changes its settings (`app.setExtensionSettings`). */
 const SETTINGS_EVENT = "pocket:settings";
-/** The most text `pocket.insertText` puts into the message box at once, and `pocket.pip.ask` gives PiP. */
+/** The most text `pocket.insertText` puts into the message box at once, and `pocket.pia.ask` gives Pia. */
 const INSERT_MAX = 100_000;
 /** The most of a message's text `pocket.messages` gives, and the most messages in a page. */
 const MESSAGE_TEXT = 1000;
@@ -826,6 +826,25 @@ function pocketFor(record) {
     // A page or sheet opened or closed shows at once: it counts toward bounds of its own.
     const change = () => live() && chargeOpen(record);
 
+    const askAssistant = (text, options) => {
+        tick(record);
+
+        if (typeof text !== "string" || text.trim() === "" || text.length > INSERT_MAX) {
+            throw new Error(`pocket.pia.ask: give it text, up to ${INSERT_MAX} characters`);
+        }
+
+        if (!live()) {
+            return Promise.resolve({
+                ok: false,
+                reason: "This version of the module is not loaded",
+            });
+        }
+
+        return askPiaFrom(`the extension “${record.title}”`, text, options?.send === true);
+    };
+
+    const assistantApi = Object.freeze({ ask: askAssistant });
+
     /** Add something, or replace what has its id; what comes back changes or removes it. */
     const add = (kind, spec) => {
         tick(record);
@@ -1149,25 +1168,9 @@ function pocketFor(record) {
                 insertIntoComposer(text, [], { inline: options?.inline === true });
             }
         },
-        pip: Object.freeze({
-            /** Give PiP text as the person's message: in its box to review, or sent after a tap (`askPipFrom`). */
-            ask(text, options) {
-                tick(record);
-
-                if (typeof text !== "string" || text.trim() === "" || text.length > INSERT_MAX) {
-                    throw new Error(`pocket.pip.ask: give it text, up to ${INSERT_MAX} characters`);
-                }
-
-                if (!live()) {
-                    return Promise.resolve({
-                        ok: false,
-                        reason: "This version of the module is not loaded",
-                    });
-                }
-
-                return askPipFrom(`the extension “${record.title}”`, text, options?.send === true);
-            },
-        }),
+        pia: assistantApi,
+        // Existing browser modules can keep using the old extension API name.
+        pip: assistantApi,
         /**
          * Hide or reorder a slot's items, the app's own too, for the people who load this module: what a person chooses
          * in Appearance → Layout wins. Again for the same slot replaces it; `remove` takes it back.
@@ -1357,7 +1360,7 @@ function pocketFor(record) {
 /**
  * A copy of what `pocket.toolCall` was given, once it holds; null from a server that does not say which tools are the
  * module's, where calls keep the default display. A module describes only the tools its own module installs, by the
- * very names Pi runs them by, so it never changes how another's calls show (a command shown as something else).
+ * very names the agent runs them by, so it never changes how another's calls show (a command shown as something else).
  */
 function toolCallOf(record, spec) {
     if (typeof spec !== "object" || spec === null) {
@@ -2245,7 +2248,7 @@ function composerItems() {
 }
 
 /**
- * The actions that extensions added under Pi's answers, before More. Each gets the answer as `{ id, text,
+ * The actions that extensions added under the agent's answers, before More. Each gets the answer as `{ id, text,
  * conversationId }`: its run as an argument, its sheet as the prop `reply`.
  */
 function replyItems() {
@@ -2588,7 +2591,7 @@ export function ExtensionPage() {
     // heard it. Not while a character is being composed (an input method's Esc cancels that).
     useEffect(() => {
         const onKey = (event) => {
-            const { sheet, launcher, pipOpen } = store.state;
+            const { sheet, launcher, piaOpen } = store.state;
 
             if (
                 event.key === "Escape" &&
@@ -2597,7 +2600,7 @@ export function ExtensionPage() {
                 !event.defaultPrevented &&
                 !sheet &&
                 !launcher &&
-                !pipOpen &&
+                !piaOpen &&
                 !keepsEscape.current
             ) {
                 event.preventDefault();

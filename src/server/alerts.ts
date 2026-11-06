@@ -1,11 +1,11 @@
 /**
- * Push notifications: who hears about what, and when. Pi finished, Pi needs approval, mentions, and chat messages go
+ * Push notifications: who hears about what, and when. The agent finished, the agent needs approval, mentions, and chat messages go
  * to the people who take part in a session, unless they are looking at it or turned that kind off.
  */
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { ConversationId } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
-import { AuthorsDoc, ChatDoc } from "./docs.ts";
+import { assistantOwner, AuthorsDoc, ChatDoc } from "./docs.ts";
 import { describe } from "./errors.ts";
 import { entryText, projectEntry, snippet } from "./projection.ts";
 import { span, type WaitView } from "./limit-gate.ts";
@@ -13,7 +13,7 @@ import type { PushMessage, PushPrefs } from "./push.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** How long a run must stay finished before "Pi finished" is pushed: a queued follow-up often starts right away. */
+/** How long a run must stay finished before "the agent finished" is pushed: a queued follow-up often starts right away. */
 const DONE_DELAY_MS = 3000;
 /**
  * A call is offered for allowing from a notification only when all of it shows there, collapsed: one short line. A
@@ -66,7 +66,7 @@ export class Alerts {
         });
     }
 
-    /** A run started or ended. "Pi finished" goes out once it has stayed finished for a moment. */
+    /** A run started or ended. "the agent finished" goes out once it has stayed finished for a moment. */
     runChanged(id: ConversationId, busy: boolean): void {
         clearTimeout(this.#doneTimers.get(id));
         this.#doneTimers.delete(id);
@@ -110,25 +110,25 @@ export class Alerts {
 
         const title = await app.conversationTitle(id);
         const failed = last.stopReason === "error";
-        // PiP's answers open its panel, over whatever the app shows, rather than a session.
-        const pip = app.sessionMeta(id)?.pip !== undefined;
+        // Pia's answers open its panel, over whatever the app shows, rather than a session.
+        const pia = assistantOwner(app.sessionMeta(id)) !== undefined;
         const message: PushMessage = {
-            title: pip
+            title: pia
                 ? title
                 : failed
-                  ? `Pi stopped with an error · ${title}`
-                  : `Pi finished · ${title}`,
+                  ? `the agent stopped with an error · ${title}`
+                  : `the agent finished · ${title}`,
             body: snippet(
                 failed ? (last.error ?? "The model request failed.") : entryText(last) || "Done.",
                 400,
             ),
-            url: pip ? "/?pip=1" : `/s/${String(id)}`,
+            url: pia ? "/?pip=1" : `/s/${String(id)}`,
             tag: `done-${String(id)}`,
         };
 
         for (const userId of await this.participants(id)) {
-            // Their PiP follows this run and tells them what came of it: one notification, not two.
-            if (!pip && (await app.pip.reportsOn(id, userId).catch(() => false))) {
+            // Their Pia follows this run and tells them what came of it: one notification, not two.
+            if (!pia && (await app.pia.reportsOn(id, userId).catch(() => false))) {
                 continue;
             }
 
@@ -138,7 +138,7 @@ export class Alerts {
 
     /**
      * A run began to wait a long while for its provider's limit to clear: one push to the people in its session, who may
-     * want to come back at the time, or stop it. When the run ends, "Pi finished" goes as always.
+     * want to come back at the time, or stop it. When the run ends, "the agent finished" goes as always.
      */
     limitWait(conversationId: number, view: WaitView): void {
         const app = this.#app;
@@ -151,14 +151,17 @@ export class Alerts {
 
         void (async () => {
             const title = await app.conversationTitle(root);
-            const who = app.sessionMeta(root)?.pip === undefined ? "" : "PiP: ";
+            const who = assistantOwner(app.sessionMeta(root)) === undefined ? "" : "Pia: ";
             const message: PushMessage = {
                 title: `Waiting for a usage limit · ${who}${title}`,
                 body: snippet(
-                    `${view.reason}. Pi tries again in ${span(view.until - Date.now())} and goes on by itself. Open the session to try now or stop.`,
+                    `${view.reason}. The agent tries again in ${span(view.until - Date.now())} and goes on by itself. Open the session to try now or stop.`,
                     400,
                 ),
-                url: app.sessionMeta(root)?.pip === undefined ? `/s/${String(root)}` : "/?pip=1",
+                url:
+                    assistantOwner(app.sessionMeta(root)) === undefined
+                        ? `/s/${String(root)}`
+                        : "/?pip=1",
                 tag: `limit-${String(root)}`,
             };
 
@@ -212,7 +215,7 @@ export class Alerts {
                                 approval.conversationId,
                                 "approval",
                                 {
-                                    title: `Pi asks you · ${title}`,
+                                    title: `the agent asks you · ${title}`,
                                     body: snippet(approval.form.title, 400),
                                     url: `/s/${String(approval.conversationId)}`,
                                     tag: `approval-${approval.id}`,
@@ -225,7 +228,7 @@ export class Alerts {
                     }
 
                     const message: PushMessage = {
-                        title: `Pi needs approval · ${title}`,
+                        title: `the agent needs approval · ${title}`,
                         body: snippet(call, 400),
                         url: `/s/${String(approval.conversationId)}`,
                         tag: `approval-${approval.id}`,
@@ -241,7 +244,7 @@ export class Alerts {
         }
     }
 
-    /** People who take part in a session: whoever started it, wrote to Pi, or chatted there. */
+    /** People who take part in a session: whoever started it, wrote to the agent, or chatted there. */
     async participants(id: ConversationId): Promise<Set<string>> {
         const app = this.#app;
         const root = app.rootOf(id);

@@ -7,18 +7,7 @@ import { canSteer, navigate, openSheet, scoped, store, workspaceOrder } from "./
 import { modeLabel, prefs } from "./theme.js";
 import { html, Icon, Keys, shortPath, timeAgo } from "./ui.js";
 
-const LOGO = [
-    "▗▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▖",
-    "▝▀▀▀▜██▀▀▀▀▀▀██▛▀▀▀▘",
-    "    ▐██      ██▌   ",
-    "    ▐██      ██▌   ",
-    "    ▐██      ██▌   ",
-    "    ▐██      ██▌   ",
-    "   ▗██▘      ▝██▄▖ ",
-    "  ▝▀▀          ▀▀▀▘",
-].join("\n");
-
-/** The home screen on wide screens: what fastfetch shows for a machine, for this Pi Pocket. */
+/** The home screen on wide screens: what fastfetch shows for a machine, for this Pia. */
 export function Splash() {
     const { me, sessions, models, server, guard } = store.state;
     const p = prefs();
@@ -99,10 +88,12 @@ export function Splash() {
 
     return html`<div class="splash" data-part="home" ref=${splash}>
         <div class="fetch" data-part="home-facts">
-            <pre class="fetch-logo" data-part="home-logo" aria-hidden="true">${LOGO}</pre>
+            <div class="fetch-logo" data-part="home-logo" aria-hidden="true">
+                <${Icon} name="pia" size=${112} />
+            </div>
             <div class="fetch-info">
                 <div class="fetch-title" data-part="home-title" style=${`--i:${line++}`}>
-                    <b>${(me?.name ?? "you").toLowerCase().replace(/\s+/g, "-")}</b>@<b>pi-pocket</b>
+                    <b>${(me?.name ?? "you").toLowerCase().replace(/\s+/g, "-")}</b>@<b>pia</b>
                 </div>
                 ${rows.map(
                     ([key, value]) => html`<dl

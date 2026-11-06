@@ -1,8 +1,8 @@
 # Release notes
 
-How to write the notes of a Pi Pocket release. They go in the release pull request's description and, unchanged, in the GitHub release.
+How to write the notes of a Pia release. They go in the release pull request's description and, unchanged, in the GitHub release.
 
-The notes are for people who run Pi Pocket, and some of them read on a phone. Each release answers these questions in this order:
+The notes are for people who run Pia, and some of them read on a phone. Each release answers these questions in this order:
 
 1. Must I do anything before or after I update?
 2. What is new or better for me?
@@ -17,7 +17,7 @@ The notes are for people who run Pi Pocket, and some of them read on a phone. Ea
 - **Credit at the end of the bullet**, in parentheses: `(#139, by @vitalNohj)`. For an issue that a person reported: `(#131, reported by @vitalNohj)`. Use "Fixes #N" where the release pull request should close the issue.
 - **Leave out empty sections.** A small release can be a few bullets and the update steps.
 - **Put anything one-way or risky in a `[!WARNING]` alert** at the top. Put needed steps (`npm install`, a restart) in a `[!IMPORTANT]` alert.
-- **Pi reads the warning.** The app never installs or merges a release: the owner merges by hand. A migration session reports what it changes, and its first message asks Pi to look for a `[!WARNING]` alert and steps to do by hand. So put every step that a person must do by hand, or that cannot be undone, in that alert.
+- **the agent reads the warning.** The app never installs or merges a release: the owner merges by hand. A migration session reports what it changes, and its first message asks the agent to look for a `[!WARNING]` alert and steps to do by hand. So put every step that a person must do by hand, or that cannot be undone, in that alert.
 - **Keep the review story short and folded** in a `<details>` block. Always say what was not tested.
 
 ## The template
@@ -81,4 +81,4 @@ The notes are for people who run Pi Pocket, and some of them read on a phone. Ea
 
 ### The title
 
-`Pi Pocket A.B.C: <2 to 4 headline changes, in plain words>`, under about 80 characters.
+`Pia A.B.C: <2 to 4 headline changes, in plain words>`, under about 80 characters.

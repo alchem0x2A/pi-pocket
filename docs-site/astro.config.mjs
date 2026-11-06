@@ -1,4 +1,4 @@
-// Pi Pocket's docs: Starlight, at https://tannermidd.github.io/pi-pocket/docs/, beside the product site (site/).
+// Pia's docs: Starlight, at https://tannermidd.github.io/pi-pocket/docs/, beside the product site (site/).
 import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig } from "astro/config";
@@ -41,13 +41,13 @@ export default defineConfig({
         processor: satteri({ mdastPlugins: [repoMarkdown] }),
     },
     vite: {
-        // Pages and components get Pi Pocket's version this way: what they import is bundled, away from the repo.
+        // Pages and components get Pia's version this way: what they import is bundled, away from the repo.
         define: { __POCKET_VERSION__: JSON.stringify(VERSION) },
         server: { fs: { allow: [REPO] } },
     },
     integrations: [
         {
-            // A copy of the public types beside the docs, for editors outside a Pi Pocket: /pi-pocket/docs/pocket.d.ts.
+            // A copy of the public types beside the docs, for editors outside a Pia: /pi-pocket/docs/pocket.d.ts.
             name: "pocket-types",
             hooks: {
                 "astro:build:done": ({ dir }) => {
@@ -60,9 +60,9 @@ export default defineConfig({
             },
         },
         starlight({
-            title: "Pi Pocket docs",
+            title: "Pia docs",
             description:
-                "Extend Pi Pocket: give Pi tools, rules, and checks, and add pages, buttons, and commands to the app.",
+                "Extend Pia: give the agent tools, rules, and checks, and add pages, buttons, and commands to the app.",
             logo: { src: "./public/icon.svg", alt: "" },
             favicon: "/icon.svg",
             social: [

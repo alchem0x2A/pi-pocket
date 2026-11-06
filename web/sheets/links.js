@@ -73,7 +73,7 @@ export function LinksSheet() {
 
     return html`<${Sheet} title="Links" onClose=${closeSheet} wide=${true} className="links-sheet">
         <div class="links-tools">
-            <p class="muted">Network links open in a new tab. Loopback-only services open in Pi Pocket Browser.</p>
+            <p class="muted">Network links open in a new tab. Loopback-only services open in Pia Browser.</p>
             <button class="button small" disabled=${loading} onClick=${refresh}>
                 <${Icon} name="reload" size=${14} />
                 Refresh
@@ -109,7 +109,7 @@ export function LinksSheet() {
                                           disabled=${!canOpenServerLocal}
                                           title=${
                                               canOpenServerLocal
-                                                  ? "Open in Pi Pocket's server-side browser"
+                                                  ? "Open in Pia's server-side browser"
                                                   : "Open a session with the Browser enabled first"
                                           }
                                           onClick=${() => {
@@ -118,7 +118,7 @@ export function LinksSheet() {
                                           }}
                                           key=${`${link.network}:${link.host}`}
                                       >
-                                          Pi Pocket Browser
+                                          Pia Browser
                                           <${Icon} name="globe" size=${13} />
                                       </button>`
                                     : html`<a

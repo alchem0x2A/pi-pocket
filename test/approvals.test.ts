@@ -20,7 +20,7 @@ import type { User } from "../src/server/config.ts";
 import { AuthorsDoc, SubagentsDoc } from "../src/server/docs.ts";
 import type { PushMessage } from "../src/server/push.ts";
 
-/** Asked to, Pi starts a helper subagent, which takes two seconds over its work; anything else is echoed. */
+/** Asked to, the agent starts a helper subagent, which takes two seconds over its work; anything else is echoed. */
 const route: FauxResponseStep = (request) => {
     const { role, text } = lastText(request as never);
     const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
@@ -50,7 +50,7 @@ after(async () => {
     cleanUp();
 });
 
-/** Send a message as `user` and wait for the answer, so they are the one who asked for what Pi does next. */
+/** Send a message as `user` and wait for the answer, so they are the one who asked for what the agent does next. */
 async function sayAs(user: User, id: ConversationId, text: string): Promise<void> {
     const { submissionId } = await app.commands.submit(id, user, {
         text,
@@ -185,7 +185,7 @@ test("who asked is fixed when the call asks, a subagent works for whoever its pa
         assert.equal(await app.answerApproval(delegated.request.id, true, bea), true);
         await delegated.answered;
 
-        // Bea sends Alex's message again: what Pi does with it is on Bea.
+        // Bea sends Alex's message again: what the agent does with it is on Bea.
         const page = await (await app.harness.conversation(id, context))!.entries(
             {},
             50,
@@ -210,7 +210,7 @@ test("who asked is fixed when the call asks, a subagent works for whoever its pa
     }
 });
 
-test("whose work Pi does survives a crash before it was written down, and when nobody is known only the owner may allow", async () => {
+test("whose work the agent does survives a crash before it was written down, and when nobody is known only the owner may allow", async () => {
     const alex = app.config.addUser("Alex C", "guest").user;
     const bea = app.config.addUser("Bea C", "guest").user;
 
@@ -335,7 +335,7 @@ test("an approval notification offers Allow only to people who may allow, and on
     const notify = store.notify;
     const subscriptions = store.subscriptions;
 
-    // Approval pushes only: a "Pi finished" push may come along at any time.
+    // Approval pushes only: a "the agent finished" push may come along at any time.
     store.notify = async (userId: string, message: PushMessage) => {
         if (message.approval !== undefined) {
             sent.push({ userId, message });

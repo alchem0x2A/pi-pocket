@@ -24,7 +24,7 @@ import {
 } from "../ui.js";
 import { memoryAvailable } from "./memory.js";
 
-/** The message to Pi a reply answers: the newest one before it. */
+/** The message to the agent a reply answers: the newest one before it. */
 function promptBefore(entryId) {
     const { view } = store.state;
 
@@ -78,7 +78,7 @@ function useFocus(ref, shown) {
     }, [shown]);
 }
 
-/** Send a message to Pi again in a fork: with this session's model, or another one. */
+/** Send a message to the agent again in a fork: with this session's model, or another one. */
 function SendAgain({ prompt, worktree }) {
     const { models, view } = store.state;
     const [choosing, setChoosing] = useState(false);
@@ -146,7 +146,7 @@ export function MessageSheet({ entryId }) {
 
     // Forks are new sessions: who may start one may fork.
     const canBranch = canSteer() && !scoped() && view.conversation?.kind === "session";
-    // A message to Pi (from anyone), or one of its replies.
+    // A message to the agent (from anyone), or one of its replies.
     const toPi = entry.kind === "user";
     const text = toPi ? writtenText(entry) : replyText(entry);
     // A message of files alone has no words: its preview says so, and there is nothing to copy or remember.
@@ -164,7 +164,7 @@ export function MessageSheet({ entryId }) {
     if (draft !== null) {
         return html`<${Sheet} title="Edit and send again" onClose=${closeSheet}>
             <p class="muted small">
-                Pi gets the edited message in a new session that forks just before the original. The original stays as it is.
+                The agent gets the edited message in a new session that forks just before the original. The original stays as it is.
             </p>
             <textarea
                 ref=${field}
@@ -211,7 +211,7 @@ export function MessageSheet({ entryId }) {
                 item(
                     "Remember…",
                     () => openSheet({ type: "memory", draft: lessonFrom(text) }),
-                    "keep it as a lesson for Pi",
+                    "keep it as a lesson for the agent",
                 )
             }
             ${!filesAlone && item("Copy text", copy)}

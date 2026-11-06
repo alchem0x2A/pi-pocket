@@ -63,7 +63,7 @@ after(async () => {
 const entries = (id: Parameters<App["transcripts"]["fullEntry"]>[0]): Promise<ClientEntry[]> =>
     app.transcripts.history(id, Number.MAX_SAFE_INTEGER);
 
-test("`!` runs a command in the session's folder and Pi sees it; `!!` shows it to people only", async () => {
+test("`!` runs a command in the session's folder and the agent sees it; `!!` shows it to people only", async () => {
     const id = await newSession(app, folder);
 
     writeFileSync(join(folder, "hello.txt"), "hi from the file\n");
@@ -84,11 +84,11 @@ test("`!` runs a command in the session's folder and Pi sees it; `!!` shows it t
 
     assert.match(seen, /hi from the file/);
     assert.doesNotMatch(seen, /secret/);
-    assert.doesNotMatch(seen, /u001b/, "Pi sees no terminal escape codes");
+    assert.doesNotMatch(seen, /u001b/, "the agent sees no terminal escape codes");
     assert.equal(first?.kind === "shell" && first.output, "hi from the file\n");
 });
 
-test("a `!` command Pi sees makes Pi work for its person, as a message does; one Pi does not see does not", async () => {
+test("a `!` command the agent sees makes the agent work for its person, as a message does; one the agent does not see does not", async () => {
     const id = await newSession(app, folder);
     const { user: guest } = app.config.addUser("Runner", "guest");
 
@@ -103,14 +103,17 @@ test("a `!` command Pi sees makes Pi work for its person, as a message does; one
         assert.equal(
             app.attribution.requesterOf(id),
             owner(app).id,
-            "a command Pi does not see is nobody's",
+            "a command the agent does not see is nobody's",
         );
         await app.shell.start(id, guest, { command: "echo do something risky" });
         await until(
             async () => (await entries(id)).filter((entry) => entry.kind === "shell").length === 2,
-            "the command Pi sees",
+            "the command the agent sees",
         );
-        await until(() => app.attribution.requesterOf(id) === guest.id, "Pi working for the guest");
+        await until(
+            () => app.attribution.requesterOf(id) === guest.id,
+            "the agent working for the guest",
+        );
     } finally {
         app.config.removeUser(guest.id);
     }
@@ -176,7 +179,7 @@ test("mentioned files go along with a message when asked, and show by name", asy
     assert.deepEqual(user?.kind === "user" && user.files, [join(folder, "plan.md")]);
 });
 
-test("skills run as /skill:name with the request, as Pi sends them", async () => {
+test("skills run as /skill:name with the request, as the agent sends them", async () => {
     const skill = join(process.env.PI_CODING_AGENT_DIR!, "skills", "deploy");
 
     mkdirSync(skill, { recursive: true });
@@ -231,7 +234,7 @@ test("a command cut off by a restart is not run again, and its entry says so", a
     }
 });
 
-test("after a restart, an older message settling does not take Pi back from the person of a newer `!` command", async () => {
+test("after a restart, an older message settling does not take the agent back from the person of a newer `!` command", async () => {
     const data = join(root, "qol-attribution");
     // A long answer: the owner's message is still being answered when the guest's command comes in.
     const slow: FauxResponseStep = (request) =>
@@ -243,7 +246,7 @@ test("after a restart, an older message settling does not take Pi back from the 
     const { user: guest } = first.config.addUser("Late", "guest");
 
     await first.commands.submit(id, owner(first), { text: "write a lot", requestId: "slow-1" });
-    await until(() => first.isBusy(id), "Pi to start answering");
+    await until(() => first.isBusy(id), "the agent to start answering");
     const { taskId } = await first.shell.start(id, guest, { command: "echo from the guest" });
 
     await until(
@@ -271,7 +274,7 @@ test("after a restart, an older message settling does not take Pi back from the 
     }
 });
 
-test("only the owner may read Pi's folder and the app's data, but anyone who steers may read uploads", async () => {
+test("only the owner may read the agent's folder and the app's data, but anyone who steers may read uploads", async () => {
     const id = await newSession(app, folder);
     const { user: guest } = app.config.addUser("Guest", "guest");
 
@@ -325,7 +328,7 @@ test("the viewer shows a text file, and does not open a pipe", async () => {
     );
 });
 
-test("undoing a file from Changes puts it back as committed, and Pi is told", async () => {
+test("undoing a file from Changes puts it back as committed, and the agent is told", async () => {
     const repo = join(root, "qol-repo");
 
     mkdirSync(repo, { recursive: true });

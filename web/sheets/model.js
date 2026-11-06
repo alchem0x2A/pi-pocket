@@ -60,24 +60,24 @@ const matches = (model, query) => {
 
 /**
  * The model picker: a menu that opens up from the message box's model chip, with the current model first and checked,
- * and how hard Pi thinks below, then, for the owner, Make default. Arrows and Enter pick, and Tab switches between the
- * scoped models (Pi's `enabledModels`) and all of them; a search box shows when there are many models, or when
+ * and how hard the agent thinks below, then, for the owner, Make default. Arrows and Enter pick, and Tab switches between the
+ * scoped models (the agent's `enabledModels`) and all of them; a search box shows when there are many models, or when
  * `/model son` opened it already searching. Opened for the default (`forDefault`, from the menu), it picks the model
  * and thinking level new sessions start with instead, and stays open for both.
  */
 export function ModelPicker() {
     const { models, server, me } = store.state;
-    const [pipId] = useState(() => store.state.sheet?.pipId);
-    const view = pipId === undefined ? store.state.view : store.state.pipView;
+    const [piaId] = useState(() => store.state.sheet?.piaId);
+    const view = piaId === undefined ? store.state.view : store.state.piaView;
     const locked =
-        pipId !== undefined &&
-        (view.conversation?.id !== pipId ||
+        piaId !== undefined &&
+        (view.conversation?.id !== piaId ||
             view.live?.busy === true ||
             (view.live?.compactions?.length ?? 0) > 0);
     const configure = (change) =>
-        pipId === undefined
+        piaId === undefined
             ? actions.configure(change)
-            : api(`c/${pipId}/configure`, { ...change, pipPanel: true });
+            : api(`c/${piaId}/configure`, { ...change, piaPanel: true });
     // While the picker animates out, the store has no sheet any more.
     const [query, setQuery] = useState(store.state.sheet?.query ?? "");
     const [forDefault] = useState(() => store.state.sheet?.forDefault === true);
@@ -91,7 +91,7 @@ export function ModelPicker() {
     const [searchable] = useState(() => models.length > MODEL_SEARCH_AT || query !== "");
     const [picked, setPicked] = useState(0);
     const [anchor, setAnchor] = useState(() =>
-        forDefault || pipId !== undefined ? null : modelAnchor(),
+        forDefault || piaId !== undefined ? null : modelAnchor(),
     );
     const box = useRef(null);
     const search = useRef(null);
@@ -142,7 +142,7 @@ export function ModelPicker() {
 
     useEffect(() => {
         // The default's picker has no chip to open from: it stays in the middle.
-        const place = () => setAnchor(forDefault || pipId !== undefined ? null : modelAnchor());
+        const place = () => setAnchor(forDefault || piaId !== undefined ? null : modelAnchor());
         const onKey = (event) => event.key === "Escape" && closeSheet();
 
         addEventListener("resize", place);
@@ -270,7 +270,7 @@ export function ModelPicker() {
                             <button
                                 class=${!showAll ? "on" : ""}
                                 aria-pressed=${!showAll}
-                                title="Models from Pi’s enabledModels setting"
+                                title="Models from the agent’s enabledModels setting"
                                 onClick=${() => {
                                     setShowAll(false);
                                     setPicked(0);
@@ -368,7 +368,7 @@ export function ModelPicker() {
                 </div>`
             }
             ${
-                pipId !== undefined || !defaultsKept()
+                piaId !== undefined || !defaultsKept()
                     ? null
                     : forDefault
                       ? html`<div class="pop-menu-foot pop-menu-default">
@@ -384,7 +384,7 @@ export function ModelPicker() {
                                         Clear owner default: use project defaults, then last picked
                                     </button>`
                                   : html`<span class="muted">
-                                        No owner default: new sessions use trusted project defaults, then the last model picked, then Pi's global default.
+                                        No owner default: new sessions use trusted project defaults, then the last model picked, then the agent's global default.
                                     </span>`
                           }
                       </div>`

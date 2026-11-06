@@ -1,4 +1,4 @@
-// The owner's persistent lessons and Pi context files, with their on-disk locations.
+// The owner's persistent lessons and the agent context files, with their on-disk locations.
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { api, attempt, closeSheet, openSheet, store } from "../store.js";
 import { html, Sheet } from "../ui.js";
@@ -9,25 +9,25 @@ export function MemorySettingsSheet() {
     const [session, setSession] = useState("");
     const sessions = store.state.sessions;
     const current = store.state.view.conversation;
-    const pipId = store.state.pip?.id;
-    const assistant = store.state.server?.assistant?.name ?? "PiP";
+    const piaId = store.state.pia?.id;
+    const assistant = store.state.server?.assistant?.name ?? "Pia";
     const choices = useMemo(() => {
         const list = [...sessions];
 
         if (current && !list.some((each) => each.id === current.id)) {
             list.unshift({
                 id: current.id,
-                title: current.pip ? `${assistant} · everywhere` : current.title,
+                title: current.pia ? `${assistant} · everywhere` : current.title,
                 cwd: current.cwd,
             });
         }
 
-        if (pipId && !list.some((each) => each.id === pipId)) {
-            list.unshift({ id: pipId, title: `${assistant} · everywhere`, cwd: "" });
+        if (piaId && !list.some((each) => each.id === piaId)) {
+            list.unshift({ id: piaId, title: `${assistant} · everywhere`, cwd: "" });
         }
 
         return list;
-    }, [sessions, current, pipId, assistant]);
+    }, [sessions, current, piaId, assistant]);
 
     useEffect(() => {
         let live = true;
@@ -101,7 +101,7 @@ export function MemorySettingsSheet() {
     <//>`;
 }
 
-/** List each discovered Pi context file, then edit and save one on disk. */
+/** List each discovered the agent context file, then edit and save one on disk. */
 export function InstructionFilesSheet() {
     const [data, setData] = useState(null);
     const [selected, setSelected] = useState(null);
@@ -144,8 +144,8 @@ export function InstructionFilesSheet() {
 
     return html`<${Sheet} title="Instructions (AGENTS.md)" onClose=${closeSheet}>
         <p class="muted small">
-            Pi loads global instructions and context files from each session folder and its parents. Select a path to edit it.
-            Pi reads file changes on its next request, within 30 seconds.
+            The agent loads global instructions and context files from each session folder and its parents. Select a path to edit it.
+            The agent reads file changes on its next request, within 30 seconds.
         </p>
         ${loading && html`<p class="muted small">Loading files…</p>`}
         ${

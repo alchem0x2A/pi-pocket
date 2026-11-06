@@ -79,7 +79,7 @@ async function describeTask(
             return {
                 label:
                     held === undefined
-                        ? "taking subagents' reports to Pi at its next pause"
+                        ? "taking subagents' reports to the agent at its next pause"
                         : `holding subagents' reports: ${held}`,
             };
         }
@@ -131,7 +131,7 @@ async function describeTask(
             return { label: command === undefined ? "running a command" : `running ${command}` };
         }
 
-        // PiP waiting for a session's run to end, from its list of follows.
+        // Pia waiting for a session's run to end, from its list of follows.
         case "pocket.pip-follow": {
             const follow = Object.values(
                 (await app.harness.snapshot(FollowsDoc, id, context))?.items ?? {},
@@ -156,7 +156,7 @@ async function describeTask(
             };
         }
 
-        // PiP's (or a session's) standing order on a repository.
+        // Pia's (or a session's) standing order on a repository.
         case "pocket.repo-watch": {
             const watch = Object.values(
                 (await app.harness.snapshot(RepoWatchesDoc, context))?.items ?? {},

@@ -1,7 +1,7 @@
-// PiP's remembered floating size. CSS alone clamps it when the viewport shrinks, without losing the preference.
+// Pia's remembered floating size. CSS alone clamps it when the viewport shrinks, without losing the preference.
 import { useEffect } from "preact/hooks";
 
-export function usePipResize(ref, account) {
+export function usePiaResize(ref, account) {
     useEffect(() => {
         const panel = ref.current;
 
@@ -9,26 +9,29 @@ export function usePipResize(ref, account) {
             return;
         }
 
-        const key = `pocket.pip.size.${account}`;
+        const key = `pocket.pia.size.${account}`;
+        const legacyKey = `pocket.pip.size.${account}`;
 
-        panel.style.removeProperty("--pip-width");
-        panel.style.removeProperty("--pip-height");
+        panel.style.removeProperty("--pia-width");
+        panel.style.removeProperty("--pia-height");
 
         // Each dimension apart: a drag on the left edge chose a width only, and the height stays the default, which
         // follows the window's height.
         const size = ({ width, height }) => {
             if (Number.isFinite(width)) {
-                panel.style.setProperty("--pip-width", `${Math.max(420, Math.min(800, width))}px`);
+                panel.style.setProperty("--pia-width", `${Math.max(420, Math.min(800, width))}px`);
             }
 
             if (Number.isFinite(height)) {
-                panel.style.setProperty("--pip-height", `${Math.max(360, height)}px`);
+                panel.style.setProperty("--pia-height", `${Math.max(360, height)}px`);
             }
         };
 
         const saved = () => {
             try {
-                return JSON.parse(localStorage.getItem(key)) ?? {};
+                return (
+                    JSON.parse(localStorage.getItem(key) ?? localStorage.getItem(legacyKey)) ?? {}
+                );
             } catch {
                 // A missing or invalid preference uses the normal CSS size.
                 return {};
@@ -53,7 +56,7 @@ export function usePipResize(ref, account) {
         };
 
         const down = (event) => {
-            const edge = event.target.closest("[data-pip-resize]")?.dataset.pipResize;
+            const edge = event.target.closest("[data-pia-resize]")?.dataset.piaResize;
 
             if (!edge || event.button !== 0 || innerWidth < 768 || drag) {
                 return;

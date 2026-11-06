@@ -434,7 +434,7 @@ function PeekLine({ line }) {
             </div>`;
         case "text":
             return html`<div class="peek-line text">
-                <span class="peek-mark pi">π</span>
+                <span class="peek-mark agent"><${Icon} name="pia" size=${12} /></span>
                 <span class="peek-text">${line.text}</span>
             </div>`;
 

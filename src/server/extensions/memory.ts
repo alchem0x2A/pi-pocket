@@ -1,5 +1,5 @@
 /**
- * Memory gives Pi short lessons that last across sessions, for a project or for everywhere: Pi proposes them with its
+ * Memory gives the agent short lessons that last across sessions, for a project or for everywhere: the agent proposes them with its
  * memory tool, the owner approves them (under the call, or in Menu → Memory), and every later session in the same
  * project gets them in its system prompt.
  */
@@ -76,11 +76,11 @@ export default function createMemory(host: PocketHost) {
         execute: async (args, api, context) => {
             const cwd = (await api.agent(context)).cwd;
             const requester = host.requesterOf(api.conversationId);
-            const writer = { userId: requester, byPi: true, name: "Pi" };
+            const writer = { userId: requester, byPi: true, name: "the agent" };
 
             if (args.action === "list") {
                 const project = await memory.project(api.conversationId, cwd);
-                // Waiting ones are not in force: Pi sees only those saved for whom it works now, not words nobody approved.
+                // Waiting ones are not in force: the agent sees only those saved for whom it works now, not words nobody approved.
                 const lessons = (await memory.applying(project)).filter(
                     (lesson) =>
                         lesson.pending !== true ||

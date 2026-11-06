@@ -1,5 +1,5 @@
 // The workspace's plain parts (`extensions/design/*.js`), which touch no page: frame sizes and zoom, tweak knobs, text
-// edits, the messages put in the message box for Pi, which comments have pins, and the list of designs.
+// edits, the messages put in the message box for the agent, which comments have pins, and the list of designs.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -120,7 +120,7 @@ test("text edits of one element merge, and one that ends where it began is dropp
     assert.equal(edits.nameOf({ tag: "div", selector: ".x", text: "" }), "div .x");
 });
 
-test("the message for Pi names the design, and its JSON cannot end its own fence", () => {
+test("the message for the agent names the design, and its JSON cannot end its own fence", () => {
     const target = { pid: "p", selector: "s", text: "```evil```\n```` more" };
     const text = messages.commentsMessage({
         title: "Landing",

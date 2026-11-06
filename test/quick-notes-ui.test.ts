@@ -133,10 +133,10 @@ async function quiet(): Promise<void> {
         recorded.filter(
             (call) =>
                 call.method === "POST" &&
-                (/\/submit(?:\?|$)/.test(call.url) || /\/pip(?:\/|\?|$)/.test(call.url)),
+                (/\/submit(?:\?|$)/.test(call.url) || /\/pia(?:\/|\?|$)/.test(call.url)),
         ),
         [],
-        "no chat or PiP POST",
+        "no chat or Pia POST",
     );
     assert.equal(modelCalls, 0, "the model did not run");
 }

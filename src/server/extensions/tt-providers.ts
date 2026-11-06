@@ -148,10 +148,13 @@ function claudeAuthContext(configDir: string): AuthContext {
 
     return {
         async env(name) {
-            if (name === "PI_CLAUDE_CODE_COMMAND") {return CLAUDE_COMMAND;}
+            if (name === "PI_CLAUDE_CODE_COMMAND") {
+                return CLAUDE_COMMAND;
+            }
 
-            if (name === "PI_CLAUDE_CODE_CONFIG_DIR" || name === "CLAUDE_CONFIG_DIR")
-                {return configDir;}
+            if (name === "PI_CLAUDE_CODE_CONFIG_DIR" || name === "CLAUDE_CONFIG_DIR") {
+                return configDir;
+            }
 
             return base.env(name);
         },
@@ -195,7 +198,9 @@ export function prepareClaudeContext(
                 if (block.type === "toolCall") {
                     ids.push(block.id);
 
-                    if (native) {nativeIds.add(block.id);}
+                    if (native) {
+                        nativeIds.add(block.id);
+                    }
                 }
             }
         } else if (message.role === "toolResult") {
@@ -208,11 +213,13 @@ export function prepareClaudeContext(
     const pending = new Map<string, string>();
 
     const assign = (id: string, native: boolean): string => {
-        if (pending.has(id))
-            {throw new Error("Claude replay has ambiguous concurrent tool-call IDs.");}
+        if (pending.has(id)) {
+            throw new Error("Claude replay has ambiguous concurrent tool-call IDs.");
+        }
 
-        if (native && !validId.test(id))
-            {throw new Error("Claude replay has an invalid native tool-call ID.");}
+        if (native && !validId.test(id)) {
+            throw new Error("Claude replay has an invalid native tool-call ID.");
+        }
 
         let replacement = id;
 
@@ -240,8 +247,9 @@ export function prepareClaudeContext(
         if (message.role === "toolResult") {
             const id = pending.get(message.toolCallId);
 
-            if (id === undefined)
-                {throw new Error("Claude replay has a tool result without a matching call.");}
+            if (id === undefined) {
+                throw new Error("Claude replay has a tool result without a matching call.");
+            }
 
             pending.delete(message.toolCallId);
 
@@ -254,7 +262,9 @@ export function prepareClaudeContext(
             );
         }
 
-        if (message.role !== "assistant") {return message;}
+        if (message.role !== "assistant") {
+            return message;
+        }
 
         const native =
             message.provider === model.provider &&
@@ -263,7 +273,9 @@ export function prepareClaudeContext(
 
         if (native) {
             for (const block of message.content) {
-                if (block.type === "toolCall") {assign(block.id, true);}
+                if (block.type === "toolCall") {
+                    assign(block.id, true);
+                }
             }
 
             return message;
@@ -281,7 +293,9 @@ export function prepareClaudeContext(
                         : [];
                 }
 
-                if (block.type === "text") {return [{ type: "text", text: block.text }];}
+                if (block.type === "text") {
+                    return [{ type: "text", text: block.text }];
+                }
 
                 const { thoughtSignature: _signature, ...toolCall } = block;
 
@@ -290,7 +304,9 @@ export function prepareClaudeContext(
         };
     });
 
-    if (pending.size) {throw new Error("Claude replay has a tool call without a matching result.");}
+    if (pending.size) {
+        throw new Error("Claude replay has a tool call without a matching result.");
+    }
 
     return { ...context, messages };
 }
@@ -310,7 +326,9 @@ function extraModel(provider: Provider, extra: ExtraModel): Model<Api> | undefin
     const template = provider.getModels()[0];
     const builtin = getBuiltinModel("anthropic", "claude-opus-4-6") as Model<Api> | undefined;
 
-    if (!template || !builtin) {return undefined;}
+    if (!template || !builtin) {
+        return undefined;
+    }
 
     return {
         ...builtin,
@@ -346,7 +364,9 @@ export async function createClaudePocketConfig(
         const found = [...(await models.getAvailable(provider.id, { signal }))];
 
         // Logged out: no models at all, extras included.
-        if (found.length === 0) {return found;}
+        if (found.length === 0) {
+            return found;
+        }
 
         const seen = new Set(found.map((model) => model.id));
         const added = extras
@@ -370,7 +390,9 @@ export async function createClaudePocketConfig(
             try {
                 const signal = AbortSignal.timeout(20_000);
 
-                if (!(await models.checkAuth(provider.id, { signal }))) {return [];}
+                if (!(await models.checkAuth(provider.id, { signal }))) {
+                    return [];
+                }
 
                 const result = await models.refresh({
                     providers: [provider.id],
@@ -379,7 +401,9 @@ export async function createClaudePocketConfig(
                     signal,
                 });
 
-                if (result.errors.get(provider.id)) {return available();}
+                if (result.errors.get(provider.id)) {
+                    return available();
+                }
 
                 return available(signal);
             } catch {
@@ -387,7 +411,9 @@ export async function createClaudePocketConfig(
             }
         })(),
         async refreshModels(context) {
-            if (!(await models.checkAuth(provider.id, { signal: context.signal }))) {return [];}
+            if (!(await models.checkAuth(provider.id, { signal: context.signal }))) {
+                return [];
+            }
 
             const result = await models.refresh({
                 providers: [provider.id],
@@ -397,7 +423,9 @@ export async function createClaudePocketConfig(
             });
             const error = result.errors.get(provider.id);
 
-            if (error) {throw error;}
+            if (error) {
+                throw error;
+            }
 
             return available(context.signal);
         },
@@ -428,7 +456,7 @@ export async function createClaudePocketConfig(
                       },
                       async refreshToken() {
                           throw new Error(
-                              "Claude CLI owns token refresh; do not store this provider's credentials in Pi.",
+                              "Claude CLI owns token refresh; do not store this provider's credentials in the agent.",
                           );
                       },
                       getApiKey() {

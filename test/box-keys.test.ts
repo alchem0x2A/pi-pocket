@@ -128,11 +128,11 @@ test("set writes through the box's own editing, with the caret kept in the text"
     const writes: [string, number, number][] = [];
     const box = keys.keyBox(
         { value: "one two", selectionStart: 7, selectionEnd: 7 },
-        "pip",
+        "pia",
         (...args) => writes.push(args),
     );
 
-    assert.equal(box.where, "pip");
+    assert.equal(box.where, "pia");
     assert.equal(box.text, "one two");
     box.set("one ", 4);
     box.set("abc");

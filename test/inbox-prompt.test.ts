@@ -9,6 +9,7 @@ import {
     owner,
     root,
     scriptedModel,
+    work,
 } from "./helpers.ts";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
@@ -18,7 +19,7 @@ import { fauxAssistantMessage, fauxText } from "@earendil-works/pi-ai/providers/
 import { getCurrentSystemPrompt } from "@earendil-works/pi-ai/utils/transcript";
 import { AgentDoc, type ConversationId, type SubmissionId } from "@earendil-works/pi-durable";
 import { SessionsDoc, SubagentsDoc } from "../src/server/docs.ts";
-import createPip from "../src/server/extensions/pip.ts";
+import createPia from "../src/server/extensions/pip.ts";
 import type { PocketHost } from "../src/server/host.ts";
 import { createHandler } from "../src/server/http.ts";
 
@@ -94,8 +95,7 @@ test("Pia gets only a durable pending count; private ownership, legacy hosts, an
         const me = owner(app);
 
         app.config.lastModel = { provider: "faux", modelId: "faux-1", thinkingLevel: "off" };
-        await app.setAssistantProfile(me, "pia");
-        const pia = await app.pip.ensure(me);
+        const pia = await app.pia.ensure(me);
         const normal = await newSession(app);
 
         assert.equal((await app.hello(me)).server.inboxPendingCount, true);
@@ -182,7 +182,7 @@ test("Pia gets only a durable pending count; private ownership, legacy hosts, an
 
         // This separate private helper has no attribution and no notes. It must not get the first owner's count.
         const other = app.config.addUser("Other owner", "owner").user;
-        const otherPia = await app.pip.ensure(other);
+        const otherPia = await app.pia.ensure(other);
 
         assert.equal(await app.inbox.pendingCountForAssistant(otherPia), 0);
         assert.equal((await render(app, otherPia)).text, undefined);
@@ -250,29 +250,29 @@ test("Pia gets only a durable pending count; private ownership, legacy hosts, an
         const { input } = await render(app, pia);
 
         for (const inbox of [undefined, { forAssistant: originalTool }]) {
-            const legacy = createPip({
-                pip: { profile: () => ({ mode: "pia" }), task: app.pip.task, inbox },
+            const legacy = createPia({
+                pia: {
+                    name: () => "Pia",
+                    workspace: () => work,
+                    defaultFolder: () => work,
+                    ownerName: () => me.name,
+                    sharedContext: () => undefined,
+                    task: app.pia.task,
+                    inbox,
+                },
             } as unknown as PocketHost);
             const section = legacy.sections!.find((item) => item.key === "pia_inbox")!;
 
             assert.equal(await section.render(input, context), undefined);
         }
 
-        await app.setAssistantProfile(me, "classic");
-        await app.pip.ensure(me);
-        assert.equal(await app.inbox.pendingCountForAssistant(pia), undefined);
-        await send(pia, "classic");
-        assert.equal(present("classic"), false);
-        await assert.rejects(app.inbox.forAssistant(pia, { action: "list" }), { status: 403 });
-        await app.setAssistantProfile(me, "pia");
-        await app.pip.ensure(me);
         // Revoke the private mapping in durable state. Do not infer ownership from attribution.
         await app.harness.commit(async (tx) => {
-            delete (await tx.doc(SessionsDoc)).items[String(pia)]!.pip;
+            delete (await tx.doc(SessionsDoc)).items[String(pia)]!.pia;
         }, context);
         assert.equal(await app.inbox.pendingCountForAssistant(pia), undefined);
         await app.harness.commit(async (tx) => {
-            (await tx.doc(SessionsDoc)).items[String(pia)]!.pip = me.id;
+            (await tx.doc(SessionsDoc)).items[String(pia)]!.pia = me.id;
         }, context);
 
         console.log(
@@ -283,7 +283,6 @@ test("Pia gets only a durable pending count; private ownership, legacy hosts, an
                 archivedPresent: present("archived"),
                 normalPresent: present("normal"),
                 sharedPresent: present("shared"),
-                classicPresent: present("classic"),
                 subagentPresent: present("subagent"),
             }),
         );

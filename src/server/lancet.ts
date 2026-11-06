@@ -1,9 +1,9 @@
 /**
- * Lancet Guard, borrowed from the user's Pi install.
+ * Lancet Guard, borrowed from the user's the agent install.
  *
- * Pi Pocket runs its tools outside Pi, so Pi's extensions do not see them. This module loads the gate, rules, and
+ * Pia runs its tools outside the agent, so the agent's extensions do not see them. This module loads the gate, rules, and
  * classifier of the installed `specpi-lancet-guard` package and exposes one `judge()` call. The guard's own settings
- * file (`~/.pi/lancet-guard.json`) decides whether it is on, exactly as it does inside Pi.
+ * file (`~/.pi/lancet-guard.json`) decides whether it is on, exactly as it does inside the agent.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -115,7 +115,7 @@ export class LancetGuard {
 
     #load(): Promise<LancetModules> {
         if (this.directory === undefined) {
-            return Promise.reject(new Error("specpi-lancet-guard is not installed in Pi"));
+            return Promise.reject(new Error("specpi-lancet-guard is not installed in the agent"));
         }
 
         this.#modules ??= (async () => {
@@ -155,7 +155,7 @@ export class LancetGuard {
 
     #modelStore(): Promise<ModelStore> {
         if (this.directory === undefined) {
-            return Promise.reject(new Error("specpi-lancet-guard is not installed in Pi"));
+            return Promise.reject(new Error("specpi-lancet-guard is not installed in the agent"));
         }
 
         this.#store ??= import(
@@ -185,7 +185,7 @@ export class LancetGuard {
         try {
             state = (await this.#modelStore()).modelState();
         } catch {
-            // A package from before the model downloader: Pi's `/lancet-guard setup` is the way.
+            // A package from before the model downloader: the agent's `/lancet-guard setup` is the way.
             return undefined;
         }
 
@@ -205,7 +205,7 @@ export class LancetGuard {
     }
 
     /**
-     * Download and check the pinned LANCET model, the same download Pi's `/lancet-guard setup` does. One download at a
+     * Download and check the pinned LANCET model, the same download the agent's `/lancet-guard setup` does. One download at a
      * time: a call while one runs joins it. `changed` runs when its step changes. Nothing else starts this.
      */
     setupModel(changed: () => void = () => {}): Promise<void> {
@@ -281,7 +281,7 @@ export class LancetGuard {
             return {
                 available: false,
                 enabled: false,
-                detail: "Lancet Guard is not installed in Pi; tools run unguarded.",
+                detail: "Lancet Guard is not installed in the agent; tools run unguarded.",
             };
         }
 

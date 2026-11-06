@@ -1,8 +1,8 @@
 /**
- * Plan mode lets Pi read and explore but change nothing, so it proposes a plan for people to approve first. While a
- * session is in plan mode, Pi may read files, run read-only shell commands, publish artifacts, look at pages in the
+ * Plan mode lets the agent read and explore but change nothing, so it proposes a plan for people to approve first. While a
+ * session is in plan mode, the agent may read files, run read-only shell commands, publish artifacts, look at pages in the
  * browser, run codemode scripts (whose calls get the same checks), and call tools their extension marks read-only;
- * everything else is blocked with a note saying why. This keeps Pi to planning; it is not a security boundary: Lancet
+ * everything else is blocked with a note saying why. This keeps the agent to planning; it is not a security boundary: Lancet
  * Guard is. Programs that people configured to run on their own, such as a git diff driver or file system monitor, run
  * as they would for anyone.
  */
@@ -267,7 +267,7 @@ export function readOnlyCommand(command: string): boolean {
 
 /**
  * Why a call may not run in plan mode, or undefined when it may. `readOnly`: the tool's extension marks it read-only
- * (`annotations: { readOnlyHint: true }`, as in Pi's tool definitions).
+ * (`annotations: { readOnlyHint: true }`, as in the agent's tool definitions).
  */
 export function blockedInPlanMode(
     tool: string,
@@ -283,7 +283,7 @@ export function blockedInPlanMode(
         return undefined;
     }
 
-    // A data: page is a page Pi writes, scripts and all: looking at pages means pages that exist.
+    // A data: page is a page the agent writes, scripts and all: looking at pages means pages that exist.
     const scripted =
         tool === "browser" &&
         args.action === "navigate" &&

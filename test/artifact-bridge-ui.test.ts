@@ -339,7 +339,7 @@ test(
         assert.equal(
             (await app.transcripts.allEntries(session, false)).length,
             0,
-            "the page made Pi do nothing",
+            "the page made the agent do nothing",
         );
     },
 );
@@ -513,7 +513,7 @@ test("HTML run from a reply: one follow-up every 2 seconds", real, async () => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     assert.equal(
         await boxText(),
-        "From the page in Pi's reply:\nran",
+        "From the page in the agent's reply:\nran",
         "the second, too soon, is refused",
     );
 });

@@ -1,5 +1,5 @@
 /**
- * The Pi Pocket launcher. Pick how your devices reach this server (this device only, the local network, a Cloudflare
+ * The Pia launcher. Pick how your devices reach this server (this device only, the local network, a Cloudflare
  * quick tunnel, or Tailscale), then it runs the server and the tunnel. The server restarts when the app asks (exit code
  * 75) or after a crash; the tunnel stays up across those restarts, so its address does not change.
  *
@@ -53,7 +53,7 @@ import {
 } from "./term.ts";
 
 const SERVER = fileURLToPath(new URL("../server/main.ts", import.meta.url));
-/** Pi Pocket's checkout, which an update from the app changes (`src/server/updates.ts`). */
+/** Pia's checkout, which an update from the app changes (`src/server/updates.ts`). */
 const APP_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 /**
  * From an npm install (a node_modules folder), Node strips no types: the server then starts with the hook that does
@@ -203,7 +203,7 @@ async function pickAccess(current: AccessMode | undefined): Promise<AccessMode |
         options.findIndex((each) => each.mode === current),
     );
     const picked = await choose(
-        "How should your devices reach Pi Pocket?",
+        "How should your devices reach Pia?",
         options.map((each) => each.choice),
         initial,
     );
@@ -389,7 +389,7 @@ const KEYS_HINT = "q quit · r restart server · a access · o open here · s si
 async function showPanel(withQr: boolean): Promise<void> {
     const width = columns();
     const row = (label: string, value: string) => `  ${dim(label.padEnd(9))}${value}`;
-    const lines = ["", `  ${accent("π")} ${bold("Pi Pocket")}  ${green("● running")}`, ""];
+    const lines = ["", `  ${accent("🎀")} ${bold("Pia")}  ${green("● running")}`, ""];
 
     lines.push(row("Access", `${modeLabel()}${modeNote() ? dim(` · ${modeNote()}`) : ""}`));
     lines.push(row("Open", cyan(appUrl())));
@@ -587,7 +587,7 @@ function startServer(first: boolean): void {
         }
 
         if (!state.everReady) {
-            log(red("  Pi Pocket could not start (see above)."));
+            log(red("  Pia could not start (see above)."));
             void quit(code ?? 1);
 
             return;
@@ -826,7 +826,7 @@ async function quit(code: number): Promise<void> {
 
     quitting = true;
     release();
-    log(dim("  Stopping Pi Pocket…"));
+    log(dim("  Stopping Pia…"));
     await stopTunnel();
     const proc = child;
 
@@ -866,7 +866,7 @@ async function main(): Promise<void> {
 
     if (interactive && mode === undefined && !options.yes) {
         log("");
-        log(`  ${accent("π")} ${bold("Pi Pocket")}  ${dim(tilde(options.cwd))}`);
+        log(`  ${accent("🎀")} ${bold("Pia")}  ${dim(tilde(options.cwd))}`);
         log("");
     }
 
@@ -905,7 +905,7 @@ async function main(): Promise<void> {
         saveSettings(mode);
     }
 
-    log(dim(`  Starting Pi Pocket (${modeLabel()})…`));
+    log(dim(`  Starting Pia (${modeLabel()})…`));
     startServer(true);
 
     if (mode === "cloudflare" && binary !== undefined) {

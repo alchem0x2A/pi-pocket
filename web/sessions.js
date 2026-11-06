@@ -1,4 +1,4 @@
-// The sidebar: the rail (Pi, the tools, and you; folded, numbered sessions too) and the session list beside it, in the
+// The sidebar: the rail (the agent, the tools, and you; folded, numbered sessions too) and the session list beside it, in the
 // sidebar, the drawer, and a phone's home screen; and the order and archiving of sessions.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Avatar, folderColor, initials } from "./avatar.js";
@@ -12,7 +12,7 @@ import {
     sessionWords,
 } from "./extension-ui.js";
 import { useDragToClose } from "./gestures.js";
-import { PipRailButton } from "./pip.js";
+import { PiaRailButton } from "./pip.js";
 import { QuickNotesButton } from "./quick-notes-ui.js";
 import { sessionForest, unfolded } from "./session-tree.js";
 import { sessionSearchCommands } from "./settings-commands.js";
@@ -311,7 +311,7 @@ export function selectFromList(id) {
 
 /**
  * The square at the start of a session's row: its folder's color, in the shape of where the session is. The first that
- * holds wins: a call waiting for you, a request waiting for its provider's limit to clear, Pi or its subagents at work, a failed run (solid while new, drawn once seen),
+ * holds wins: a call waiting for you, a request waiting for its provider's limit to clear, the agent or its subagents at work, a failed run (solid while new, drawn once seen),
  * finished since this browser last looked or marked unread (solid), and read or never run (hollow).
  */
 function stateMark(session, working, marked, unseen = finishedUnseen(session)) {
@@ -321,7 +321,7 @@ function stateMark(session, working, marked, unseen = finishedUnseen(session)) {
         return { shape: "waiting", label: "Waiting for approval" };
     }
 
-    // Pi's request waits for the provider's limit to clear: working, held up, until a time or a try.
+    // the agent's request waits for the provider's limit to clear: working, held up, until a time or a try.
     if (session.limited !== undefined) {
         return { shape: "limited", label: "Waiting for a usage limit" };
     }
@@ -368,7 +368,7 @@ export function sessionMark(session) {
 
 /**
  * One session on one line: its folder's color in the shape of its state, its title, and on the right what goes on there (its working subagents,
- * who else is in it, Pi working, a call waiting for you, and how long ago. Its folder and model are in
+ * who else is in it, the agent working, a call waiting for you, and how long ago. Its folder and model are in
  * its tooltip. Memoized (`memo`): it reads nothing of the store as it draws, only its props, which `AllSessions` works
  * out for it. `minute` and `extensionsRev` draw it again as time passes and as extensions' chips and words change.
  */
@@ -1652,16 +1652,16 @@ function RailTiles() {
 }
 
 /**
- * The rail beside the session list: Pi (home), sessions, PiP, Quick notes, Links, Running now, extensions, providers,
+ * The rail beside the session list: the agent (home), sessions, Pia, Quick notes, Links, Running now, extensions, providers,
  * the theme, and your account. Folded, it holds the sessions too, numbered.
- * In the drawer and on a phone's home screen it does not fold, and Pi is a mark.
+ * In the drawer and on a phone's home screen it does not fold, and the agent is a mark.
  */
 function Rail({ foldable = false, folded = false }) {
     const { sessions, me } = store.state;
     const canStart = canSteer() && !scoped();
     // Counted again only when the session list changes, not on each draw of the rail.
     const busy = useMemo(
-        // Commands Pi runs in the background are at work too, after its answer ended.
+        // Commands the agent runs in the background are at work too, after its answer ended.
         () => sessions.filter((session) => session.busy || session.background > 0).length,
         [sessions],
     );
@@ -1681,9 +1681,9 @@ function Rail({ foldable = false, folded = false }) {
                     aria-label="Home"
                     onClick=${toSessions}
                 >
-                    π
+                    <${Icon} name="pia" size=${21} />
                 </button>`
-                : html`<span class="rail-brand" data-part="brand-mark" aria-hidden="true">π</span>`
+                : html`<span class="rail-brand" data-part="brand-mark" aria-hidden="true"><${Icon} name="pia" size=${20} /></span>`
         }
         <span class="rail-gap"></span>
         ${
@@ -1724,7 +1724,7 @@ function Rail({ foldable = false, folded = false }) {
             </button>`
         }
         ${folded && html`<${RailTiles} />`}
-        <${PipRailButton} />
+        <${PiaRailButton} />
         <${QuickNotesButton} />
         ${
             me?.role === "owner" &&
@@ -1790,7 +1790,7 @@ function Rail({ foldable = false, folded = false }) {
 
 /**
  * The store's keys the rail reads as it draws, itself and through its buttons: the session list's for its numbered
- * sessions (`RailTiles`), PiP's (`pip`, `pipOpen`), and extensions' buttons,
+ * sessions (`RailTiles`), Pia's (`pia`, `piaOpen`), and extensions' buttons,
  * which show their page or panel as open (`page`, `extPanel`, `extensionsRev`).
  */
 const RAIL_KEYS = [
@@ -1801,8 +1801,8 @@ const RAIL_KEYS = [
     "unread",
     "conversationId",
     "appearance",
-    "pip",
-    "pipOpen",
+    "pia",
+    "piaOpen",
     "page",
     "extPanel",
     "extensionsRev",

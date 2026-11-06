@@ -1,12 +1,12 @@
 /**
- * Model providers: which ones Pi knows, whether each is signed in, and sign-ins run from the app. A sign-in asks its
- * questions (an API key, a code, a choice) through the tabs of the person who started it. Pi Pocket shares Pi's own
+ * Model providers: which ones the agent knows, whether each is signed in, and sign-ins run from the app. A sign-in asks its
+ * questions (an API key, a code, a choice) through the tabs of the person who started it. Pia shares the agent's own
  * sign-ins (`~/.pi/agent/auth.json`).
  *
  * A subscription's sign-in (OAuth) counts as signed in for as long as it is stored, even once it can no longer be
- * renewed. So each is asked afresh (the Providers sheet, a model PiP or a subagent on another model is about to use, a
+ * renewed. So each is asked afresh (the Providers sheet, a model Pia or a subagent on another model is about to use, a
  * run that failed on it): one its provider refuses to renew is marked as needing sign-in, the model menu marks its
- * models, PiP and subagents on other models refuse them, and the owner is told, until someone signs in again. A
+ * models, Pia and subagents on other models refuse them, and the owner is told, until someone signs in again. A
  * session's own run, a subagent on its model, and titles are not checked first: they try the model, and a run that
  * fails on it marks it.
  */
@@ -179,7 +179,7 @@ export class Providers {
     }
 
     /**
-     * Why Pi may not use a model now, in words for Pi to pass on: it is not known here, its provider is not signed in,
+     * Why the agent may not use a model now, in words for the agent to pass on: it is not known here, its provider is not signed in,
      * or its sign-in expired. `fresh` asks the provider's sign-in again first. Undefined when it may be used.
      */
     async problem(ref: ModelRef, fresh = false): Promise<string | undefined> {
@@ -212,7 +212,7 @@ export class Providers {
             // The owner's to fix: only they sign in.
             this.#app.ownerNotice(
                 "warning",
-                `The sign-in to ${name} expired and could not be renewed. Sign in again in Providers; until then sessions on its models fail, and PiP and subagents on other models do not use them.`,
+                `The sign-in to ${name} expired and could not be renewed. Sign in again in Providers; until then sessions on its models fail, and Pia and subagents on other models do not use them.`,
             );
             this.#changed();
         }
@@ -321,7 +321,7 @@ export class Providers {
         };
 
         void app.models
-            // Sign-ins that identify the installation (ChatGPT) get the ID Pi keeps for it, the same as Pi's own login.
+            // Sign-ins that identify the installation (ChatGPT) get the ID the agent keeps for it, the same as the agent's own login.
             .login(providerId, type, interaction, {
                 getDeviceId: () => app.settings.getOrCreateDeviceId(),
             })

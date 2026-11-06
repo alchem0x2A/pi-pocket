@@ -1,4 +1,4 @@
-// Keys that extensions give the message boxes (`pocket.composerKey`): the session's box and PiP's. What modules added
+// Keys that extensions give the message boxes (`pocket.composerKey`): the session's box and Pia's. What modules added
 // comes from `extension-ui.js` (`setBoxKeys`), so the boxes need not import it: no imports, so Node tests it.
 
 const APPLE = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform ?? "");
@@ -147,7 +147,7 @@ const SET_MAX = 1_000_000;
 /**
  * What a module's `run` gets: the box's text and selection when the key came, and `set`, which writes new text and
  * puts the caret (or a selection) through the box's own editing, so its draft is kept. `where` is `"session"` or
- * `"pip"`.
+ * `"pia"`.
  */
 export function keyBox(element, where, write) {
     return Object.freeze({

@@ -107,7 +107,7 @@ test("clock times hold across daylight saving changes", () => {
     );
 });
 
-/** Pi schedules its own follow-up, lists, and cancels, as the last message asks. */
+/** the agent schedules its own follow-up, lists, and cancels, as the last message asks. */
 const route: FauxResponseStep = (request) => {
     const { role, text } = lastText(request as never);
     const call = (args: Parameters<typeof fauxToolCall>[1]) =>
@@ -271,7 +271,7 @@ test("a scheduled message goes out at its time, also after a restart, once; a re
         next!.next >= sentAt + 20 * 60_000,
         "20 minutes after it went out, not after when it was due",
     );
-    // Sent while Pi may still be answering, it waits in the queue a moment before it is in the transcript.
+    // Sent while the agent may still be answering, it waits in the queue a moment before it is in the transcript.
     await until(
         async () => (await userTexts(id)).some((text) => text.includes("[scheduled] ping")),
         "the repeat's message",
@@ -289,20 +289,20 @@ test("a scheduled message goes out at its time, also after a restart, once; a re
     assert.deepEqual(await items(id), []);
 });
 
-test("Pi schedules, lists, and cancels its own messages with its tool", async () => {
+test("the agent schedules, lists, and cancels its own messages with its tool", async () => {
     const id = await newSession(app);
 
     await say(id, "remind yourself");
     const [mine] = await items(id);
 
     assert.equal(mine?.text, "look at the deploy again");
-    assert.equal(mine?.by, undefined, "Pi set it");
+    assert.equal(mine?.by, undefined, "the agent set it");
     await say(id, "list them");
     await say(id, `cancel ${mine!.id}`);
     assert.deepEqual(await items(id), []);
 });
 
-test("a schedule Pi sets up is the work of whom it worked for, and is cancelled once they may not steer", async () => {
+test("a schedule the agent sets up is the work of whom it worked for, and is cancelled once they may not steer", async () => {
     const id = await newSession(app);
     const hal = app.config.addUser("Hal", "guest").user;
     const ida = app.config.addUser("Ida", "guest").user;
@@ -321,7 +321,7 @@ test("a schedule Pi sets up is the work of whom it worked for, and is cancelled 
             [undefined, hal.id],
             [undefined, ida.id],
         ],
-        "Pi's, for Hal and for Ida",
+        "the agent's, for Hal and for Ida",
     );
     app.config.updateUser(ida.id, { role: "viewer" });
 
@@ -330,11 +330,11 @@ test("a schedule Pi sets up is the work of whom it worked for, and is cancelled 
         async () => (await items(id)).length === 0,
         "Hal's to go out and Ida's to be cancelled",
     );
-    await until(() => !app.isBusy(id), "Pi to answer");
+    await until(() => !app.isBusy(id), "the agent to answer");
     assert.equal(
         app.attribution.requesterOf(id),
         hal.id,
-        "the owner wrote last, but Pi works for Hal now",
+        "the owner wrote last, but the agent works for Hal now",
     );
 });
 

@@ -1,7 +1,7 @@
 /**
  * Two members of the host for extensions (since 0.22.0, experimental), built on core's own parts:
  *
- * - `ask`: a question for the person Pi works for, on a card in the session, through `Approvals` (it waits, notifies,
+ * - `ask`: a question for the person the agent works for, on a card in the session, through `Approvals` (it waits, notifies,
  *   and shows as an approval does). What they type goes back to the asker alone: the request that tabs see has the
  *   fields, never the values, and the answer route checks them (`PocketApp.answerApproval`).
  * - `browser`: a session's browser page (`browser.ts`), with the actions an extension needs and nothing of the page's
@@ -200,7 +200,7 @@ export function browserHandle(page: BrowserPage): BrowserPageHandle {
         inspect: async (at: BrowserTarget) => {
             const where = target(at, "inspect");
 
-            // A point names what is there: a hook that guards password fields must see one Pi points at by x and y.
+            // A point names what is there: a hook that guards password fields must see one the agent points at by x and y.
             if (
                 typeof where.x === "number" &&
                 typeof where.y === "number" &&
@@ -221,7 +221,7 @@ export function browserHandle(page: BrowserPage): BrowserPageHandle {
             };
         },
         navigate: async (url: string) => {
-            // As Pi's own navigate takes it: http(s), host:port, or a file path. Never a page made of the address itself
+            // As the agent's own navigate takes it: http(s), host:port, or a file path. Never a page made of the address itself
             // (`data:`), whose script would run: the handle runs none.
             const address =
                 typeof url === "string" ? normalizeUrl(url, { trusted: true }) : undefined;

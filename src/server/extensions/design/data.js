@@ -8,7 +8,7 @@ export const latestOf = (artifact) => artifact?.versions?.at(-1)?.version ?? 1;
 const timeOf = (artifact) => artifact.versions.at(-1)?.createdAt ?? 0;
 
 /**
- * The designs of the session, newest first: the app's own list (live: it changes when Pi publishes) with what only the
+ * The designs of the session, newest first: the app's own list (live: it changes when the agent publishes) with what only the
  * server's list has (group, kind, restores).
  */
 export function designsOf(appView, listed) {

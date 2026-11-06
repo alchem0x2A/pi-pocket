@@ -81,6 +81,7 @@ const POCKET_MEMBERS: Record<keyof Pocket, true> = {
     messages: true,
     reveal: true,
     insertText: true,
+    pia: true,
     pip: true,
     arrange: true,
     toolCall: true,
@@ -426,7 +427,7 @@ test(
 );
 
 test(
-    "an action under Pi's answer gets the answer, and puts text into the message box",
+    "an action under the agent's answer gets the answer, and puts text into the message box",
     real,
     async () => {
         await say(app, session, "quote me");
@@ -678,7 +679,7 @@ test("Lancet Guard stays on until its inline confirmation is accepted", real, as
 });
 
 test(
-    "Send, and while Pi works Stop, stay inside the message box on every phone width, with extension buttons and with more",
+    "Send, and while the agent works Stop, stay inside the message box on every phone width, with extension buttons and with more",
     real,
     async () => {
         const busy = (on: boolean) =>
@@ -808,7 +809,11 @@ test(
                 inside(width, "with 140 px more in the row", await fit());
                 await page.evaluate(`document.getElementById("stress")?.remove()`);
                 await busy(false);
-                assert.equal((await fit()).shown, 3, "and the buttons are back when Pi stops");
+                assert.equal(
+                    (await fit()).shown,
+                    3,
+                    "and the buttons are back when the agent stops",
+                );
             }
         } finally {
             await busy(false);
@@ -909,7 +914,7 @@ test(
 );
 
 test(
-    "pocket.pip.ask drafts into PiP's box, sends only right after a tap, and tells a guest PiP is not there",
+    "pocket.pia.ask drafts into Pia's box, sends only right after a tap, and tells a guest Pia is not there",
     real,
     async () => {
         await page.navigate(`${base}/s/${session}`);
@@ -918,9 +923,9 @@ test(
             () => inPage<boolean>(`return JSON.stringify(Boolean(globalThis.meterPocket))`),
             "the meter's pocket",
         );
-        // The submit goes nowhere: the test is about what the app sends, not about PiP's answer.
+        // The submit goes nowhere: the test is about what the app sends, not about Pia's answer.
         await page.evaluate(`
-            localStorage.removeItem("pocket.pip.draft");
+            localStorage.removeItem("pocket.pia.draft");
             globalThis.submitted = [];
             const fetched = window.fetch;
             window.fetch = (url, init) => {
@@ -932,23 +937,23 @@ test(
 
                 return fetched(url, init);
             };
-            document.body.insertAdjacentHTML("beforeend", '<button id="ask-pip" style="position:fixed;top:0;left:0;z-index:99999">Ask</button>');
-            document.querySelector("#ask-pip").onclick = async () => {
-                globalThis.asked = await globalThis.meterPocket.pip.ask("Look at this", { send: true });
+            document.body.insertAdjacentHTML("beforeend", '<button id="ask-pia" style="position:fixed;top:0;left:0;z-index:99999">Ask</button>');
+            document.querySelector("#ask-pia").onclick = async () => {
+                globalThis.asked = await globalThis.meterPocket.pia.ask("Look at this", { send: true });
             };
         `);
 
-        // Draft only, by default: PiP opens with the words, from the extension, and nothing is sent.
+        // Draft only, by default: Pia opens with the words, from the extension, and nothing is sent.
         assert.deepEqual(
-            await withMeter(`return JSON.stringify(await pocket.pip.ask("Look at this"))`),
+            await withMeter(`return JSON.stringify(await pocket.pia.ask("Look at this"))`),
             { ok: true, sent: false },
         );
         await until(
             async () =>
                 (await inPage<string>(
-                    `return JSON.stringify(document.querySelector(".pip-composer textarea")?.value ?? "")`,
+                    `return JSON.stringify(document.querySelector(".pia-composer textarea")?.value ?? "")`,
                 )) === "From the extension “meter”:\nLook at this",
-            "the draft in PiP's box",
+            "the draft in Pia's box",
         );
         assert.deepEqual(await inPage(`return JSON.stringify(globalThis.submitted)`), []);
 
@@ -956,14 +961,14 @@ test(
         await page.evaluate(`(await import("/taps.js")).spendTap()`);
         assert.deepEqual(
             await withMeter(
-                `return JSON.stringify(await pocket.pip.ask("Look at this", { send: true }))`,
+                `return JSON.stringify(await pocket.pia.ask("Look at this", { send: true }))`,
             ),
             { ok: false, reason: "Sending needs a click or a key press just before" },
         );
         assert.deepEqual(await inPage(`return JSON.stringify(globalThis.submitted)`), []);
 
         // A real click on the module's button sends, once.
-        await page.click({ selector: "#ask-pip" });
+        await page.click({ selector: "#ask-pia" });
         await until(
             () => inPage<boolean>(`return JSON.stringify(globalThis.asked !== undefined)`),
             "the answer",
@@ -976,12 +981,12 @@ test(
             "From the extension “meter”:\nLook at this",
         ]);
         assert.deepEqual(
-            await withMeter(`return JSON.stringify(await pocket.pip.ask("Again", { send: true }))`),
+            await withMeter(`return JSON.stringify(await pocket.pia.ask("Again", { send: true }))`),
             { ok: false, reason: "Sending needs a click or a key press just before" },
             "the click served one send",
         );
 
-        // A guest has no PiP: a result, not an error.
+        // A guest has no Pia: a result, not an error.
         const guest = app.config.addUser("Guest", "guest");
         const other = await browsers.open(2);
 
@@ -999,10 +1004,10 @@ test(
             assert.deepEqual(
                 JSON.parse(
                     await other.evaluate(
-                        `return JSON.stringify(await globalThis.sharedPocket.pip.ask("Look", { send: true }))`,
+                        `return JSON.stringify(await globalThis.sharedPocket.pia.ask("Look", { send: true }))`,
                     ),
                 ),
-                { ok: false, reason: "PiP is not available" },
+                { ok: false, reason: "Pia is not available" },
             );
         } finally {
             app.config.removeUser(guest.user.id);

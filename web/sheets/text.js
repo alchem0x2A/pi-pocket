@@ -63,9 +63,9 @@ function modelLabel(model, level) {
 }
 
 /** The compact sheet keeps its instructions and can choose a different summary model for this compaction. */
-export function CompactSheet({ pipId }) {
+export function CompactSheet({ piaId }) {
     const { models, server } = store.state;
-    const view = pipId === undefined ? store.state.view : store.state.pipView;
+    const view = piaId === undefined ? store.state.view : store.state.piaView;
     const [selection, setSelection] = useState("");
     const [thinkingLevel, setThinkingLevel] = useState("high");
     const sessionModel = view.agent?.model;
@@ -145,6 +145,6 @@ export function CompactSheet({ pipId }) {
         </div>`
         }`}
         submit=${(instructions) =>
-            actions.compact(instructions || undefined, choice, pipId ?? undefined)}
+            actions.compact(instructions || undefined, choice, piaId ?? undefined)}
     />`;
 }

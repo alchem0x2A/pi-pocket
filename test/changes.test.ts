@@ -1,4 +1,4 @@
-// Changes: Pi's edits from its tool calls, and a repository's uncommitted changes with their diffs.
+// Changes: the agent's edits from its tool calls, and a repository's uncommitted changes with their diffs.
 import {
     type App,
     cleanUp,
@@ -72,7 +72,7 @@ before(async () => {
     gitIn("config", "user.email", "t@example.com");
     gitIn("config", "user.name", "T");
     writeFileSync(join(repo, "keep.txt"), "a\nb\n");
-    writeFileSync(join(repo, "other.txt"), "untouched by Pi\n");
+    writeFileSync(join(repo, "other.txt"), "untouched by the agent\n");
     gitIn("add", "-A");
     gitIn("commit", "-qm", "init");
     app = await openApp(scriptedModel(route));
@@ -83,7 +83,7 @@ after(async () => {
     cleanUp();
 });
 
-test("a session's changes list git's uncommitted files, mark Pi's, and give each file's diff", async () => {
+test("a session's changes list git's uncommitted files, mark the agent's, and give each file's diff", async () => {
     const id = await newSession(app, repo);
 
     await say(app, id, "edit it");
@@ -118,7 +118,7 @@ test("a session's changes list git's uncommitted files, mark Pi's, and give each
     assert.deepEqual(
         changes.piOnly.map((each) => each.path),
         ["../outside.txt"],
-        "outside the repository, only Pi's list has it",
+        "outside the repository, only the agent's list has it",
     );
 
     assert.match(await app.workspace.changeDiff(id, owner(app), "keep.txt"), /^-b\n\+c$/m);
@@ -167,7 +167,7 @@ test("diffs read the same whatever a person's git config says", async () => {
     }
 });
 
-test("files a codemode script wrote are Pi's too, shown at the reply that ran it", async () => {
+test("files a codemode script wrote are the agent's too, shown at the reply that ran it", async () => {
     const id = await newSession(app, repo);
 
     await say(app, id, "script it");
@@ -243,7 +243,7 @@ test("a renamed file's diff is what changed in it, under both its names", async 
     assert.doesNotMatch(diff, /^\+one$/m, "not the whole file as new");
 });
 
-test("each look finds Pi's edits since the last one, in a fork too", async () => {
+test("each look finds the agent's edits since the last one, in a fork too", async () => {
     const folder = repository("looks", { "keep.txt": "a\nb\n" });
     const id = await newSession(app, folder);
 

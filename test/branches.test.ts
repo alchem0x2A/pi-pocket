@@ -43,7 +43,7 @@ after(async () => {
     cleanUp();
 });
 
-test("switching from the app changes the branch, tells Pi, and shows in the view", async () => {
+test("switching from the app changes the branch, tells the agent, and shows in the view", async () => {
     const id = await newSession(app, repo);
     const me = owner(app);
     const tab = fakeTab(id, me);

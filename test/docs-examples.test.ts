@@ -89,7 +89,7 @@ after(async () => {
     cleanUp();
 });
 
-/** What Pi's last answer in a session says. */
+/** What the agent's last answer in a session says. */
 const answer = async (id: Parameters<typeof say>[1]) => (await modelTexts(app, id)).at(-1) ?? "";
 
 test("the example extensions load as drop-ins, off until the owner turns them on, and work", async () => {
@@ -138,7 +138,7 @@ test("the example extensions load as drop-ins, off until the owner turns them on
     await say(app, id, "now a plain push");
     assert.match(await answer(id), /tool said: git push origin main/);
 
-    // Server status adds to the app, not to Pi: a route, and a browser module for the owner's tabs.
+    // Server status adds to the app, not to the agent: a route, and a browser module for the owner's tabs.
     const status = app.webs.match("server-status", "GET", ["status"], owner(app));
 
     assert.ok(status !== undefined && "route" in status, "its route is there");

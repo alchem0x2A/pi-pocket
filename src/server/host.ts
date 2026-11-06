@@ -18,8 +18,7 @@ import type { LancetGuard } from "./lancet.ts";
 import type { Memory } from "./memory.ts";
 import type { OwnerInbox } from "./inbox.ts";
 import type { InboxNote } from "./docs.ts";
-import type { Pip } from "./pip.ts";
-import type { PipCompaction } from "./pip-compact.ts";
+import type { Pia } from "./pip.ts";
 import type { CompactionReview } from "./compaction-review.ts";
 import type { Schedules } from "./schedules.ts";
 import type { BackgroundTasks } from "./background.ts";
@@ -52,7 +51,7 @@ export interface LinkedSession {
 }
 
 /**
- * Sessions that a session starts and messages (`linked-sessions.ts`). Each acts as the person Pi works for in `source`,
+ * Sessions that a session starts and messages (`linked-sessions.ts`). Each acts as the person the agent works for in `source`,
  * with their checks; a call made again with the same `key` acts once, and returns what the first did.
  */
 export interface LinkedSessionsApi {
@@ -77,7 +76,7 @@ export interface LinkedSessionsApi {
         request: { to: string; message: string; steer?: boolean },
         key: string,
     ): Promise<void>;
-    /** The sessions linked to `source`, at any distance, that the person Pi works for there sees. */
+    /** The sessions linked to `source`, at any distance, that the person the agent works for there sees. */
     list(source: ConversationId): Promise<LinkedSession[]>;
 }
 
@@ -111,11 +110,11 @@ export interface ApprovalRequest {
     reason: string;
     score?: number;
     createdAt: number;
-    /** Who Pi was working for when the call asked: set by `Approvals`, not by the asker. */
+    /** Who the agent was working for when the call asked: set by `Approvals`, not by the asker. */
     requestedBy?: string;
     /**
      * A question for a person instead of a call to allow (`host.ask`): what the card asks, and its fields. Only the
-     * person Pi works for answers it; anyone who can steer can decline it. Its values go to the asker, never here.
+     * person the agent works for answers it; anyone who can steer can decline it. Its values go to the asker, never here.
      */
     form?: AskForm;
 }
@@ -140,7 +139,7 @@ export interface AskField {
     autocomplete?: string;
 }
 
-/** A question for the person Pi works for, on a card in the session (`host.ask`). */
+/** A question for the person the agent works for, on a card in the session (`host.ask`). */
 export interface AskRequest {
     readonly conversationId: ConversationId;
     /** Unique while it waits, and the same when the call asks again: `${api.taskId}:${api.callId}`. */
@@ -182,7 +181,7 @@ export interface BrowserPageHandle {
     /** The page's address and title now. */
     readonly url: string;
     readonly title: string;
-    /** The page as Pi reads it (`text`, with refs such as `[e12]`) and its controls as data. Refs last until the next. */
+    /** The page as the agent reads it (`text`, with refs such as `[e12]`) and its controls as data. Refs last until the next. */
     snapshot(): Promise<{ text: string; controls: BrowserControl[]; truncated: boolean }>;
     /** What a target is: its description, its kind (an input's type, or a tag), and whether it is a field or a password. */
     inspect(
@@ -190,7 +189,7 @@ export interface BrowserPageHandle {
     ): Promise<{ label: string; kind: string; editable: boolean; password: boolean }>;
     navigate(url: string): Promise<void>;
     click(target: BrowserTarget): Promise<{ label: string; navigated: boolean }>;
-    /** Type as Pi types: what is typed can be seen in the page. */
+    /** Type as the agent types: what is typed can be seen in the page. */
     type(target: BrowserTarget, text: string, options?: { submit?: boolean }): Promise<string>;
     /** Put a person's value into a field, such as a password: core never shows it, and it is not in what comes back. */
     fill(target: BrowserTarget, value: string): Promise<string>;
@@ -213,13 +212,13 @@ export class Approvals {
     readonly #listeners = new Set<(conversationId: ConversationId) => void>();
     readonly #requesterOf: (conversationId: ConversationId) => string | undefined;
 
-    /** `requesterOf`: who Pi works for in a conversation right now. */
+    /** `requesterOf`: who the agent works for in a conversation right now. */
     constructor(requesterOf: (conversationId: ConversationId) => string | undefined) {
         this.#requesterOf = requesterOf;
     }
 
     request(asked: ApprovalRequest, context: Context): Promise<ApprovalAnswer> {
-        // Who asked is fixed now: someone writing to Pi while the call waits does not become its requester.
+        // Who asked is fixed now: someone writing to the agent while the call waits does not become its requester.
         const { requestedBy: _ignored, ...rest } = asked;
         const requestedBy = this.#requesterOf(asked.conversationId);
         const request: ApprovalRequest =
@@ -299,7 +298,7 @@ export interface CommandContext {
 }
 
 /**
- * A command people run from the message box (`web.command(name, command)`), without asking Pi. `scope` says who may run
+ * A command people run from the message box (`web.command(name, command)`), without asking the agent. `scope` says who may run
  * it: `"conversation"`, whoever may drive the session; `"global"`, the owner alone. Either way it runs in the session it
  * was typed in, and its card goes there.
  */
@@ -314,7 +313,7 @@ export interface ExtensionCommand {
 export type CommandInfo = Omit<ExtensionCommand, "handler"> & { id: string; name: string };
 
 /**
- * Shapes one model request: the payload Pi built and the model. Returns a replacement payload, or undefined to keep
+ * Shapes one model request: the payload the agent built and the model. Returns a replacement payload, or undefined to keep
  * it.
  */
 export type ModelRequestShaper = (payload: unknown, model: Model<Api>) => unknown | undefined;
@@ -325,7 +324,7 @@ export interface PocketHost {
     readonly approvals: Approvals;
     readonly agentDir: string;
     readonly dataDir: string;
-    /** The running server's Pi Pocket package version, not the extension API level. */
+    /** The running server's Pia package version, not the extension API level. */
     readonly pocketVersion: string;
     /** Local metadata for an exact provider/modelId; no sign-in check or network request. */
     modelInfo(spec: string):
@@ -337,9 +336,9 @@ export interface PocketHost {
               cost?: { input: number; output: number };
           }
         | undefined;
-    /** Pi's configured extra skill paths, from its settings. */
+    /** the agent's configured extra skill paths, from its settings. */
     skillPaths(): string[];
-    /** Pi's skills for a session working in `cwd`, from the places Pi looks (`skills.ts`). */
+    /** the agent's skills for a session working in `cwd`, from the places the agent looks (`skills.ts`). */
     skills(cwd: string): Skill[];
     /**
      * `provider/modelId` (or a bare model id) to a signed-in model whose sign-in has not expired, or an error that says
@@ -347,17 +346,17 @@ export interface PocketHost {
      */
     resolveModel(spec: string): ModelRef;
     /**
-     * The models Pi may start subagents on, as the owner allowed them (`provider/modelId`).
+     * The models the agent may start subagents on, as the owner allowed them (`provider/modelId`).
      * Empty, the default: none.
      */
     subagentModels(): readonly string[];
     /**
-     * Why Pi may not use a model now, in words for Pi to pass on (not known here, its provider not signed in, or its
+     * Why the agent may not use a model now, in words for the agent to pass on (not known here, its provider not signed in, or its
      * sign-in expired), or undefined when it may. `fresh` asks the provider's sign-in again first.
      */
     modelProblem(ref: ModelRef, fresh?: boolean): Promise<string | undefined>;
     /**
-     * Register a model provider with Pi's model runtime, as a Pi extension does: `config` is Pi's own provider
+     * Register a model provider with the agent's model runtime, as an agent extension does: `config` is the agent's own provider
      * configuration, including the models it starts with and how it refreshes them. The last registration of a name
      * wins. Returns how to remove it again, which puts back the registration before it; a removal of a registration
      * that is not the last one changes nothing.
@@ -365,7 +364,7 @@ export interface PocketHost {
     registerModelProvider(provider: string, config: ProviderConfig): () => void;
     /**
      * Shape the request every model call sends: `shape` returns a replacement payload, or undefined to keep it. It runs
-     * after Pi and the caller shaped the request, closest to the wire. Returns how to stop shaping. Only the modules
+     * after the agent and the caller shaped the request, closest to the wire. Returns how to stop shaping. Only the modules
      * the owner turned on shape requests.
      */
     shapeModelRequests(shape: ModelRequestShaper): () => void;
@@ -376,38 +375,38 @@ export interface PocketHost {
      * @experimental In 0.20: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     readonly fetchPublic: FetchPublic;
-    /** Who Pi works for in a conversation now: whose message led to its current work. */
+    /** Who the agent works for in a conversation now: whose message led to its current work. */
     requesterOf(conversationId: ConversationId): string | undefined;
     /**
-     * Listen to what happens in the app: sessions made, renamed, and archived, messages people send to Pi, and
-     * runs that start and end. Returns how to stop; pass that to `web.onDispose`. PiP's conversations send none.
+     * Listen to what happens in the app: sessions made, renamed, and archived, messages people send to the agent, and
+     * runs that start and end. Returns how to stop; pass that to `web.onDispose`. Pia's conversations send none.
      *
      * @experimental In 0.22: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     on<E extends AppEventName>(event: E, listener: (data: AppEvents[E]) => unknown): () => void;
     /**
-     * Ask the person Pi works for on a card in the session, as an approval asks: their answer, with the values they
-     * typed, goes to the extension, never to Pi or into the transcript. Do not keep the values in a memo or a document.
+     * Ask the person the agent works for on a card in the session, as an approval asks: their answer, with the values they
+     * typed, goes to the extension, never to the agent or into the transcript. Do not keep the values in a memo or a document.
      *
      * @experimental In 0.22: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     ask(request: AskRequest, context: Context): Promise<AskAnswer>;
     /**
-     * Hide a value from what Pi and people read: command output as it streams, every tool's result, and people's
-     * messages to Pi. It shows as `[label]`. Returns how to stop; pass that to `web.onDispose`.
+     * Hide a value from what the agent and people read: command output as it streams, every tool's result, and people's
+     * messages to the agent. It shows as `[label]`. Returns how to stop; pass that to `web.onDispose`.
      *
      * @experimental In 0.22: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     hide(value: HiddenValue): () => void;
     /**
-     * Add environment variables to the commands Pi and people run in sessions (bash, `!` commands, checks), chosen for
+     * Add environment variables to the commands the agent and people run in sessions (bash, `!` commands, checks), chosen for
      * each command. Returns how to stop; pass that to `web.onDispose`.
      *
      * @experimental In 0.22: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     commandEnv(provider: CommandEnvProvider): () => void;
     /**
-     * A session's browser page, the one Pi and people use: opened when `open` is true, else only when it is open
+     * A session's browser page, the one the agent and people use: opened when `open` is true, else only when it is open
      * already. Undefined while the Browser module is off, or with no page.
      *
      * @experimental In 0.22: it can change in a minor release (docs/extensions/policies/api-stability.md).
@@ -423,7 +422,7 @@ export interface PocketHost {
         conversationId?: ConversationId,
     ): void;
     /**
-     * Why work Pi would start in a conversation with nobody asking (a subagent's report, say) may not start now: the
+     * Why work the agent would start in a conversation with nobody asking (a subagent's report, say) may not start now: the
      * spend limit its session or whoever pays there reached. Undefined when it may.
      */
     heldBack(conversationId: ConversationId): string | undefined;
@@ -431,14 +430,14 @@ export interface PocketHost {
     onLimitsChanged(listener: () => void): () => void;
     /**
      * Sessions that a session starts and messages (`linked-sessions.ts`): each one is an ordinary session, linked to the
-     * one that started it. The checks of the person Pi works for apply, and a call repeated with its key acts once.
+     * one that started it. The checks of the person the agent works for apply, and a call repeated with its key acts once.
      *
      * @experimental In 0.14: it can change in a minor release (docs/extensions/policies/api-stability.md).
      */
     readonly linkedSessions: LinkedSessionsApi;
-    /** Messages to Pi for later: the schedule tool sets up Pi's own. */
+    /** Messages to the agent for later: the schedule tool sets up the agent's own. */
     readonly schedules: Pick<Schedules, "add" | "cancel" | "limits" | "list" | "task">;
-    /** Commands Pi runs in the background: the background tool starts, reads, and stops them. */
+    /** Commands the agent runs in the background: the background tool starts, reads, and stops them. */
     readonly background: Pick<
         BackgroundTasks,
         "start" | "read" | "stop" | "list" | "limits" | "task" | "describe"
@@ -447,9 +446,9 @@ export interface PocketHost {
     readonly goals: Pick<Goals, "get" | "run" | "record" | "mayContinue">;
     /** The built-in browser: a page per conversation, which the people in it watch and use too. */
     readonly browsers: Pick<Browsers, "open">;
-    /** PiP, the owner's assistant: what its tools do, each as PiP's person (`pip.ts`). */
-    readonly pip: Pick<
-        Pip,
+    /** Pia, the owner's assistant: what its tools do, each as Pia's person (`pip.ts`). */
+    readonly pia: Pick<
+        Pia,
         | "ownerOf"
         | "ownerName"
         | "task"
@@ -473,13 +472,17 @@ export interface PocketHost {
         | "addRepoWatch"
         | "repoWatches"
         | "removeRepoWatch"
-        | "profile"
+        | "name"
+        | "workspace"
+        | "defaultFolder"
         | "sharedContext"
     > & {
         /** Internal Pia-only inbox capability. Absent until a server with inbox support starts. */
         inbox?: Pick<OwnerInbox, "forAssistant"> &
             Partial<Pick<OwnerInbox, "pendingCountForAssistant" | "taggedCountsForAssistant">>;
     };
+    /** @deprecated Use `pia`. Kept for existing extensions. */
+    readonly pip: PocketHost["pia"];
     /** Tagged inbox notes that any session working for the owner can post and read (`extensions/inbox-notes.ts`). */
     readonly inboxNotes: {
         read: OwnerInbox["readAsAgent"];
@@ -488,20 +491,18 @@ export interface PocketHost {
             request: { tag?: unknown; text?: unknown },
         ): Promise<InboxNote>;
     };
-    /** PiP's compactions: its extension's hook has PiP write its own summaries. */
-    readonly pipCompaction: Pick<PipCompaction, "summarize">;
     /** Session compactions: a selected review model can write their summaries without changing the session model. */
     readonly compactionReview: Pick<CompactionReview, "summarize" | "failure">;
-    /** Sessions' watches of their pull requests: Pi's watch_pr tool starts and stops them. */
+    /** Sessions' watches of their pull requests: the agent's watch_pr tool starts and stops them. */
     readonly watches: Pick<Watches, "task" | "start" | "stop" | "get">;
-    /** Repository watches: the triggers extension runs their task; PiP's repo_watch tool sets them up. */
+    /** Repository watches: the triggers extension runs their task; Pia's repo_watch tool sets them up. */
     readonly repoWatches: Pick<RepoWatches, "task">;
-    /** Lessons Pi keeps across sessions (`memory.ts`): the memory tool saves them, and its section lists them. */
+    /** Lessons the agent keeps across sessions (`memory.ts`): the memory tool saves them, and its section lists them. */
     readonly memory: Pick<Memory, "project" | "applying" | "inForce" | "add" | "change">;
     /**
-     * Text from elsewhere made safe for Pi to read (`fence.ts`): `quoted` gives one line, cut to `max`, without
+     * Text from elsewhere made safe for the agent to read (`fence.ts`): `quoted` gives one line, cut to `max`, without
      * invisible characters or any tag, in quotes it cannot close; `defang` keeps the lines, but no closing tag survives,
-     * for text put between tags of your own. Tell Pi in the same place that it is data.
+     * for text put between tags of your own. Tell the agent in the same place that it is data.
      */
     readonly text: { quoted(text: string, max?: number): string; defang(text: string): string };
     /** The thinking levels, lowest first, as a model and a session name them. */
@@ -523,12 +524,12 @@ export interface PocketHost {
         | "share"
     >;
     /**
-     * Updates of Pi Pocket itself (`updates.ts`): its extension's routes are the owner's way to them. A new version is
+     * Updates of Pia itself (`updates.ts`): its extension's routes are the owner's way to them. A new version is
      * never installed by itself: the owner starts a migration session (`migrate`), or a fast-forward of the local main to
      * upstream's (`sync`).
      */
     readonly updates: Pick<Updates, "status" | "check" | "migrate" | "sync" | "subscribe">;
-    /** Restarting the server (`restart.ts`): Pi's restart tool asks the owner for one. */
+    /** Restarting the server (`restart.ts`): the agent's restart tool asks the owner for one. */
     readonly restarts: Pick<Restarts, "status" | "request">;
 }
 

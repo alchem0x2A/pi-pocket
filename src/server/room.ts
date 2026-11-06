@@ -1,5 +1,5 @@
 /**
- * One conversation's shared live view: the committed Pi Durable view plus Pi Pocket's own documents, projected into
+ * One conversation's shared live view: the committed Pi Durable view plus Pia's own documents, projected into
  * small updates for every browser tab attached to it, and who is here and typing (memory only).
  */
 import type { AttachedReplicatedState } from "@earendil-works/chord";
@@ -171,14 +171,14 @@ export interface Client {
     /** The JSON of the session list this tab last got, so an unchanged list is not sent again. */
     sessionsSent?: string;
     /**
-     * This tab's PiP panel, while open: a view of PiP's conversation beside the one the tab shows, which reaches the tab
-     * as `pipview` events (`PocketApp.setPip`).
+     * This tab's Pia panel, while open: a view of Pia's conversation beside the one the tab shows, which reaches the tab
+     * as `piaview` events (`PocketApp.setPia`).
      */
-    pip?: Client;
-    /** The number of the last PiP panel request taken, so one that arrives late does not undo a newer one. */
-    pipSeq?: number;
-    /** The JSON of the PiP state this tab last got (`pip` events), so an unchanged one is not sent again. */
-    pipSent?: string;
+    pia?: Client;
+    /** The number of the last Pia panel request taken, so one that arrives late does not undo a newer one. */
+    piaSeq?: number;
+    /** The JSON of the Pia state this tab last got (`pia` events), so an unchanged one is not sent again. */
+    piaSent?: string;
 }
 
 export type TypingPlace = "chat" | "pi";
@@ -637,7 +637,7 @@ export class Room {
                     ...(by === undefined ? {} : { by }),
                     runs,
                 })),
-            // The branch is read from the repository each time, so one Pi or a person switched to shows on the next update.
+            // The branch is read from the repository each time, so one the agent or a person switched to shows on the next update.
             branch: this.#readHead(),
             goal:
                 this.goal === undefined
@@ -847,7 +847,7 @@ export class Room {
                     (item.entry.data as { command?: unknown } | undefined)?.command ?? "",
                 );
 
-                // A `!` command, or an extension command's card written while Pi works.
+                // A `!` command, or an extension command's card written while the agent works.
                 return {
                     id,
                     mode: item.mode,

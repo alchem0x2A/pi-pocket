@@ -318,7 +318,7 @@ function Detail({ agent, title }) {
                 html`<span>Error</span><span class="board-error">${agent.error}</span>`
             }
         </div>
-        ${agent.reporting && html`<span class="agent-chip">report on its way to Pi</span>`}
+        ${agent.reporting && html`<span class="agent-chip">report on its way to the agent</span>`}
         <div class="board-actions">
             <button class="button primary" onClick=${() => open(agent)}>
                 ${state === "waiting" ? "Review the approval" : "Open"}
@@ -762,7 +762,7 @@ export function SubagentsBoard() {
             ? html`<div class="board-empty">Loading subagents…</div>`
             : agents.length === 0
               ? html`<div class="board-empty">
-                    No subagents yet. Pi starts them when a task splits into parts that can run at once.
+                    No subagents yet. The agent starts them when a task splits into parts that can run at once.
                 </div>`
               : null;
 

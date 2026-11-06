@@ -31,9 +31,9 @@ function readable(error: unknown): never {
 
 /**
  * The Browser panel: the conversation's page as frames, its console, and what people do to it. Everyone who can see
- * the conversation watches; using the page takes what steering Pi takes, as the browser reaches what this machine
+ * the conversation watches; using the page takes what steering the agent takes, as the browser reaches what this machine
  * reaches. The addresses people open show in the chat. Only the owner opens files on this machine from the address
- * bar (Pi opens them with its own tool), and only the owner gets the list of servers running here.
+ * bar (the agent opens them with its own tool), and only the owner gets the list of servers running here.
  */
 export async function browserRoutes(
     api: ApiRequest,

@@ -1,6 +1,6 @@
 /**
  * Claude subscription requests: Anthropic decides by the shape of a request whether a Claude Code sign-in draws from
- * the subscription or is billed as a third-party app. Pi's Anthropic transport sends the Claude Code identity but not
+ * the subscription or is billed as a third-party app. The agent's Anthropic transport sends the Claude Code identity but not
  * the billing header that marks the request as Claude Code usage, so a real agent prompt is refused with
  * "Third-party apps now draw from your extra usage, not your plan limits" (400). `shapeRequest` adds that header; the
  * `anthropic-subscription` extension applies it when the owner turns that on.
@@ -93,7 +93,7 @@ function headerValue(text: string): string {
     return `${BILLING_HEADER} cc_version=${VERSION}.${suffix}; cc_entrypoint=${ENTRYPOINT}; cch=${cch};`;
 }
 
-/** Whether the request carries the Claude Code identity block Pi sends only with a subscription sign-in. */
+/** Whether the request carries the Claude Code identity block the agent sends only with a subscription sign-in. */
 export function isClaudeCodeRequest(payload: unknown): boolean {
     if (typeof payload !== "object" || payload === null) {
         return false;

@@ -1,4 +1,4 @@
-// How the transcript reads a conversation, without drawing it: Pi's answers split into runs of words and groups of
+// How the transcript reads a conversation, without drawing it: the agent's answers split into runs of words and groups of
 // thinking and tool calls (`itemsOf`), what a group did in a line (`summarize`), and what a call came to, read from what
 // its tool printed. Pure functions with no imports, so `test/turns.test.ts` runs them in Node; transcript.js draws them.
 
@@ -146,7 +146,7 @@ const DID = {
     browser: { verb: "used the browser" },
     artifact: { verb: "published", noun: "artifact", by: "id" },
     artifact_inline: { verb: "published", noun: "artifact", by: "id" },
-    // PiP's.
+    // Pia's.
     sessions: { verb: "looked over sessions" },
     session_read: { verb: "read", noun: "session", by: "session" },
     session_start: { verb: "started", noun: "session" },
@@ -229,7 +229,7 @@ const sentence = (parts) =>
     parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
 
 /**
- * A group's calls in a line, in the order Pi first did each kind: "Thought, searched, read 2 files, ran 1 command", or
+ * A group's calls in a line, in the order the agent first did each kind: "Thought, searched, read 2 files, ran 1 command", or
  * "Edited 1 file, wrote 1, ran a subagent and 2 commands".
  */
 export function summarize(steps, thinking) {
@@ -305,15 +305,15 @@ export const INLINE_TOOL = "artifact_inline";
 export const says = (block) => block.type === "text" && block.text.trim() !== "";
 
 /**
- * The rows as the transcript shows them. A person's message, a command, a note, and a divider are each a row; Pi's
- * answers split into runs of words and runs of thinking and tool calls. A run of thinking and calls goes on across Pi's
- * answers until words, or another row, end it: the calls Pi made one after another fold into one group. `partial` is
+ * The rows as the transcript shows them. A person's message, a command, a note, and a divider are each a row; the agent's
+ * answers split into runs of words and runs of thinking and tool calls. A run of thinking and calls goes on across the agent's
+ * answers until words, or another row, end it: the calls the agent made one after another fold into one group. `partial` is
  * the answer being written, which joins the group before it while it is still thinking and calling tools.
  *
  * Groups and runs of words are named by the row before them and how many came since: the names stay the same as the
  * answer being written is stored, and `from` (`itemsOf(earlier).state`) carries them on from rows before these, so they
  * do not change when the rows shown start elsewhere. The returned list's `state` is where it left off. `talk`: people
- * react to and discuss Pi's answers here (`hasEnd`).
+ * react to and discuss the agent's answers here (`hasEnd`).
  */
 export function itemsOf(rows, partial, { prefix = "", from = null, talk = false } = {}) {
     const items = [];
@@ -325,7 +325,7 @@ export function itemsOf(rows, partial, { prefix = "", from = null, talk = false 
     // A group the rows before left open goes on here, under its name.
     let open = from?.open ?? null;
     let group = null;
-    // The answer whose calls can still run while Pi works: the newest, when it asked for tools. Calls of any other
+    // The answer whose calls can still run while the agent works: the newest, when it asked for tools. Calls of any other
     // answer that have no result never ran (it was stopped, or failed).
     const last = rows.at(-1);
     const asking =
@@ -421,7 +421,7 @@ export function itemsOf(rows, partial, { prefix = "", from = null, talk = false 
         }
 
         if (!hasEnd(entry, talk)) {
-            // Nothing of it shows (only blank words): a jump to it still finds it, where Pi was.
+            // Nothing of it shows (only blank words): a jump to it still finds it, where the agent was.
             if (!anchored) {
                 if (group !== null) {
                     group.anchors.push(entry.id);
@@ -446,7 +446,7 @@ export function itemsOf(rows, partial, { prefix = "", from = null, talk = false 
             });
         }
 
-        // How it ended (its words, a failure, a stop) ends what Pi was doing.
+        // How it ended (its words, a failure, a stop) ends what the agent was doing.
         close();
     };
 
@@ -481,7 +481,7 @@ export function itemsOf(rows, partial, { prefix = "", from = null, talk = false 
 
 /**
  * Where the rows shown from `start` take their names from (`itemsOf`): the rows before them, back to the last one that
- * is not Pi's. Null when they start at the top.
+ * is not the agent's. Null when they start at the top.
  */
 export function rowsBefore(rows, start, talk = false) {
     if (start === 0) {
@@ -499,7 +499,7 @@ export function rowsBefore(rows, start, talk = false) {
 
 /**
  * Whether an answer has anything to show after its last words: a failure, a stop, or (`talk`, where people react to
- * and discuss Pi's answers) a final answer's actions.
+ * and discuss the agent's answers) a final answer's actions.
  */
 const hasEnd = (entry, talk) =>
     entry.stopReason === "error" ||

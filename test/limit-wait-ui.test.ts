@@ -70,7 +70,7 @@ after(async () => {
 });
 
 test(
-    "the live line says Pi waits for a limit and has Retry now, which sends the request",
+    "the live line says the agent waits for a limit and has Retry now, which sends the request",
     real,
     async () => {
         const id = await newSession(app);

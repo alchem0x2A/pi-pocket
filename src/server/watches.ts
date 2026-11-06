@@ -1,14 +1,14 @@
 /**
  * Watching a pull request: while a session's PR is open, a durable task looks at it on GitHub every few minutes, with
- * the `gh` command signed in on this machine, and tells Pi in the session what needs doing: checks that failed, with
+ * the `gh` command signed in on this machine, and tells the agent in the session what needs doing: checks that failed, with
  * the end of their logs; conflicts with the base branch; new comments and reviews from the repository's owner, and from
  * its organization's members and its collaborators whom GitHub says can write to it (and review bots). GitHub tells
  * that only to an account that can push there: elsewhere, only the owner's count. Comments from whoever `gh` is signed in as count only
- * when they mention @pi: Pi posts as them, and must not answer itself. Each look that finds something sends one message,
- * as the work of the person who set the watch up, never while Pi is busy there or someone else drives, and at most
+ * when they mention @pi: the agent posts as them, and must not answer itself. Each look that finds something sends one message,
+ * as the work of the person who set the watch up, never while the agent is busy there or someone else drives, and at most
  * `MAX_SENT` in all; while triggers are off it waits. The watch ends when the PR is merged
  * or closed, when there is more to tell than it may send, after two weeks with nothing new, after an hour of failed
- * looks, or when someone stops it. The triggers extension (`extensions/triggers.ts`) installs the task and Pi's tool.
+ * looks, or when someone stops it. The triggers extension (`extensions/triggers.ts`) installs the task and the agent's tool.
  */
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -20,7 +20,14 @@ import {
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import { addActivity } from "./collab.ts";
-import { ChatDoc, type PrWatch, TurnsDoc, type WatchStatus, WatchDoc } from "./docs.ts";
+import {
+    assistantOwner,
+    ChatDoc,
+    type PrWatch,
+    TurnsDoc,
+    type WatchStatus,
+    WatchDoc,
+} from "./docs.ts";
 import { describe, HttpError } from "./errors.ts";
 import { attribute, clip, defang, quoted } from "./fence.ts";
 import {
@@ -50,9 +57,9 @@ const context = BACKGROUND_CONTEXT;
 export const TRIGGERS_EXTENSION = "pocket-triggers";
 /** What messages from a watch are sent through: they start `[via PR watch]`. */
 export const WATCH_VIA = "PR watch";
-/** The most messages one watch sends to Pi. */
+/** The most messages one watch sends to the agent. */
 export const MAX_SENT = 10;
-/** How often a watch looks while checks run, or soon after it told Pi something; and while all is quiet. */
+/** How often a watch looks while checks run, or soon after it told the agent something; and while all is quiet. */
 const LOOK_SOON_MS = 60_000;
 const LOOK_MS = 3 * 60_000;
 /** After a look or a send that failed. Twelve in a row, an hour, and the watch stops. */
@@ -64,19 +71,19 @@ const QUIET_MS = 14 * 24 * 3_600_000;
 const SEEN = 300;
 /** Remarks in one message: all a watch can send fit in `SEEN`, so none it told is forgotten and told again. */
 const MAX_REMARKS = SEEN / MAX_SENT;
-/** How much Pi gets of each failed check's log, of all of them, of each comment, and of all comments. */
+/** How much the agent gets of each failed check's log, of all of them, of each comment, and of all comments. */
 const LOG_CHARS = 3000;
 const LOGS_CHARS = 8000;
 const LOGGED_CHECKS = 3;
 const COMMENT_CHARS = 1500;
 const COMMENTS_CHARS = 6000;
 
-/** How check logs reach Pi: fenced, so they read as output, not as instructions. */
+/** How check logs reach the agent: fenced, so they read as output, not as instructions. */
 const LOG_OPEN = "<ci-log";
 const LOG_CLOSE = "</ci-log>";
 /** A PR by its number, in the folder's repository. */
 const PR_NUMBER = /^#?\d{1,9}$/;
-/** What may name a PR for `gh pr view`: its number, its address, or a branch. Pi names one elsewhere by address only. */
+/** What may name a PR for `gh pr view`: its number, its address, or a branch. The agent names one elsewhere by address only. */
 const PR_NAME = /^(#?\d{1,9}|https?:\/\/\S+\/pull\/\d+\S*|[\w.:/][\w.:/-]{0,199})$/;
 
 /** What a look found about one check of the PR's last commit. */
@@ -88,7 +95,7 @@ type Check = {
     job?: string;
 };
 
-/** A comment, a review, or a review comment on a line, that may need Pi. */
+/** A comment, a review, or a review comment on a line, that may need the agent. */
 type Remark = {
     id: string;
     who: string;
@@ -141,7 +148,7 @@ type GhRollup = {
     targetUrl?: string;
 };
 
-/** A check, from GitHub's rollup: pending while it runs, failed only when Pi could do something about it. */
+/** A check, from GitHub's rollup: pending while it runs, failed only when the agent could do something about it. */
 function checkOf(item: GhRollup): Check {
     const url = item.detailsUrl ?? item.targetUrl;
     const job = /\/actions\/runs\/\d+\/job(?:s)?\/(\d+)/.exec(url ?? "")?.[1];
@@ -170,14 +177,14 @@ function checkOf(item: GhRollup): Check {
         return { ...base, state: "pending" };
     }
 
-    // Cancelled, stale, or waiting for a person: nothing for Pi to fix.
+    // Cancelled, stale, or waiting for a person: nothing for the agent to fix.
     const failed = ["FAILURE", "TIMED_OUT", "STARTUP_FAILURE"].includes(item.conclusion ?? "");
 
     return { ...base, state: failed ? "failed" : "passed" };
 }
 
 /**
- * Whether a remark may reach Pi: from the repository's owner or someone GitHub says can write to it, or a bot's review;
+ * Whether a remark may reach the agent: from the repository's owner or someone GitHub says can write to it, or a bot's review;
  * from `gh`'s own account only when it mentions @pi.
  */
 async function counts(
@@ -198,7 +205,7 @@ async function counts(
     return (bot && review) || (await fromWriter(gh, repo, association, author?.login));
 }
 
-/** A log as Pi reads it best: no colours, timestamps, or `gh`'s job and step columns. */
+/** A log as the agent reads it best: no colours, timestamps, or `gh`'s job and step columns. */
 function cleanLog(text: string): string {
     return text
         .split("\n")
@@ -234,7 +241,7 @@ const finished = { status: "terminal", outcome: { status: "completed", result: n
 export type WatchRequest = {
     /** The PR: its number, address, or branch. None: the PR of the session's branch. */
     pr?: string;
-    /** Pi set it up, for the person. */
+    /** the agent set it up, for the person. */
     byPi?: boolean;
     /** The same key sets up the same watch once: a tool call replayed after a restart finds it. */
     key?: string;
@@ -324,7 +331,7 @@ export class Watches {
         const id = app.rootOf(asking);
         const meta = app.sessionMeta(id);
 
-        if (meta === undefined || meta.pip !== undefined) {
+        if (meta === undefined || assistantOwner(meta) !== undefined) {
             throw new HttpError(400, "Only sessions can watch a pull request.");
         }
 
@@ -336,9 +343,9 @@ export class Watches {
 
         let asked = request.pr?.trim() ?? "";
 
-        // Pi (and PiP) may watch a PR in this folder's repository by its number, or one elsewhere by its address only
+        // the agent (and Pia) may watch a PR in this folder's repository by its number, or one elsewhere by its address only
         // where gh's account can push: a PR in someone else's repository, named in a post or a page, would let its
-        // owner speak to Pi as a reviewer for two weeks.
+        // owner speak to the agent as a reviewer for two weeks.
         if (asked !== "" && request.byPi === true && !PR_NUMBER.test(asked)) {
             const named = parsePr(asked);
 
@@ -356,7 +363,7 @@ export class Watches {
             if (host !== undefined && host !== home) {
                 throw new HttpError(
                     403,
-                    "Pi watches PRs only on github.com or this folder's GitHub host.",
+                    "the agent watches PRs only on github.com or this folder's GitHub host.",
                 );
             }
 
@@ -453,7 +460,7 @@ export class Watches {
                 ? `${host === undefined ? "" : `${host}/`}${owner}/${name}`
                 : repo;
         const origin = await originRepo(app.cwdOf(asking));
-        // A PR of another repository than the folder's: Pi has to work in a checkout of it to push a fix.
+        // A PR of another repository than the folder's: the agent has to work in a checkout of it to push a fix.
         const elsewhere = !sameRepo(origin, repo) && !sameRepo(origin, head);
         // GitHub tells who can write to a repository only to an account that can push to it: elsewhere (a fork's PR
         // to someone else's repository), its members' and collaborators' remarks cannot count, and the watch says so.
@@ -494,7 +501,7 @@ export class Watches {
                 repo,
                 number,
                 url: found.url!,
-                // One line: Pi reads it in the watch's status, and PiP in its list.
+                // One line: the agent reads it in the watch's status, and Pia in its list.
                 title: snippet(found.title ?? `PR #${number}`, 200),
                 branch: found.headRefName ?? "",
                 ...(elsewhere ? { elsewhere: true } : {}),
@@ -731,7 +738,7 @@ export class Watches {
         }
     }
 
-    /** Look at the PR, and decide: tell Pi something, end the watch, or look again later. */
+    /** Look at the PR, and decide: tell the agent something, end the watch, or look again later. */
     async #look(runtime: Runtime, context: Context): Promise<void> {
         const app = this.#app;
         const id = runtime.conversationId;
@@ -746,7 +753,7 @@ export class Watches {
             return this.#again(runtime, this.timing.quiet, {}, context);
         }
 
-        // Pi is at it: what GitHub says now may be about to change (a push on its way). Look again soon.
+        // the agent is at it: what GitHub says now may be about to change (a push on its way). Look again soon.
         if (app.isBusy(id)) {
             return this.#again(runtime, this.timing.soon, {}, context);
         }
@@ -874,7 +881,7 @@ export class Watches {
         }, context);
     }
 
-    /** Tell Pi what the look found, once: the request id is the watch's and its count's. */
+    /** Tell the agent what the look found, once: the request id is the watch's and its count's. */
     async #send(
         state: Extract<WatchState, { phase: "send" }>,
         runtime: Runtime,
@@ -908,7 +915,7 @@ export class Watches {
                 return this.#again(runtime, this.timing.quiet, {}, context);
             }
 
-            // Nothing goes while Pi is busy: it would wait in line, and be about what may have changed.
+            // Nothing goes while the agent is busy: it would wait in line, and be about what may have changed.
             if (app.isBusy(id)) {
                 return this.#again(runtime, this.timing.soon, {}, context);
             }
@@ -941,7 +948,11 @@ export class Watches {
                 );
             } catch (error) {
                 // Someone else's turn, a spend limit, no model: it may pass. The look runs again, and finds the same.
-                return this.#failed(runtime, `Pi could not be told: ${describe(error)}`, context);
+                return this.#failed(
+                    runtime,
+                    `the agent could not be told: ${describe(error)}`,
+                    context,
+                );
             }
         }
 

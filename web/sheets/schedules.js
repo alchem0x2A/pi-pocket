@@ -3,14 +3,14 @@ import { useState } from "preact/hooks";
 import { actions, attempt, canSteer, closeSheet, store } from "../store.js";
 import { formatWhen, html, Icon, Sheet } from "../ui.js";
 
-/** Messages that go to Pi later or on repeat: set one up, see what is coming, cancel one. */
+/** Messages that go to the agent later or on repeat: set one up, see what is coming, cancel one. */
 export function SchedulesSheet() {
     const { view, users, me } = store.state;
     const [when, setWhen] = useState("");
     const steer = canSteer();
     const setBy = (id) =>
         id === undefined
-            ? "Pi"
+            ? "the agent"
             : id === me?.id
               ? "you"
               : (users.find((user) => user.id === id)?.name ?? "someone");
@@ -22,7 +22,7 @@ export function SchedulesSheet() {
 
     return html`<${Sheet} title="Scheduled messages" onClose=${closeSheet}>
         <p class="muted small">
-            Pi gets these at their time, also when nobody is here, and the people in this session get a notification when it is done.
+            The agent gets these at their time, also when nobody is here, and the people in this session get a notification when it is done.
         </p>
         ${
             steer &&
@@ -38,7 +38,7 @@ export function SchedulesSheet() {
                 </button>
             </div>
             <p class="muted small">
-                Start with when: in 30m, 7:00, tomorrow 9am, fri 17:30, every 2h, every weekday 8:00. Then what Pi gets.
+                Start with when: in 30m, 7:00, tomorrow 9am, fri 17:30, every 2h, every weekday 8:00. Then what the agent gets.
             </p>`
         }
         ${view.schedules.length === 0 && html`<p class="muted">Nothing is scheduled.</p>`}

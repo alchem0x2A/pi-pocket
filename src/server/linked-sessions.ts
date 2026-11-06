@@ -15,6 +15,7 @@ import type { User } from "./config.ts";
 import type { HumanLinkedSessions, LinkedSession, LinkedSessionsApi } from "./host.ts";
 import type { RequestActor } from "./extension-request.ts";
 import {
+    assistantOwner,
     LinkedSessionCallsDoc,
     LinkedSessionPeersDoc,
     LinkedSessionRelayDoc,
@@ -103,8 +104,11 @@ export class LinkedSessions implements LinkedSessionsApi {
         const requester = by ?? app.attribution.requesterOf(source);
         const user = requester === undefined ? undefined : app.config.userById(requester);
 
-        if (meta === undefined || meta.pip !== undefined || user === undefined) {
-            throw new HttpError(403, "Linked sessions need a session where Pi works for someone.");
+        if (meta === undefined || assistantOwner(meta) !== undefined || user === undefined) {
+            throw new HttpError(
+                403,
+                "Linked sessions need a session where the agent works for someone.",
+            );
         }
 
         app.requireSee(user, source);
@@ -799,7 +803,7 @@ export class LinkedSessions implements LinkedSessionsApi {
         if (!this.#family(source, user).some((each) => each.id === target)) {
             throw new HttpError(
                 404,
-                "That session is not linked here, or not shared with the person Pi works for.",
+                "That session is not linked here, or not shared with the person the agent works for.",
             );
         }
 

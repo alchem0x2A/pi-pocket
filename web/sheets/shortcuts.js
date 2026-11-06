@@ -25,7 +25,7 @@ const SHORTCUTS = [
         [
             ["Alt B", "Open or close the browser"],
             ["Alt E", "Open or close the Files tile: the folder's files, and what changed"],
-            ["Alt A", "Open or close PiP, your assistant"],
+            ["Alt A", "Open or close Pia, your assistant"],
             ["Alt P", "Show or hide peek tiles"],
             ["Alt T", "Show thinking: turn the live disclosure on or off"],
             ["Mod F", "Find in this session"],
@@ -36,11 +36,11 @@ const SHORTCUTS = [
         [
             ["/", "Commands"],
             ["@", "Mention a file or folder"],
-            ["!", "Run a command (!! keeps it from Pi)"],
+            ["!", "Run a command (!! keeps it from the agent)"],
             ["↑", "In an empty box: what you sent before"],
             ["Ctrl R", "Search what you sent before"],
             ["Alt V", "Dictate into the message box, or stop (where the browser can)"],
-            ["Esc Esc", "Stop Pi while it works"],
+            ["Esc Esc", "Stop the agent while it works"],
         ],
     ],
     [
@@ -90,7 +90,7 @@ export function ShortcutsSheet() {
                 <dl class="shortcuts">
                     ${rows.map(
                         ([keys, text]) => html`<dt><${Chords} keys=${keys} /></dt>
-                        <dd>${text.replaceAll("PiP", assistantName())}</dd>`,
+                        <dd>${text.replaceAll("Pia", assistantName())}</dd>`,
                     )}
                 </dl>
             </div>`,

@@ -1,11 +1,11 @@
 /**
- * Messages to Pi that go out later, or on repeat. Each schedule is a durable task that sleeps until its time, sends
+ * Messages to the agent that go out later, or on repeat. Each schedule is a durable task that sleeps until its time, sends
  * its message, and for a repeat goes back to sleep until the next time. A restart while it sleeps continues the
  * sleep, and one that comes after the time sends at once. Each sending has its own request id, so a restart in the
  * middle of one never sends twice. A schedule goes out only while its person may still steer the session and no
- * spend limit is reached; otherwise it is cancelled, with a line in the chat saying why. One in PiP's conversation
- * waits while PiP is turned off, and goes out once it is back. The schedules extension
- * (`extensions/schedules.ts`) installs the task and gives Pi a tool to schedule its own follow-ups; while it is off,
+ * spend limit is reached; otherwise it is cancelled, with a line in the chat saying why. One in Pia's conversation
+ * waits while Pia is turned off, and goes out once it is back. The schedules extension
+ * (`extensions/schedules.ts`) installs the task and gives the agent a tool to schedule its own follow-ups; while it is off,
  * nothing goes out.
  */
 import { randomUUID } from "node:crypto";
@@ -19,7 +19,7 @@ import {
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import { addActivity } from "./collab.ts";
-import { ChatDoc, type Schedule, ScheduleDoc } from "./docs.ts";
+import { assistantOwner, ChatDoc, type Schedule, ScheduleDoc } from "./docs.ts";
 import { describe, HttpError } from "./errors.ts";
 import { FROM_PREFIX } from "./entry-format.ts";
 import { snippet } from "./projection.ts";
@@ -28,7 +28,7 @@ import { nextRepeat, parseWhen } from "./when.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** How a scheduled message starts, so Pi (and people reading along) know it was set up earlier. */
+/** How a scheduled message starts, so the agent (and people reading along) know it was set up earlier. */
 export const SCHEDULED_PREFIX = "[scheduled] ";
 /** The extension that runs schedules; while it is off, none go out and none can be set up. */
 export const SCHEDULES_EXTENSION = "pocket-schedules";
@@ -75,9 +75,9 @@ export type ScheduleRequest = {
     text?: string;
     /** The time zone its clock times mean; the server's when absent. */
     zone?: string;
-    /** Who sets it up; absent for Pi. */
+    /** Who sets it up; absent for the agent. */
     by?: { id: string; name: string };
-    /** When Pi sets it up: whom Pi works for. */
+    /** When the agent sets it up: whom the agent works for. */
     requestedBy?: string;
     /** The same key sets up the same schedule once: a tool call replayed after a restart finds the one it made. */
     key?: string;
@@ -85,7 +85,7 @@ export type ScheduleRequest = {
 
 export class Schedules {
     readonly #app: PocketApp;
-    /** How long a schedule of PiP's waits before it looks again whether PiP is back. */
+    /** How long a schedule of Pia's waits before it looks again whether Pia is back. */
     holdMs = 60_000;
     /** The limits in force; the schedules extension changes them when the owner does. */
     readonly limits: ScheduleLimits = { ...DEFAULT_SCHEDULE_LIMITS };
@@ -132,9 +132,9 @@ export class Schedules {
             return runtime.commit(() => finished, context);
         }
 
-        // PiP's conversation while PiP is off would run without PiP's rules: its schedule waits, and goes out once PiP
+        // Pia's conversation while Pia is off would run without Pia's rules: its schedule waits, and goes out once Pia
         // is back. Its `runs` stays, so a sending this replaces keeps its request id.
-        if (this.#waitsForPip(conversationId)) {
+        if (this.#waitsForPia(conversationId)) {
             return runtime.commit(async (tx) => {
                 const item = (await tx.doc(ScheduleDoc, conversationId)).items[id];
 
@@ -148,7 +148,7 @@ export class Schedules {
             }, context);
         }
 
-        // Sent as the person who set it up, so it shows as theirs. Pi's own are sent as Pi's, but as the work of whom Pi
+        // Sent as the person who set it up, so it shows as theirs. The agent's own are sent as the agent's, but as the work of whom the agent
         // worked for when it set them up.
         const sending = `${String(schedule.taskId)}-${schedule.runs}`;
         const requestId =
@@ -204,10 +204,10 @@ export class Schedules {
         }, context);
     }
 
-    /** Whether a conversation is a PiP whose person cannot have it now (its extension is off). */
-    #waitsForPip(conversationId: ConversationId): boolean {
+    /** Whether a conversation is a Pia whose person cannot have it now (its extension is off). */
+    #waitsForPia(conversationId: ConversationId): boolean {
         const app = this.#app;
-        const userId = app.sessionMeta(conversationId)?.pip;
+        const userId = assistantOwner(app.sessionMeta(conversationId));
 
         if (userId === undefined) {
             return false;
@@ -215,7 +215,7 @@ export class Schedules {
 
         const person = app.config.userById(userId);
 
-        return person === undefined || !app.pip.available(person);
+        return person === undefined || !app.pia.available(person);
     }
 
     /**
@@ -227,7 +227,7 @@ export class Schedules {
         schedule: Schedule,
     ): { who: { id: string; name: string }; why: string } | undefined {
         const app = this.#app;
-        const pi = { id: "pi", name: "Pi" };
+        const pi = { id: "pi", name: "the agent" };
         const userId = schedule.by ?? schedule.requestedBy;
 
         if (userId === undefined) {
@@ -265,7 +265,7 @@ export class Schedules {
         return this.#app.loader.extensionNames().includes(SCHEDULES_EXTENSION);
     }
 
-    /** Set up a message to Pi. Throws an HttpError a person can act on when the time or the message will not do. */
+    /** Set up a message to the agent. Throws an HttpError a person can act on when the time or the message will not do. */
     async add(conversationId: ConversationId, request: ScheduleRequest): Promise<Schedule> {
         const app = this.#app;
 
@@ -301,7 +301,7 @@ export class Schedules {
         const text = (request.text ?? parsed.rest).trim();
 
         if (text === "") {
-            throw new HttpError(400, "Say what Pi should get, after when.");
+            throw new HttpError(400, "Say what the agent should get, after when.");
         }
 
         if (text.length > limits.chars) {

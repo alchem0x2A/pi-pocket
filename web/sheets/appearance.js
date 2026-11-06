@@ -318,7 +318,7 @@ export function AppearanceSheet() {
         <div class="sheet-list">
             <${SettingRow}
                 title="Show thinking"
-                detail=${`Shows Pi's current thought above the live line as it comes, and its finished thoughts. The chevron before the line folds the live one${touch ? "" : ". Also Alt+T"}`}
+                detail=${`Shows the agent's current thought above the live line as it comes, and its finished thoughts. The chevron before the line folds the live one${touch ? "" : ". Also Alt+T"}`}
             >
                 <${Switch}
                     on=${p.showThinking}
@@ -328,7 +328,7 @@ export function AppearanceSheet() {
             <//>
             <${SettingRow}
                 title="Keep activity folded"
-                detail="Pi's thinking and tool calls stay on their one line until you open them, also while it works and in the newest turn"
+                detail="the agent's thinking and tool calls stay on their one line until you open them, also while it works and in the newest turn"
             >
                 <${Switch}
                     on=${p.foldActivity}

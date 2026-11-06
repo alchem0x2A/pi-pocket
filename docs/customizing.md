@@ -1,71 +1,71 @@
-# Changing how Pi works, without code
+# Changing how the agent works, without code
 
-Most changes that people ask for need no code: "always use pnpm", "review the way we do it here", "never touch the migrations". Pi Pocket reads the same files as Pi. So what you write for Pi works here too, and the other way round. Pi's own documentation tells all about each file; the system prompt gives its path.
+Most changes that people ask for need no code: "always use pnpm", "review the way we do it here", "never touch the migrations". Pia reads the same files as the agent. So what you write for the agent works here too, and the other way round. The agent's own documentation tells all about each file; the system prompt gives its path.
 
 ## Instructions for one session
 
-Use Menu → **Instructions for Pi**, or `/instructions use pnpm, not npm`.
+Use Menu → **Instructions for the agent**, or `/instructions use pnpm, not npm`.
 
-- Pi gets the instructions with each message in that session, after the rest of the system prompt.
+- the agent gets the instructions with each message in that session, after the rest of the system prompt.
 - All the people in the session see them.
-- Pi Pocket stores them with the session, so they stay after restarts. A fork starts with its parent's instructions.
+- Pia stores them with the session, so they stay after restarts. A fork starts with its parent's instructions.
 
 Use them for rules that belong to one piece of work. A tool cannot set them: tell the person what to put there.
 
 ## AGENTS.md: rules for a project, or for all sessions
 
-Pi Pocket loads context files as Pi does:
+Pia loads context files as the agent does:
 
 - `~/.pi/agent/AGENTS.md`: for each session, in any folder.
 - `AGENTS.md` (or `CLAUDE.md`) in the session's folder, and in each folder above it.
 
-Pi's `configuration.md` gives the full list of names, with `AGENTS.override.md`. Pi Pocket reads the files again at most 30 seconds after they change. The next request has them.
+The agent's `configuration.md` gives the full list of names, with `AGENTS.override.md`. Pia reads the files again at most 30 seconds after they change. The next request has them.
 
-Keep the files short and true. They go with each request, and a rule that Pi cannot obey is worse than no rule.
+Keep the files short and true. They go with each request, and a rule that the agent cannot obey is worse than no rule.
 
-## Skills: procedures that Pi follows on request
+## Skills: procedures that the agent follows on request
 
-A skill is a folder with a `SKILL.md`: a name and a description at the top, and the steps below. Its name and description go into the system prompt. Pi reads the rest when a task matches it, or when a person sends `/skill:name what to do`.
+A skill is a folder with a `SKILL.md`: a name and a description at the top, and the steps below. Its name and description go into the system prompt. The agent reads the rest when a task matches it, or when a person sends `/skill:name what to do`.
 
 Put a skill in one of these folders:
 
 - `~/.pi/agent/skills/<name>/` or `~/.agents/skills/<name>/`, for each session.
 - A project's `.pi/skills/` or `.agents/skills/`, for the sessions in that project. A project's `.agents/skills/` counts in the session's folder, and in each folder above it, up to the repository's root.
-- More folders that Pi's settings add.
+- More folders that the agent's settings add.
 
-When two skills have the same name, the project's skill wins. See Pi's `skills.md`. As for `AGENTS.md`, Pi Pocket reads skills again within 30 seconds.
+When two skills have the same name, the project's skill wins. See the agent's `skills.md`. As for `AGENTS.md`, Pia reads skills again within 30 seconds.
 
 ### Project trust
 
-A project's `.agents/skills/` load only in a project that Pi trusts.
+A project's `.agents/skills/` load only in a project that the agent trusts.
 
-- When a session's project has such skills and nobody decided about the project, Pi Pocket asks its owner above the message box.
+- When a session's project has such skills and nobody decided about the project, Pia asks its owner above the message box.
 - `/trust`, or Menu → **Project trust**, shows the answer and changes it.
-- The answer goes where Pi's CLI keeps its own (`~/.pi/agent/trust.json`). So each app uses what was decided in the other. In the CLI, trust also loads the project's `.pi` settings, extensions, and packages.
+- The answer goes where the agent's CLI keeps its own (`~/.pi/agent/trust.json`). So each app uses what was decided in the other. In the CLI, trust also loads the project's `.pi` settings, extensions, and packages.
 - `"defaultProjectTrust": "always"` (or `"never"`) in `~/.pi/agent/settings.json` answers for each project that nobody decided about.
-- The CLI also asks before a project's `.pi/skills/`. Pi Pocket loads those until you answer "Don't trust", or until `defaultProjectTrust` is `"never"`. Then it leaves them out too.
+- The CLI also asks before a project's `.pi/skills/`. Pia loads those until you answer "Don't trust", or until `defaultProjectTrust` is `"never"`. Then it leaves them out too.
 - **Not now** (×) puts the question off in that tab.
 
 ## Prompt templates: saved messages with blanks
 
-A Markdown file in `~/.pi/agent/prompts/`, or in a project's `.pi/prompts/` (unless Pi was told not to trust the project), becomes a slash command with its name: `review.md` is `/review`. `$1`, `$2`, … take the words after the command, and `$@` takes all of them. See Pi's `prompt-templates.md`.
+A Markdown file in `~/.pi/agent/prompts/`, or in a project's `.pi/prompts/` (unless the agent was told not to trust the project), becomes a slash command with its name: `review.md` is `/review`. `$1`, `$2`, … take the words after the command, and `$@` takes all of them. See the agent's `prompt-templates.md`.
 
-Use a template for a message that people send often. Use a skill for steps that Pi must know how to do.
+Use a template for a message that people send often. Use a skill for steps that the agent must know how to do.
 
 ## Models and providers
 
-People sign in to providers in Menu → **Providers**, and pick a model for each session with the model chip in the message box. Pi Pocket uses Pi's sign-ins (`~/.pi/agent/auth.json`) and Pi's list of models. To add a model or a provider that Pi does not know, follow Pi's `models.md` and `custom-provider.md`.
+People sign in to providers in Menu → **Providers**, and pick a model for each session with the model chip in the message box. Pia uses the configured sign-ins and model catalog in `~/.pi/agent/auth.json`. To add a model or provider, follow the CLI documentation in the agent's `models.md` and `custom-provider.md`.
 
-Models are the person's choice, never Pi's:
+People choose models for their own sessions and Pia. Pia can choose or switch models for delegated sessions; it checks the model and provider sign-in before use:
 
-- A subagent runs on its session's model, unless the owner allows models under **Models for subagents**, at the top of the Providers sheet. By default, there are none. Once some are allowed, subagents and linked sessions run only on those: on the session's model when it is one of them and Pi names none, else on a model Pi chooses from them (Pi must name one when the session's is not among them).
-- PiP gives a model only when its person named it.
+- A subagent runs on its session's model, unless the owner allows models under **Models for subagents**, at the top of the Providers sheet. By default, there are none. Once some are allowed, subagents and linked sessions run only on those: on the session's model when it is one of them and the agent names none, else on a model the agent chooses from them (the agent must name one when the session's is not among them).
+- Pia can choose a model for a new delegated session or switch a session's model. It uses an exact provider/model name or infers one from a loose name.
 
 Instructions, skills, and `AGENTS.md` cannot change this. Tell the person where the setting is instead.
 
 ### When a model's context is compacted
 
-Pi Pocket compacts a session's context with Pi's settings in `~/.pi/agent/settings.json`: `compaction.reserveTokens` (the room kept free: Pi waits for a compaction above the model's context window minus it, and one starts in the background about 32,000 tokens before that) and `compaction.keepRecentTokens`. Since 0.25.0, `compaction.modelOverrides` gives one model its own values, keyed by `provider/modelId`, for example to compact a model with a large window much earlier:
+Pia compacts a session's context with the agent's settings in `~/.pi/agent/settings.json`: `compaction.reserveTokens` (the room kept free: the agent waits for a compaction above the model's context window minus it, and one starts in the background about 32,000 tokens before that) and `compaction.keepRecentTokens`. Since 0.25.0, `compaction.modelOverrides` gives one model its own values, keyed by `provider/modelId`, for example to compact a model with a large window much earlier:
 
 ```json
 {
@@ -75,7 +75,7 @@ Pi Pocket compacts a session's context with Pi's settings in `~/.pi/agent/settin
 }
 ```
 
-Other models keep the general values. An entry that Pi refuses (not a whole number, or a name with no provider) is left out, and the server log says so. PiP uses its model's values too. An edit of `settings.json` counts once Pi Pocket reads Pi's settings again: soon after the next message, or at once with Menu → **Refresh models**. See Pi's `settings.md` for each setting.
+Other models keep the general values. An entry that the agent refuses (not a whole number, or a name with no provider) is left out, and the server log says so. Pia uses its model's values too. An edit of `settings.json` counts once Pia reads the agent's settings again: soon after the next message, or at once with Menu → **Refresh models**. See the agent's `settings.md` for each setting.
 
 ## Project model defaults for new sessions
 
@@ -91,39 +91,39 @@ In the session folder's `.pi/settings.json`, set both `defaultProvider` and `def
 }
 ```
 
-Use a provider and model ID that Pi's list of models knows. Pi Pocket limits thinking to the levels that the model has. A project setting with only a thinking level does not change an owner default, or the last picked model and level.
+Use a provider and model ID that the agent's list of models knows. Pia limits thinking to the levels that the model has. A project setting with only a thinking level does not change an owner default, or the last picked model and level.
 
 Project defaults need trust:
 
-- Each project with a `.pi/settings.json` can ask, also when it has no model keys. The same decision controls what Pi's terminal app loads.
+- Each project with a `.pi/settings.json` can ask, also when it has no model keys. The same decision controls what the terminal CLI loads.
 - A project with only settings asks the owner above the message box. **Review**, or Menu → **Project trust**, explains the choice.
 - Until the owner trusts the project, the usual order applies.
 - After trust, only new sessions use project defaults: the open session does not change.
-- No project setting can trust its own project. The decision is shared with Pi's terminal app. Pi Pocket reads `defaultProjectTrust` only from Pi's global settings.
+- No project setting can trust its own project. The decision is shared with the terminal CLI. Pia reads `defaultProjectTrust` only from the agent's global settings.
 
-Without an owner default, the order is: a pin from a trusted project, the last picked model, Pi's global default, and then no model.
+Without an owner default, the order is: a pin from a trusted project, the last picked model, the agent's global default, and then no model.
 
-- Pi Pocket reads the final folder after it makes a worktree, and fresh global defaults and trust policy, each time it makes a session.
+- Pia reads the final folder after it makes a worktree, and fresh global defaults and trust policy, each time it makes a session.
 - A worktree uses the files in that checkout, with the new files that it copied and that git does not ignore. It does not read its source folder separately.
-- Bad JSON, a provider without a model (or a model without a provider), an unknown model, or a wrong thinking level in trusted settings stops the new session with an error. Pi Pocket does not change silently to a different model.
+- Bad JSON, a provider without a model (or a model without a provider), an unknown model, or a wrong thinking level in trusted settings stops the new session with an error. Pia does not change silently to a different model.
 - A known model without a sign-in stays selected, and its next request shows the sign-in failure.
-- When Pi Pocket cannot read Pi's global settings, it also stops a new session without an owner default, with a safe error: it must not guess the trust policy.
+- When Pia cannot read the agent's global settings, it also stops a new session without an owner default, with a safe error: it must not guess the trust policy.
 
-Existing sessions do not change when files or folders change. Imports, forks, subagents, models that a person chose, and PiP's own conversation work as before.
+Existing sessions do not change when files or folders change. Imports, forks, subagents, models that a person chose, and Pia's own conversation work as before.
 
-- A model that the person named to PiP overrides project settings.
-- A session that PiP starts without a named model uses the same order as each new session, with trusted projects, also when the owner trusts all projects.
+- A model that the person named to Pia overrides project settings.
+- A session that Pia starts without a named model uses the same order as each new session, with trusted projects, also when the owner trusts all projects.
 
-**Pi Pocket does not support these yet:** extra skill and prompt paths from each session folder's settings, and run policy per project (compaction, retries, stream timeouts, steering, and follow-up mode). The usual project folders for skills and prompts still work.
+**Pia does not support these yet:** extra skill and prompt paths from each session folder's settings, and run policy per project (compaction, retries, stream timeouts, steering, and follow-up mode). The usual project folders for skills and prompts still work.
 
 ## Other switches
 
 These are in the app, not in files. Tell the person where they are. Do not change them in another way.
 
-- **Plan mode** (the Plan chip): Pi plans, and asks before it changes anything.
-- **Done when** (`/until npm test`): Pi continues until a check passes.
-- **Scheduled messages** (`/schedule in 2h check the deploy`): a message to Pi later, or again and again. Pi has a `schedule` tool for its own messages.
-- **Background tasks**: Pi's `background` tool runs a command without waiting for it (a dev server, a long test run), reads its output later, and stops it; Pi gets a message when it ends. Menu → Extensions → Background tasks sets how many may run at once in a session.
+- **Plan mode** (the Plan chip): the agent plans, and asks before it changes anything.
+- **Done when** (`/until npm test`): the agent continues until a check passes.
+- **Scheduled messages** (`/schedule in 2h check the deploy`): a message to the agent later, or again and again. The agent has a `schedule` tool for its own messages.
+- **Background tasks**: the agent's `background` tool runs a command without waiting for it (a dev server, a long test run), reads its output later, and stops it; the agent gets a message when it ends. Menu → Extensions → Background tasks sets how many may run at once in a session.
 - **Extensions** (Menu → Extensions, for the owner): turn on or off the browser, subagents, codemode, Lancet Guard, a drop-in, and the rest, for all sessions.
 - **Lancet Guard and approvals** (Menu → Extensions): when the guard is on, risky commands wait for a person to allow them. "Approvals need someone else" makes that person another than the one who asked.
 
@@ -131,4 +131,4 @@ See [features.md](features.md) for each of them.
 
 ## When this is not enough
 
-To give Pi a new tool, add a rule to its prompt that depends on the session's state, or check its tool calls, write an extension: [extensions.md](extensions.md). An extension can also add a page, a rail button, or a route to the app ([Adding to the app](extensions/app.md)).
+To give the agent a new tool, add a rule to its prompt that depends on the session's state, or check its tool calls, write an extension: [extensions.md](extensions.md). An extension can also add a page, a rail button, or a route to the app ([Adding to the app](extensions/app.md)).

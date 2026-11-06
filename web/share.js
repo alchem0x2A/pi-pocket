@@ -1,4 +1,4 @@
-// Things shared to Pi Pocket from another app: a link, some text, a screenshot. The service worker keeps them (see
+// Things shared to Pia from another app: a link, some text, a screenshot. The service worker keeps them (see
 // sw.js), and this sheet puts them into the message box of a session, to send from there.
 import {
     actions,
@@ -89,7 +89,7 @@ export function ShareSheet({ share }) {
             deliver(created.id);
         });
 
-    return html`<${Sheet} title="Share to Pi" onClose=${closeSheet}>
+    return html`<${Sheet} title="Share to the agent" onClose=${closeSheet}>
         ${share.text && html`<p class="share-text">${share.text}</p>`}
         ${
             share.files.length > 0 &&
@@ -99,7 +99,7 @@ export function ShareSheet({ share }) {
         }
         ${
             !canSteer()
-                ? html`<p class="muted">You can view sessions here but not send to Pi.</p>`
+                ? html`<p class="muted">You can view sessions here but not send to the agent.</p>`
                 : html`<p class="muted small">
                     It goes into the message box, so you can add to it before you send.
                 </p>

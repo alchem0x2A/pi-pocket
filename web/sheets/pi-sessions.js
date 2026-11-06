@@ -1,10 +1,10 @@
-// Pi's sessions from the terminal, which the owner can continue here: the list, by folder, and one of them before it
+// the agent's sessions from the terminal, which the owner can continue here: the list, by folder, and one of them before it
 // continues, as a short conversation.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { actions, attempt, closeSheet, navigate, notify, openSheet, store } from "../store.js";
 import { html, Icon, Loader, Sheet, shortPath, timeAgo } from "../ui.js";
 
-/** Only the owner: Pi's sessions are the owner's files. */
+/** Only the owner: the agent's sessions are the owner's files. */
 export const piSessionsAvailable = () => store.state.me?.role === "owner";
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -46,18 +46,18 @@ function SessionRow({ session }) {
         ${
             pocket &&
             html`<span class=${`pi-tag ${pocket.behind ? "behind" : ""}`}>
-                ${pocket.behind ? "Pi went on" : "in Pocket"}
+                ${pocket.behind ? "the agent went on" : "in Pocket"}
             </span>`
         }
         <${Icon} name="chevron" size=${14} />
     </button>`;
 }
 
-/** Pi's sessions on this computer, by folder, with a search the server runs through all of them, words included. */
+/** the agent's sessions on this computer, by folder, with a search the server runs through all of them, words included. */
 export function PiSessionsSheet() {
     const home = store.state.server?.home;
     const [sessions, setSessions] = useState(null);
-    // Whether Pi has any at all, from the first list: a search that finds none is not "no sessions".
+    // Whether the agent has any at all, from the first list: a search that finds none is not "no sessions".
     const [any, setAny] = useState(null);
     const [problem, setProblem] = useState(null);
     const [query, setQuery] = useState("");
@@ -103,13 +103,13 @@ export function PiSessionsSheet() {
         }
     }, [any]);
 
-    return html`<${Sheet} title="Continue a Pi session" onClose=${closeSheet}>
+    return html`<${Sheet} title="Continue a terminal session" onClose=${closeSheet}>
         <p class="muted small">
-            Sessions of Pi in the terminal on this computer. One continues here as a new session; its file stays as it is.
+            Sessions of the agent in the terminal on this computer. One continues here as a new session; its file stays as it is.
         </p>
         ${problem && html`<div class="error-box small">${problem}</div>`}
-        ${sessions === null && problem === null && html`<${Loader} label="Finding Pi's sessions" />`}
-        ${any === false && html`<p class="muted">Pi has no sessions on this computer yet.</p>`}
+        ${sessions === null && problem === null && html`<${Loader} label="Finding the agent's sessions" />`}
+        ${any === false && html`<p class="muted">the agent has no sessions on this computer yet.</p>`}
         ${
             any === true &&
             html`<input
@@ -117,7 +117,7 @@ export function PiSessionsSheet() {
                 type="search"
                 ref=${box}
                 placeholder="Search sessions"
-                aria-label="Search Pi's sessions: titles, folders, and messages"
+                aria-label="Search the agent's sessions: titles, folders, and messages"
                 value=${query}
                 onInput=${(event) => setQuery(event.currentTarget.value)}
             />`
@@ -151,7 +151,7 @@ export function PiSessionsSheet() {
     <//>`;
 }
 
-/** One of Pi's sessions: where it worked and with what, its last messages, and continuing it here. */
+/** One of the agent's sessions: where it worked and with what, its last messages, and continuing it here. */
 export function PiSessionSheet({ path }) {
     const home = store.state.server?.home;
     const [info, setInfo] = useState(null);
@@ -184,7 +184,7 @@ export function PiSessionSheet({ path }) {
                 open(id);
                 notify(
                     "info",
-                    "Continued from Pi. Pi has the conversation as Pi left it; nothing it did runs again.",
+                    "Continued from the agent. The agent has the conversation as the agent left it; nothing it did runs again.",
                 );
             } finally {
                 going.current = false;
@@ -194,7 +194,7 @@ export function PiSessionSheet({ path }) {
     };
 
     if (info === null) {
-        return html`<${Sheet} title="Pi session" onClose=${closeSheet}>
+        return html`<${Sheet} title="terminal session" onClose=${closeSheet}>
             ${
                 problem === null
                     ? html`<${Loader} label="Reading the session" />`
@@ -203,7 +203,7 @@ export function PiSessionSheet({ path }) {
         <//>`;
     }
 
-    return html`<${Sheet} title="Pi session" onClose=${closeSheet}>
+    return html`<${Sheet} title="terminal session" onClose=${closeSheet}>
         <h3 class="pi-title">${info.title}</h3>
         <dl class="pi-facts">
             <div>
@@ -230,13 +230,13 @@ export function PiSessionSheet({ path }) {
         ${
             info.model &&
             !info.modelHere &&
-            html`<p class="muted small">It continues with Pi Pocket's usual model.</p>`
+            html`<p class="muted small">It continues with Pia's usual model.</p>`
         }
         ${
             info.pocket &&
             html`<div class="pi-note">
                 <span>
-                    ${info.pocket.behind ? "Continued here before Pi went on in the terminal." : "Already continued here."}
+                    ${info.pocket.behind ? "Continued here before the agent went on in the terminal." : "Already continued here."}
                 </span>
                 <button class="link" onClick=${() => open(info.pocket.id)}>Open it</button>
             </div>`
@@ -257,7 +257,7 @@ export function PiSessionSheet({ path }) {
                 ${info.pocket ? "Continue it here again" : "Continue in Pocket"}
             </button>
             <p class="muted small">
-                Pi gets the conversation as Pi left it, with Pi Pocket's instructions and tools. Nothing Pi did runs again, and the session's file stays as it is.
+                The agent gets the conversation as the agent left it, with Pia's instructions and tools. Nothing the agent did runs again, and the session's file stays as it is.
             </p>
         </div>
     <//>`;

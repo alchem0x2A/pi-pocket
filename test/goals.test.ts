@@ -1,4 +1,4 @@
-// Done when: Pi keeps going until a check passes, gives up after five, and a check cut off by a restart does not run again.
+// Done when: the agent keeps going until a check passes, gives up after five, and a check cut off by a restart does not run again.
 import {
     type App,
     cleanUp,
@@ -85,7 +85,7 @@ async function goalMessages(id: ConversationId): Promise<string[]> {
         .reverse();
 }
 
-test("Pi keeps going until the check passes, and the goal says it is met", async () => {
+test("the agent keeps going until the check passes, and the goal says it is met", async () => {
     const id = await sessionIn("met");
 
     await app.commands.setGoal(id, owner(app), "test -f done.txt");
@@ -100,7 +100,7 @@ test("Pi keeps going until the check passes, and the goal says it is met", async
     assert.equal(goal?.last?.passed, true);
 });
 
-test("after the last check fails, Pi stops trying", async () => {
+test("after the last check fails, the agent stops trying", async () => {
     const id = await sessionIn("gave-up");
 
     await app.commands.setGoal(id, owner(app), "echo still broken; exit 3");
@@ -110,7 +110,7 @@ test("after the last check fails, Pi stops trying", async () => {
     assert.equal(
         told.length,
         4,
-        "five checks: four failures that keep Pi going, and the last one that ends it",
+        "five checks: four failures that keep the agent going, and the last one that ends it",
     );
     const goal = (await app.harness.snapshot(GoalDoc, id, context))?.goal;
 
@@ -119,7 +119,7 @@ test("after the last check fails, Pi stops trying", async () => {
 });
 
 // A restart while the hook runs replays it, and it records the same answer's check again.
-test("a check cut off by a restart does not run again: Pi hears so, and its next answer is checked", async () => {
+test("a check cut off by a restart does not run again: the agent hears so, and its next answer is checked", async () => {
     const id = await sessionIn("cut-off");
     const runs = join(root, "cut-off", "runs.txt");
 
@@ -145,7 +145,7 @@ test("a check cut off by a restart does not run again: Pi hears so, and its next
     assert.equal(
         readFileSync(runs, "utf8"),
         "xx",
-        "once when cut off, once after Pi's next answer",
+        "once when cut off, once after the agent's next answer",
     );
     const told = await goalMessages(id);
 
@@ -153,7 +153,7 @@ test("a check cut off by a restart does not run again: Pi hears so, and its next
     assert.equal((await app.harness.snapshot(GoalDoc, id, context))?.goal?.tries, 2);
 });
 
-test("past a spend limit Pi takes no more rounds toward the goal", async () => {
+test("past a spend limit the agent takes no more rounds toward the goal", async () => {
     const id = await sessionIn("limited");
 
     await app.spend.setSessionBudget(owner(app), id, 1);
@@ -190,7 +190,7 @@ test("past a spend limit Pi takes no more rounds toward the goal", async () => {
         app.conversation = conversation;
     }
 
-    assert.deepEqual(await goalMessages(id), [], "Pi was not sent on");
+    assert.deepEqual(await goalMessages(id), [], "the agent was not sent on");
     const goal = (await app.harness.snapshot(GoalDoc, id, context))?.goal;
 
     assert.equal(goal?.tries, 1);

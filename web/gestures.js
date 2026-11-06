@@ -70,10 +70,10 @@ export function useDragToClose(ref, { dir, onClose, enabled = true, scrim: scrim
         }
 
         const vertical = dir === "down" || dir === "up";
-        // PiP's sheet has a scrim beside it, not around it: dimming its parent would dim the whole app.
+        // Pia's sheet has a scrim beside it, not around it: dimming its parent would dim the whole app.
         const scrim = scrimRef?.current ?? element.parentElement;
         // Around the element (a sheet's overlay), the scrim's color fades, so the sheet in it stays solid; beside it
-        // (PiP's), or the element itself (a notice), the whole of it does.
+        // (Pia's), or the element itself (a notice), the whole of it does.
         const around = scrim !== element && scrim.contains(element);
         const fading = around ? "background-color" : "opacity";
         let ground = null;

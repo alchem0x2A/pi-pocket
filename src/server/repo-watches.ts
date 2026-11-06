@@ -1,16 +1,16 @@
 /**
- * Repository watches: PiP's standing orders on a GitHub repository `gh`'s account can push to. A durable task looks
+ * Repository watches: Pia's standing orders on a GitHub repository `gh`'s account can push to. A durable task looks
  * at the repository every few minutes with `gh`, and what is new there (issues and pull requests opened, CI failing on
  * a branch: runs pushed to it, scheduled, or started by hand or through the API, in the repository itself; releases
- * published, comments and issues that mention @pi) goes as one message to PiP, or to a session, after its person's
+ * published, comments and issues that mention @pi) goes as one message to Pia, or to a session, after its person's
  * instructions ("when CI fails on main, start a session to fix it"). What came from GitHub is fenced as data. Issues
  * and PRs count only from the repository's owner, and its organization's members and collaborators whom GitHub says
  * can write to it (and bots' PRs), unless the watch says anyone, which only a person turns on; mentions always only
  * from them. While triggers are off,
- * watches wait; while PiP is off, those to PiP hold what they found. Each thing is told once, at most `MAX_ITEMS` in a
+ * watches wait; while Pia is off, those to Pia hold what they found. Each thing is told once, at most `MAX_ITEMS` in a
  * message and `MAX_PER_HOUR` messages an hour; the rest come in the next. It needs no public address, unlike a
  * webhook. A watch lasts until it is removed; looks that fail are retried less and less often, and say why. The
- * triggers extension (`extensions/triggers.ts`) installs the task; PiP sets watches up with its repo_watch tool
+ * triggers extension (`extensions/triggers.ts`) installs the task; Pia sets watches up with its repo_watch tool
  * (`extensions/pip.ts`).
  */
 import { randomUUID } from "node:crypto";
@@ -24,7 +24,7 @@ import {
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { type RepoEvent, type RepoWatch, RepoWatchesDoc } from "./docs.ts";
+import { assistantOwner, type RepoEvent, type RepoWatch, RepoWatchesDoc } from "./docs.ts";
 import { describe, HttpError } from "./errors.ts";
 import { attribute, clip, defang, quoted } from "./fence.ts";
 import {
@@ -49,7 +49,7 @@ const context = BACKGROUND_CONTEXT;
 export const REPO_EVENTS: readonly RepoEvent[] = ["issues", "pulls", "ci", "releases", "mentions"];
 /** How messages from a watch start: `[via watch owner/name]`. */
 export const REPO_WATCH_VIA = "watch";
-/** How what came from GitHub reaches Pi: fenced, so it reads as data, not as instructions. */
+/** How what came from GitHub reaches the agent: fenced, so it reads as data, not as instructions. */
 export const EVENT_OPEN = "<github-event";
 export const EVENT_CLOSE = "</github-event>";
 /** Watches one person may have. */
@@ -65,7 +65,7 @@ const RETRY_MS = 5 * 60_000;
 const MAX_RETRY_MS = 30 * 60_000;
 /** Ids remembered as told, of each kind (`i`, `p`, `r`, `v`, `c`, `l`): more than any list a look reads has of it. */
 const SEEN_PER_KIND = 100;
-/** How much of each thing's text Pi gets (an issue's body, release notes, a comment). */
+/** How much of each thing's text the agent gets (an issue's body, release notes, a comment). */
 const BODY_CHARS = 1500;
 /** Failed runs: what a run can end in that is worth fixing. */
 const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
@@ -134,7 +134,7 @@ type Runtime = TaskRuntime<WatchInput, WatchState, null, object>;
 
 const finished = { status: "terminal", outcome: { status: "completed", result: null } } as const;
 
-/** What a watch shows people and PiP: everything but its bookkeeping. */
+/** What a watch shows people and Pia: everything but its bookkeeping. */
 export type RepoWatchView = Omit<RepoWatch, "taskId" | "seen" | "next" | "key" | "since">;
 
 export type RepoWatchRequest = {
@@ -145,7 +145,7 @@ export type RepoWatchRequest = {
     assigned?: boolean;
     branch?: string;
     anyone?: boolean;
-    /** The conversation it messages: PiP, or a session. */
+    /** The conversation it messages: Pia, or a session. */
     target: ConversationId;
     byPi: boolean;
     /** The same key sets up the same watch once: a tool call replayed after a restart finds it. */
@@ -270,7 +270,7 @@ export class RepoWatches {
             .map((watch) => this.view(watch));
     }
 
-    /** Set up a watch for a person. Throws an HttpError a person (or PiP) can act on when it will not do. */
+    /** Set up a watch for a person. Throws an HttpError a person (or Pia) can act on when it will not do. */
     async add(person: User, request: RepoWatchRequest): Promise<RepoWatchView> {
         const app = this.#app;
 
@@ -283,7 +283,7 @@ export class RepoWatches {
         }
 
         if (app.sessionMeta(request.target) === undefined || !app.canSee(person, request.target)) {
-            throw new HttpError(404, "Watches message sessions this person can reach, or PiP.");
+            throw new HttpError(404, "Watches message sessions this person can reach, or Pia.");
         }
 
         const named = parseRepo(request.repo);
@@ -323,7 +323,7 @@ export class RepoWatches {
             throw new HttpError(400, `${asked} is not a branch's name.`);
         }
 
-        // Only where gh's account can push: someone else's repository could hand Pi work as if it were this person's.
+        // Only where gh's account can push: someone else's repository could hand the agent work as if it were this person's.
         const info = await requirePush(this.#gh, named);
         const now = app.now();
 
@@ -746,9 +746,12 @@ export class RepoWatches {
                 return this.#again(id, runtime, this.timing.poll, context);
             }
 
-            // PiP is off: a run there would have none of PiP's rules. Held, waiting at the usual pace: nothing failed.
-            if (app.sessionMeta(target)?.pip !== undefined && !app.pip.available(person)) {
-                return this.#again(id, runtime, this.timing.poll, context, "PiP is turned off");
+            // Pia is off: a run there would have none of Pia's rules. Held, waiting at the usual pace: nothing failed.
+            if (
+                assistantOwner(app.sessionMeta(target)) !== undefined &&
+                !app.pia.available(person)
+            ) {
+                return this.#again(id, runtime, this.timing.poll, context, "Pia is turned off");
             }
 
             try {

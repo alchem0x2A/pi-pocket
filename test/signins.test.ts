@@ -57,7 +57,7 @@ const expiring = {
 
 let app: App;
 
-/** Store a sign-in of Expiring that has run out, as Pi keeps it in its `auth.json`. */
+/** Store a sign-in of Expiring that has run out, as the agent keeps it in its `auth.json`. */
 function expiredSignIn(): void {
     const agent = join(root, "agent");
 
@@ -160,7 +160,7 @@ test("a run that fails on it marks it, and a sign-in that works again clears the
         false,
     );
 
-    // Signed in again outside the app (Pi's terminal app, say): the next answer from it clears the mark.
+    // Signed in again outside the app (the agent's terminal app, say): the next answer from it clears the mark.
     refusal = undefined;
     await say(app, id, "hello again");
     await until(() => listed()?.needsSignIn === undefined, "the mark cleared by an answer");

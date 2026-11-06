@@ -160,7 +160,7 @@ function lockHolder(lockFile: string, lock: Lock): boolean {
         // Protect exclusive creation's short publication window, but recover old damage after an unattended crash.
         if (Date.now() - lock.mtimeMs < INCOMPLETE_LOCK_GRACE_MS) {
             throw new Error(
-                `Pi Pocket's lock is incomplete or damaged and still recent: ${lockFile}. Try again shortly.`,
+                `Pia's lock is incomplete or damaged and still recent: ${lockFile}. Try again shortly.`,
             );
         }
 
@@ -235,7 +235,7 @@ export function takeLock(lockFile: string): () => void {
     if (previous !== undefined) {
         if (lockHolder(lockFile, previous)) {
             throw new Error(
-                `Pi Pocket is already running on this data directory (pid ${previous.pid}). If it is not, delete ${lockFile}.`,
+                `Pia is already running on this data directory (pid ${previous.pid}). If it is not, delete ${lockFile}.`,
             );
         }
 
@@ -250,7 +250,7 @@ export function takeLock(lockFile: string): () => void {
         }
 
         throw new Error(
-            "Pi Pocket is already running on this data directory: another one started at the same moment.",
+            "Pia is already running on this data directory: another one started at the same moment.",
         );
     }
 

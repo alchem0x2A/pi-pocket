@@ -1,4 +1,4 @@
-// Updates' browser module, for the owner: a menu row and a launcher action that open the Update Pi Pocket sheet (the running
+// Updates' browser module, for the owner: a menu row and a launcher action that open the Update Pia sheet (the running
 // version, the newest release and its notes, and a button to start its migration session), a notice once for each new
 // version, and one for how an earlier update ended. Nothing starts by itself. It uses only `pocket`.
 export const pocketApi = 1;
@@ -62,11 +62,11 @@ export default function setup(pocket) {
     let failure = null;
     const listeners = new Set();
 
-    const menu = pocket.menu({ id: "updates", label: "Update Pi Pocket", sheet: "updates" });
+    const menu = pocket.menu({ id: "updates", label: "Update Pia", sheet: "updates" });
     const launcher = pocket.launcher({
         id: "updates",
-        label: "Update Pi Pocket",
-        detail: "Check for a new version of Pi Pocket",
+        label: "Update Pia",
+        detail: "Check for a new version of Pia",
         iconPath: ICON,
         keywords: ["update", "upgrade", "version", "release"],
         sheet: "updates",
@@ -106,19 +106,16 @@ export default function setup(pocket) {
         launcher.update(
             next.available && next.latest
                 ? {
-                      label: `Pi Pocket ${next.latest.version} is available`,
+                      label: `Pia ${next.latest.version} is available`,
                       detail: "See what is new, and start a migration session",
                   }
-                : { label: "Update Pi Pocket", detail: "Check for a new version of Pi Pocket" },
+                : { label: "Update Pia", detail: "Check for a new version of Pia" },
         );
 
         // Once for each version: a short line. Nothing is fetched or started until the owner asks in the sheet.
         if (next.available && next.latest && remembered(TOLD) !== next.latest.version) {
             remember(TOLD, next.latest.version);
-            pocket.notify(
-                "info",
-                `Pi Pocket ${next.latest.version} is available: Menu → Update Pi Pocket.`,
-            );
+            pocket.notify("info", `Pia ${next.latest.version} is available: Menu → Update Pia.`);
         }
 
         const last = next.last;
@@ -229,7 +226,7 @@ export default function setup(pocket) {
         }
 
         const latest = current.latest;
-        // Notes that warn, or notes Pi Pocket could not read: open, so the owner reads them.
+        // Notes that warn, or notes Pia could not read: open, so the owner reads them.
         const careful = latest !== undefined && (latest.warning || latest.unread === true);
         const migration =
             current.available && current.migration?.version === latest?.version
@@ -250,7 +247,7 @@ export default function setup(pocket) {
             <div class="updates-card">
                 <div class="updates-row">
                     <div>
-                        <div class="updates-title">Pi Pocket ${current.version}</div>
+                        <div class="updates-title">Pia ${current.version}</div>
                         ${where && html`<div class="muted small mono">${where}</div>`}
                     </div>
                     <button
@@ -332,9 +329,9 @@ export default function setup(pocket) {
                     ${
                         migration?.conversationId !== undefined
                             ? html`<div>
-                                      Pi Pocket fetched upstream and started a session where Pi
-                                      reads what ${latest.version} changes and reports. Pi changes
-                                      nothing: you do the merge.
+                                      Pia fetched upstream and started a session where the agent
+                                      reads what ${latest.version} changes and reports. The agent
+                                      changes nothing: you do the merge.
                                   </div>
                                   <button
                                       class="button primary updates-go"
@@ -347,8 +344,8 @@ export default function setup(pocket) {
                                   </button>`
                             : html`<div class="muted small">
                                   Nothing is fetched or merged by itself. Start a migration session
-                                  to fetch upstream and have Pi report what changed. You do the
-                                  merge.
+                                  to fetch upstream and have the agent report what changed. You do
+                                  the merge.
                               </div>`
                     }
                     ${migration?.error && html`<div class="error-box">${migration.error}</div>`}
@@ -396,12 +393,11 @@ export default function setup(pocket) {
                 </div>`
             }
             <p class="muted small">
-                To stop looking for new versions, open Menu → Extensions → Installed → Pi Pocket
-                updates.
+                To stop looking for new versions, open Menu → Extensions → Installed → Pia updates.
             </p>
         </div>`;
     }
 
-    pocket.sheet({ id: "updates", title: "Update Pi Pocket", component: Updates });
+    pocket.sheet({ id: "updates", title: "Update Pia", component: Updates });
     pocket.style("style.css");
 }

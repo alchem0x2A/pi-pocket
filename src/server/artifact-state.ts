@@ -1,6 +1,6 @@
 /**
  * What an artifact's page saves for the person using it (`pocket.state` in the page, `web/artifact-bridge.js`): one
- * JSON value for each artifact, person, and session, kept apart from the artifact's versions and from Pi's context.
+ * JSON value for each artifact, person, and session, kept apart from the artifact's versions and from the agent's context.
  * A page names a schema to tell old values from new ones: a value saved under another schema reads as none.
  */
 import type { JsonValue } from "@earendil-works/chord";

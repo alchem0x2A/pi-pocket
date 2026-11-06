@@ -86,7 +86,7 @@ test("a git diff of several files reads into files, hunks, and numbered lines", 
     assert.equal(files[1]!.hunks[0]!.lines.at(-1)!.type, "note");
 });
 
-test("Pi's edit cards read with each unchanged line's new number, and a hunk per gap", () => {
+test("the agent's edit cards read with each unchanged line's new number, and a hunk per gap", () => {
     const text = [
         " 10 const a = 1;",
         "-11 const b = 2;",

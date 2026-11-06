@@ -133,7 +133,7 @@ test("a symlink at the design system file is only a notice, and the section stil
     const { text, notices } = await render(dir);
 
     assert.match(text, /no design system/, "the unreadable file is not in the section");
-    assert.equal(notices.length, 1, "the warning goes to the log, not to Pi");
+    assert.equal(notices.length, 1, "the warning goes to the log, not to the agent");
     assert.equal(readFileSync(aside, "utf8"), "away from here\n", "nothing read past the link");
 });
 

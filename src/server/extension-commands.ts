@@ -1,5 +1,5 @@
 /**
- * Commands a person runs on an extension, without sending a message to Pi. Each run is a durable task: a request sent
+ * Commands a person runs on an extension, without sending a message to the agent. Each run is a durable task: a request sent
  * again finds the same task, and a restart never runs a handler again, as it may have changed something.
  */
 import { randomUUID } from "node:crypto";
@@ -156,7 +156,7 @@ export class ExtensionCommands {
                             ...(result.clipped ? { clipped: true } : {}),
                         };
 
-                        // No person's prefix in the request id: the card does not change whom Pi works for.
+                        // No person's prefix in the request id: the card does not change whom the agent works for.
                         await conversation.submit(
                             {
                                 type: "write",

@@ -5,7 +5,7 @@ import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { AgentDoc, type ConversationId, type Tx } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { type InboxNote, OwnerInboxDoc, SessionsDoc } from "./docs.ts";
+import { assistantOwner, type InboxNote, OwnerInboxDoc, SessionsDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 
 const key = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -94,12 +94,12 @@ export class OwnerInbox {
     ): Promise<number | undefined> {
         const app = this.#app;
 
-        if (app.pip.profile().mode !== "pia" || app.rootOf(source) !== source) {
+        if (app.rootOf(source) !== source) {
             return undefined;
         }
 
         const sessions = await app.harness.snapshot(SessionsDoc, context);
-        const person = sessions?.items[String(source)]?.pip;
+        const person = assistantOwner(sessions?.items[String(source)]);
 
         // Use the durable private-helper mapping, never a default owner or an ordinary session's requester.
         const authorized = () => {
@@ -108,11 +108,10 @@ export class OwnerInbox {
 
             return user?.role === "owner" &&
                 user.sessions === undefined &&
-                app.pip.profile().mode === "pia" &&
                 app.rootOf(source) === source &&
-                app.pip.ownerOf(source) === user.id &&
-                app.pip.idOf(user.id) === source &&
-                app.pip.available(user) &&
+                app.pia.ownerOf(source) === user.id &&
+                app.pia.idOf(user.id) === source &&
+                app.pia.available(user) &&
                 (requester === undefined || requester === user.id)
                 ? user
                 : undefined;
@@ -149,16 +148,15 @@ export class OwnerInbox {
     ): Promise<Record<string, number> | undefined> {
         const app = this.#app;
         const sessions = await app.harness.snapshot(SessionsDoc, context);
-        const person = sessions?.items[String(source)]?.pip;
+        const person = assistantOwner(sessions?.items[String(source)]);
         const user = person === undefined ? undefined : app.config.userById(person);
 
         if (
             user?.role !== "owner" ||
             user.sessions !== undefined ||
-            app.pip.profile().mode !== "pia" ||
             app.rootOf(source) !== source ||
-            app.pip.ownerOf(source) !== user.id ||
-            app.pip.idOf(user.id) !== source
+            app.pia.ownerOf(source) !== user.id ||
+            app.pia.idOf(user.id) !== source
         ) {
             return undefined;
         }
@@ -391,15 +389,14 @@ export class OwnerInbox {
     async #assistant(tx: Tx, source: ConversationId): Promise<User> {
         const app = this.#app;
         const sessions = await tx.doc(SessionsDoc);
-        const person = sessions.items[String(source)]?.pip;
+        const person = assistantOwner(sessions.items[String(source)]);
         const user = person === undefined ? undefined : app.config.userById(person);
 
         if (
             user === undefined ||
-            app.pip.profile().mode !== "pia" ||
             app.rootOf(source) !== source ||
-            app.pip.idOf(user.id) !== source ||
-            !app.pip.available(user) ||
+            app.pia.idOf(user.id) !== source ||
+            !app.pia.available(user) ||
             app.attribution.requesterOf(source) !== user.id
         ) {
             throw new HttpError(

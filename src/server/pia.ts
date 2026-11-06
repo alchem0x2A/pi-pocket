@@ -1,31 +1,12 @@
-/**
- * The assistant profile: Classic (upstream PiP, unchanged) or Pia, an opt-in profile on the same conversation, panel,
- * follows, and session tools. Pia keeps the session tools and adds the normal enabled tools, works in one stable
- * workspace, and reads one shared AGENTS.md whatever its folder is. This module holds the profile's pure parts, so the
- * rest of Pi Pocket changes in a few additive places only.
- */
+/** Assistant naming and its shared workspace. */
 import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeSync } from "node:fs";
 import { join } from "node:path";
 
-export type AssistantProfile = "classic" | "pia";
-
-/** What Pia is called until the owner names it. */
+/** The default name, unless the owner sets another name. */
 export const PIA_DEFAULT_NAME = "Pia";
-/** The longest name the owner can give it. */
+/** The longest name the owner can give the assistant. */
 export const ASSISTANT_NAME_MAX = 40;
-/** The most of the shared AGENTS.md that goes into Pia's prompt. */
 const SHARED_MAX = 64 * 1024;
-
-/**
- * Built-in modules whose default is off in the Pia profile. The owner's own choice (on or off) always wins, and the
- * modules themselves do not change.
- */
-export const PIA_OFF_BY_DEFAULT: ReadonlySet<string> = new Set(["subagents.ts", "background.ts"]);
-
-/** The profile a config value names; anything else is Classic. */
-export function profileOf(value: unknown): AssistantProfile {
-    return value === "pia" ? "pia" : "classic";
-}
 
 /** A name the owner gave, trimmed to one line; undefined when there is none to keep. */
 export function cleanName(value: unknown): string | undefined {
@@ -38,17 +19,12 @@ export function cleanName(value: unknown): string | undefined {
     return name === "" ? undefined : name.slice(0, ASSISTANT_NAME_MAX);
 }
 
-/** The module default for `file` in a profile; undefined: the loader's own default applies. */
-export function profileDefault(profile: AssistantProfile, file: string): boolean | undefined {
-    return profile === "pia" && PIA_OFF_BY_DEFAULT.has(file) ? false : undefined;
-}
-
-/** Pia's stable workspace, in the data folder: shared by every Pia chat, and kept after Start fresh. */
+/** The shared workspace for the owner's assistant, kept after Start fresh. */
 export function piaWorkspace(dataDir: string): string {
     return join(dataDir, "pia");
 }
 
-/** The one AGENTS.md every Pia chat reads, whatever its folder. */
+/** The one AGENTS.md every assistant chat reads, whatever its folder. */
 export function piaAgentsFile(dataDir: string): string {
     return join(piaWorkspace(dataDir), "AGENTS.md");
 }
@@ -85,7 +61,7 @@ export function ensurePiaWorkspace(dataDir: string): string {
     return folder;
 }
 
-/** The shared AGENTS.md as Pia's prompt gets it, bounded; undefined when it is missing, empty, or not a file. */
+/** The shared AGENTS.md as the assistant prompt gets it, bounded; undefined when it is missing, empty, or not a file. */
 export function readShared(dataDir: string): string | undefined {
     const file = piaAgentsFile(dataDir);
 
@@ -102,16 +78,7 @@ export function readShared(dataDir: string): string | undefined {
     }
 }
 
-/**
- * What the Pia conversation selects: the host's default extensions (every installed one but PiP's, and with the
- * module defaults above), plus PiP's own for the session tools, follows, and prompt. No tool is filtered out: the
- * panel does not draw `artifact_inline` cards, but Open as a conversation does.
- */
-export function piaExtensions(pipExtension: string): { add: string[] } {
-    return { add: [pipExtension] };
-}
-
-/** Whether `folder` is the workspace or inside it: there, the project context already holds the shared AGENTS.md. */
+/** Whether `folder` is the workspace or inside it. */
 export function inWorkspace(dataDir: string, folder: string | undefined): boolean {
     const workspace = piaWorkspace(dataDir);
 

@@ -2,10 +2,10 @@
  * The extension gallery's index, read strictly: everything in it comes from elsewhere. An index is one JSON file (the
  * index repository's generated `index.json`): its format, and an entry for each extension, which names the files of
  * one drop-in at a pinned commit of a GitHub repository, with each file's SHA-256, and what the module installs. An
- * index can still list themes (`kind: "theme"`), from when Pi Pocket had theme folders: they are skipped.
+ * index can still list themes (`kind: "theme"`), from when Pia had theme folders: they are skipped.
  *
- * Pi Pocket reads it here, and the index repository's checks use these same functions, so an entry they let in is one
- * Pi Pocket reads (they import this file from a Pi Pocket checkout, the loader's lists of reserved names with it). Text
+ * Pia reads it here, and the index repository's checks use these same functions, so an entry they let in is one
+ * Pia reads (they import this file from a Pia checkout, the loader's lists of reserved names with it). Text
  * is kept to one plain line (no control, invisible, or direction characters), names to the drop-in folder's rules, and
  * sizes to `LIMITS`.
  */
@@ -18,10 +18,10 @@ import { atLeast, POCKET_VERSION, versionParts } from "../versions.ts";
 // Where they always were: the index repository's checks import them from here.
 export { atLeast, versionParts };
 
-/** The index format this Pi Pocket reads. */
+/** The index format this Pia reads. */
 export const INDEX_FORMAT = 1;
 
-/** How much Pi Pocket reads from the index and from an extension's repository. */
+/** How much Pia reads from the index and from an extension's repository. */
 export const LIMITS = {
     /** The index, in bytes. */
     index: 4 * 1024 * 1024,
@@ -61,7 +61,7 @@ export interface Declares {
     access: Access;
     /**
      * Its slash commands, each with who may run it, as a route has its method: `conversation clock-zone` (anyone who
-     * can steer the session), `global clock-reset` (the owner). Left out when it has none, so older Pi Pockets read it.
+     * can steer the session), `global clock-reset` (the owner). Left out when it has none, so older Pias read it.
      */
     commands?: string[];
 }
@@ -87,10 +87,10 @@ export interface Entry {
     files: EntryFile[];
     /** The extension API version it needs (`POCKET_API`). */
     pocketApi: number;
-    /** The oldest Pi Pocket it works with: `0.14.0`. */
+    /** The oldest Pia it works with: `0.14.0`. */
     minPocket: string;
     declares: Declares;
-    /** Commits of it that must not be used: Pi Pocket warns where one is installed. */
+    /** Commits of it that must not be used: Pia warns where one is installed. */
     revoked: { commit: string; reason: string }[];
 }
 
@@ -100,16 +100,16 @@ export interface Index {
     repo?: string;
     /** The extensions' entries. */
     entries: Entry[];
-    /** Entries for a newer Pi Pocket, or a newer extension API. */
+    /** Entries for a newer Pia, or a newer extension API. */
     incompatible: number;
     /** Entries that are not valid, or repeat a name, with why. */
     invalid: { name?: string; problem: string }[];
     /**
-     * Each name's revoked commits, from every entry whose `revoked` can be read: also one for a newer Pi Pocket, or one
+     * Each name's revoked commits, from every entry whose `revoked` can be read: also one for a newer Pia, or one
      * not valid otherwise, as a revocation is a warning for whoever has that commit, whatever else the entry says.
      */
     revoked: Map<string, Entry["revoked"]>;
-    /** The names of the entries for a newer Pi Pocket or extension API. */
+    /** The names of the entries for a newer Pia or extension API. */
     newer: Set<string>;
 }
 
@@ -117,7 +117,7 @@ export interface Index {
 export class EntryError extends Error {}
 
 /**
- * The kinds of entry this Pi Pocket reads: an entry with no `kind` is an extension's. A theme's (`kind: "theme"`) is
+ * The kinds of entry this Pia reads: an entry with no `kind` is an extension's. A theme's (`kind: "theme"`) is
  * skipped before this is asked (`parseIndex`); others are for a newer one.
  */
 const KINDS = ["extension"];
@@ -311,7 +311,7 @@ function declares(value: unknown, where: string): Declares {
 
     for (const command of result.commands ?? []) {
         if (command.length > 80 || BUILT_IN_COMMANDS.has(command.split(" ")[1]!)) {
-            throw new EntryError(`${where}.commands has ${command}, a command of Pi Pocket's own`);
+            throw new EntryError(`${where}.commands has ${command}, a command of Pia's own`);
         }
     }
 
@@ -335,9 +335,7 @@ function declares(value: unknown, where: string): Declares {
 
     for (const name of result.extensions) {
         if (RESERVED_EXTENSIONS.test(name)) {
-            throw new EntryError(
-                `${where}.extensions has ${name}, a name Pi Pocket keeps for itself`,
-            );
+            throw new EntryError(`${where}.extensions has ${name}, a name Pia keeps for itself`);
         }
     }
 
@@ -471,7 +469,7 @@ export function parseEntry(value: unknown): Entry {
     const name = text(shape.name, "name", 64, NAME);
 
     if (BUILT_IN_MODULES.has(name) || name.startsWith("pocket-")) {
-        throw new EntryError(`name ${name} is Pi Pocket's own: give it a name of its own`);
+        throw new EntryError(`name ${name} is Pia's own: give it a name of its own`);
     }
 
     const about = common(shape);
@@ -554,8 +552,8 @@ export function pinOf(entry: Entry): string {
 }
 
 /**
- * Whether an entry is for this Pi Pocket: `newer` when it needs a newer extension API or Pi Pocket. Read loosely,
- * before the entry is checked whole, so an entry written for a newer Pi Pocket (with fields this one does not know)
+ * Whether an entry is for this Pia: `newer` when it needs a newer extension API or Pia. Read loosely,
+ * before the entry is checked whole, so an entry written for a newer Pia (with fields this one does not know)
  * counts as one for later, not as invalid.
  */
 export function compatibility(
@@ -603,8 +601,8 @@ export function parseIndex(source: string, here: { api: number; version: string 
     ) {
         throw new EntryError(
             typeof value.format === "number" && value.format > INDEX_FORMAT
-                ? "The index is in a newer format: update Pi Pocket to read it"
-                : "The index is not in a format Pi Pocket reads",
+                ? "The index is in a newer format: update Pia to read it"
+                : "The index is not in a format Pia reads",
         );
     }
 
@@ -639,7 +637,7 @@ export function parseIndex(source: string, here: { api: number; version: string 
     const taken = new Set<string>();
 
     for (const item of shape.extensions) {
-        // A theme's entry, from when Pi Pocket had theme folders: not read, and not counted as one for later.
+        // A theme's entry, from when Pia had theme folders: not read, and not counted as one for later.
         if ((item as Shape | null)?.kind === "theme") {
             continue;
         }

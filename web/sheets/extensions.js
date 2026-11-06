@@ -1,5 +1,4 @@
-// Extensions: the modules the owner can turn on and off, Lancet Guard, who may allow risky calls, and when PiP compacts
-// its context.
+// Extensions: built-in and local modules, Lancet Guard, and the selected summary model.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { browserModuleState, leaveSafeMode, safeMode } from "../extension-ui.js";
 import { assistantName } from "../pip.js";
@@ -10,7 +9,7 @@ import { ACCESS_WORDS, galleryApi, galleryAvailable, Tile } from "./gallery.js";
 /** The guide for people who write extensions: its first page, on the docs site, which describes the latest release. */
 const GUIDE = "https://tannermidd.github.io/pi-pocket/docs/extensions/first-extension/";
 
-/** What Lancet Guard does here, given the module's switch and Pi's own setting. */
+/** What Lancet Guard does here, given the module's switch and the agent's own setting. */
 function guardNote(module, guard) {
     if (!guard.available) {
         return { warn: true, text: guard.detail };
@@ -19,14 +18,14 @@ function guardNote(module, guard) {
     if (!guard.enabled) {
         return {
             warn: true,
-            text: "Off in Pi's own settings (~/.pi/lancet-guard.json), so it does not run here either.",
+            text: "Off in the agent's own settings (~/.pi/lancet-guard.json), so it does not run here either.",
         };
     }
 
     if (!module.enabled) {
         return {
             warn: true,
-            text: "Off in Pi Pocket: bash, background, write, and edit calls run unchecked here. Pi itself still uses it.",
+            text: "Off in Pia: bash, background, write, and edit calls run unchecked here. The agent itself still uses it.",
         };
     }
 
@@ -50,7 +49,7 @@ function GuardModel({ owner, model, onStart }) {
             <div class=${`small ${model.state === "failed" ? "warn" : "muted"}`}>
                 ${
                     model.state === "missing"
-                        ? "Not downloaded yet. The guard needs it to score commands. The download (about 109 MB) comes from the LANCET-model GitHub release, is checked against fixed checksums, and Pi uses it too."
+                        ? "Not downloaded yet. The guard needs it to score commands. The download (about 109 MB) comes from the LANCET-model GitHub release, is checked against fixed checksums, and the agent uses it too."
                         : model.detail
                 }
             </div>
@@ -450,56 +449,14 @@ function GalleryPart({ module, installed, busy, turnOff }) {
     </div>`;
 }
 
-/** When PiP compacts its own context: once idle above so many tokens (`pip-compact.ts`), or only as sessions do. */
-const PIP_COMPACT = [
-    [0, "As sessions do"],
-    [40000, "Above 40k tokens"],
-    [60000, "Above 60k tokens"],
-    [100000, "Above 100k tokens"],
-];
-
-function PipCompactAt({ owner }) {
-    const at = store.state.server?.pipCompactAt ?? 0;
-    const change = (value) => attempt(() => api("settings", { pipCompactAt: value }));
-
-    return html`<div class="setting wrap">
-        <div class="grow">
-            <div class="small">Compact ${assistantName()}'s context</div>
-            <div class="muted small">
-                When ${assistantName()}'s older messages become a short summary: as a session's do, or sooner, once ${assistantName()} is idle above a limit, which keeps each reply cheaper.
-            </div>
-        </div>
-        <div class="segmented" role="group" aria-label=${`Compact ${assistantName()}'s context`}>
-            ${PIP_COMPACT.map(
-                ([value, label]) => html`<button
-                    class=${at === value ? "on" : ""}
-                    aria-pressed=${at === value}
-                    disabled=${!owner}
-                    onClick=${() => change(value)}
-                >
-                    ${label}
-                </button>`,
-            )}
-        </div>
-    </div>`;
-}
-
-/**
- * The assistant profile (`src/server/pia.ts`): Classic is PiP as upstream; Pia has the normal tools too, a shared
- * workspace, and a name the owner picks. The same conversation and panel serve both.
- */
-function AssistantProfile({ owner }) {
+/** The owner can set the assistant's display name. */
+function AssistantName({ owner }) {
     const assistant = store.state.server?.assistant;
     const [name, setName] = useState(null);
 
-    // A server from before the profile sends nothing: no control.
     if (assistant === undefined) {
         return null;
     }
-
-    const profile = assistant.profile === "pia" ? "pia" : "classic";
-    const change = (value) => attempt(() => api("settings", { assistantProfile: value }));
-    const shown = name ?? (profile === "pia" ? assistant.name : "");
 
     const saveName = () => {
         if (name === null) {
@@ -515,45 +472,19 @@ function AssistantProfile({ owner }) {
         }
     };
 
-    return html`<div class="setting wrap">
-            <div class="grow">
-                <div class="small">Assistant profile</div>
-                <div class="muted small">
-                    Classic: manages sessions and hands work to them. Pia: the same panel and chat, with the normal tools too, a shared workspace, and one AGENTS.md for every chat.
-                </div>
-            </div>
-            <div class="segmented" role="group" aria-label="Assistant profile">
-                ${[
-                    ["classic", "Classic"],
-                    ["pia", "Pia"],
-                ].map(
-                    ([value, label]) => html`<button
-                        class=${profile === value ? "on" : ""}
-                        aria-pressed=${profile === value}
-                        disabled=${!owner}
-                        onClick=${() => change(value)}
-                    >
-                        ${label}
-                    </button>`,
-                )}
-            </div>
-        </div>
-        ${
-            profile === "pia" &&
-            html`<label class="setting wrap">
-                <span class="grow small">Name</span>
-                <input
-                    type="text"
-                    maxlength="40"
-                    placeholder="Pia"
-                    value=${shown}
-                    disabled=${!owner}
-                    onInput=${(event) => setName(event.currentTarget.value)}
-                    onBlur=${saveName}
-                    onKeyDown=${(event) => event.key === "Enter" && event.currentTarget.blur()}
-                />
-            </label>`
-        }`;
+    return html`<label class="setting wrap">
+        <span class="grow small">Assistant name</span>
+        <input
+            type="text"
+            maxlength="40"
+            placeholder="Pia"
+            value=${name ?? assistant.name ?? "Pia"}
+            disabled=${!owner}
+            onInput=${(event) => setName(event.currentTarget.value)}
+            onBlur=${saveName}
+            onKeyDown=${(event) => event.key === "Enter" && event.currentTarget.blur()}
+        />
+    </label>`;
 }
 
 export function ExtensionsSheet() {
@@ -573,7 +504,7 @@ const ICONS = {
     "plan.ts": "eye",
     "codemode.ts": "terminal",
     "memory.ts": "pin",
-    "pip.ts": "pip",
+    "pip.ts": "pia",
     "compaction-review.ts": "chat",
     "triggers.ts": "pulse",
     "gallery.ts": "grid",
@@ -582,12 +513,12 @@ const ICONS = {
     "anthropic-subscription.ts": "key",
 };
 
-/** A module's summary without the name it starts with ("Browser: Pi opens…" → "Pi opens…"), as its row shows the name. */
+/** A module's summary without the name it starts with ("Browser: the agent opens…" → "the agent opens…"), as its row shows the name. */
 function summaryOf(module) {
     const name = module.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const summary =
         module.file === "pip.ts"
-            ? (module.summary ?? "").replace(/^PiP, /, "")
+            ? (module.summary ?? "").replace(/^Pia, /, "")
             : (module.summary ?? "");
     const rest = summary.replace(new RegExp(`^(the )?${name}: `, "i"), "");
 
@@ -793,7 +724,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                         }
                     }}
                 >
-                    <span id="guard-confirm-warning">bash, background, write, and edit calls will run without checks in every session here. Pi's own setting stays as it is.</span>
+                    <span id="guard-confirm-warning">bash, background, write, and edit calls will run without checks in every session here. The agent's own setting stays as it is.</span>
                     <div class="sheet-actions">
                         <button
                             class="button small"
@@ -841,8 +772,7 @@ export function ExtensionsContent({ galleryInstalled, query = "", onChanged = ()
                 html`<div class="ext-row-more ext-row-under" id=${id}>
                     ${note && !note.warn && html`<div class="small ok">${note.text}</div>`}
                     ${guard && module.enabled && html`<${ApprovalRule} owner=${owner} />`}
-                    ${module.file === "pip.ts" && module.enabled && html`<${AssistantProfile} owner=${owner} />`}
-                    ${module.file === "pip.ts" && module.enabled && html`<${PipCompactAt} owner=${owner} />`}
+                    ${module.file === "pip.ts" && module.enabled && html`<${AssistantName} owner=${owner} />`}
                     <${WebPart} module=${module} />
                     ${
                         owner &&

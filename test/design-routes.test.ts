@@ -240,7 +240,7 @@ test("anyone who steers marks a comment done; only its author or the owner delet
     assert.equal((await call("owner", `${path}/${id}`, undefined, "DELETE")).status, 200);
     assert.equal((await call("owner", `${path}/${id}`, undefined, "DELETE")).status, 404);
 
-    // All of a list at once, for after "Send to Pi".
+    // All of a list at once, for after "Send to the agent".
     const again = await call("owner", path, { version: 3, text: "More", target: TARGET });
     const ids = [first.id, (again.data.comment as { id: string }).id];
 

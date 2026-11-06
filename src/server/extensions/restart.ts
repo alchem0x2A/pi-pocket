@@ -1,6 +1,6 @@
 /**
- * Restart requests: Pi's request_restart tool asks the owner to restart the server after it changes the server's code,
- * with a button in the app that restarts once no tool call runs. Pi never restarts the server itself.
+ * Restart requests: the agent's request_restart tool asks the owner to restart the server after it changes the server's code,
+ * with a button in the app that restarts once no tool call runs. The agent never restarts the server itself.
  */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
@@ -19,7 +19,7 @@ export default function createRestart(host: PocketHost) {
     const tool = defineTool({
         name: "request_restart",
         description:
-            "Ask the owner to restart the Pi Pocket server, after you changed its server code (src/server/, not its extensions/ or web/). The owner gets a button that checks that the new code loads, then restarts once no tool call runs. Finish your edits and checks first; never restart the server another way. Actions: request (reason), status.",
+            "Ask the owner to restart the Pia server, after you changed its server code (src/server/, not its extensions/ or web/). The owner gets a button that checks that the new code loads, then restarts once no tool call runs. Finish your edits and checks first; never restart the server another way. Actions: request (reason), status.",
         parameters: Type.Object({
             action: Type.Union([Type.Literal("request"), Type.Literal("status")]),
             reason: Type.Optional(

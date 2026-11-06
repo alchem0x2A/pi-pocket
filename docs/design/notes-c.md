@@ -6,7 +6,7 @@ Branch `design/workspace`. The Design module: a wide panel beside the chat with 
 
 Server (`src/server/extensions/design.ts`, built in, on by default, title "Design"):
 
-- Routes under `/api/x/design/` (all through `web.conversationRoute`, so Pi Pocket checks that the person sees the session, and for a write that they steer):
+- Routes under `/api/x/design/` (all through `web.conversationRoute`, so Pia checks that the person sees the session, and for a write that they steer):
     - `GET c/:conversation/artifacts`: the session's HTML designs with `group`, `kind`, and each version's `restoredFrom`.
     - `GET c/:conversation/designs/:artifact`: all comments and this person's tweaks.
     - `POST …/comments`, `POST …/comments/:id` (words, resolved), `DELETE …/comments/:id`, `POST …/resolve` (many ids): comments. Everyone who sees the session reads them; people who steer write them. Only the author or the owner changes the words or deletes.
@@ -45,8 +45,8 @@ Uses `useArtifactBridge(ref, { artifact, source, enabled, onMessage, onReady })`
 
 ## Choices where the plan let me choose
 
-- "Go back to this one" writes the version directly, in one commit of the route (`request.commit`): a copy of the old version's record (assets included, as the record carries them) and of its body, with the same `taskId` and a new `callId` (`design-restore:<key>`), which no real tool call matches. A repeated tap with the same `key` finds its version. It also notes `restores[new] = old` so the timeline says "from v1". It never asks Pi.
-- Everything that goes to Pi goes into the message box with `pocket.insertText`: the module has no way to send. Comments ("Send N to Pi"), text edits ("Apply N with Pi"), tweaks ("Keep these N"), a chosen variation ("Use this one"). Each text starts with a letter (never a command), and puts element data as JSON in a fence longer than any run of backticks inside it. On a phone the panel closes after it, so the box shows.
+- "Go back to this one" writes the version directly, in one commit of the route (`request.commit`): a copy of the old version's record (assets included, as the record carries them) and of its body, with the same `taskId` and a new `callId` (`design-restore:<key>`), which no real tool call matches. A repeated tap with the same `key` finds its version. It also notes `restores[new] = old` so the timeline says "from v1". It never asks the agent.
+- Everything that goes to the agent goes into the message box with `pocket.insertText`: the module has no way to send. Comments ("Send N to the agent"), text edits ("Apply N with the agent"), tweaks ("Keep these N"), a chosen variation ("Use this one"). Each text starts with a letter (never a command), and puts element data as JSON in a fence longer than any run of backticks inside it. On a phone the panel closes after it, so the box shows.
 - Comments are shared. Tweaks are per person (the plan allowed this module's own storage or the new kind: it is the new kind).
 - The design list is the app's own live one (`view.artifacts`), merged with the server's list for `group`, `kind`, `restoredFrom`. This is why the module imports `/store.js`. It also imports `/artifact-bridge.js`: the same frame and bridge as the viewer.
 - Viewers see the canvas, versions, and comments, and have no Edit text or Tweaks tab, no comment actions, no send buttons, and no "Go back". The server enforces it: the write routes are for those who steer, so a viewer gets the 404 that any person gets for a route that is not theirs.
@@ -60,7 +60,7 @@ Stream D's route is `POST /api/x/design/export` with `{ conversation, id, versio
 
 `features.md`:
 
-- Design mode: a canvas panel; versions with compare and "go back to this one"; comments shared with the session, pinned to elements, sent to Pi as one message; edit text and apply; tweaks kept per person and kept into the design by Pi; variations as a grid ("use this one"); decks with a slide strip and present mode; export (PNG, PDF, PPTX, HTML zip); share; "Open in Design" in the artifact viewer; `/design-open`.
+- Design mode: a canvas panel; versions with compare and "go back to this one"; comments shared with the session, pinned to elements, sent to the agent as one message; edit text and apply; tweaks kept per person and kept into the design by the agent; variations as a grid ("use this one"); decks with a slide strip and present mode; export (PNG, PDF, PPTX, HTML zip); share; "Open in Design" in the artifact viewer; `/design-open`.
 - Who: everyone who sees every session loads it; people who steer write; viewers read; people invited to one session never load it (a module is for the whole app). While "take turns" is on, only the driver comments (core checks it for routes bound to a session).
 
 `map.md`: `extensions/design.ts` (routes, document, command; installs `../design/index.ts`'s tools, guide, and export route), `extensions/design/` (the folder, what each file does), `docs.ts`' `DesignCommentsDoc`, `reload.ts`' entries, `viewers.js` (the button and `back`). Mention that the module imports `/store.js` and `/artifact-bridge.js`.
@@ -81,10 +81,10 @@ Release notes: Design mode; "go back to this one" makes a copy as a new version;
 ## Open problems
 
 - A page inside the frame that goes on to another page (`about.html`) has no bridge, so comment, edit, pins, and tweaks go quiet on it with no message.
-- While Pi makes a new version, the person in a mode, with a draft, or with text edits stays on the version they work on and sees "Version N of M" with a way to the newest. Otherwise the canvas follows the newest.
+- While the agent makes a new version, the person in a mode, with a draft, or with text edits stays on the version they work on and sees "Version N of M" with a way to the newest. Otherwise the canvas follows the newest.
 
 - `/design` itself cannot be a command (names need a dash); core could add a one-word client command in `web/commands.js` that calls `openExtPanel("design", "design")`.
-- Comments are tied to the version they were made on. A comment's pin shows only on that version. Nothing moves a comment to a newer version when Pi makes one: "mark them done" is manual (a button after "Send to Pi").
+- Comments are tied to the version they were made on. A comment's pin shows only on that version. Nothing moves a comment to a newer version when the agent makes one: "mark them done" is manual (a button after "Send to the agent").
 - Writes to a design's notes need the turn when "take turns" is on, because core checks it for any route bound to a session.
 - On a phone, a 1280 px page at "fit" is about 28% (a deck slide too). Zoom and custom sizes are there; there is no pinch zoom.
 - The present mode uses the browser's full screen when it can; inside it Esc is the browser's and ends it.

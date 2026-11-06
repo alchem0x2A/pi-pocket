@@ -1,5 +1,5 @@
 /**
- * Updates of Pi Pocket itself (`app.updates`, `host.updates`). It reads the newest release (GitHub's releases of the
+ * Updates of Pia itself (`app.updates`, `host.updates`). It reads the newest release (GitHub's releases of the
  * repository in `package.json`, or the repository's version tags), downloads its commit into the checkout as a ref of
  * its own, and says what stands in the way of an update: a server without its launcher, a copy that is not a git
  * checkout or that it cannot write, changes that are not committed, commits the release does not have, or a Node.js
@@ -53,7 +53,7 @@ export type Release = {
     /** The notes have a `[!WARNING]` alert: a step that cannot be undone, or one that needs care. */
     warning: boolean;
     /**
-     * GitHub did not answer, so the release came from its tag: it may have notes, and a warning in them, that Pi Pocket
+     * GitHub did not answer, so the release came from its tag: it may have notes, and a warning in them, that Pia
      * could not read. An update to it is treated as one with a warning: the owner's word first, and no going back.
      */
     unread?: boolean;
@@ -61,7 +61,7 @@ export type Release = {
     node?: string;
 };
 
-/** The release may need care: its notes warn, or Pi Pocket could not read them to know. */
+/** The release may need care: its notes warn, or Pia could not read them to know. */
 export function needsCare(release: Release): boolean {
     return release.warning || release.unread === true;
 }
@@ -86,7 +86,7 @@ export type UpdateStatus = {
     cautions: string[];
     /** The update installs new packages. */
     packages: boolean;
-    /** Sessions Pi works in now. */
+    /** Sessions the agent works in now. */
     busy: number;
     /** The step of an update under way. */
     step?: string;
@@ -113,7 +113,7 @@ export interface UpdatesOptions {
      * running server does not load the new version's files; false starts again after an update that failed.
      */
     quiesce?: (paused: boolean) => void;
-    /** How many sessions Pi works in now. */
+    /** How many sessions the agent works in now. */
     busy: () => number;
     log: (line: string) => void;
     /** The git address releases come from; `package.json`'s repository when not given. */
@@ -122,8 +122,8 @@ export interface UpdatesOptions {
     releases?: (signal?: AbortSignal) => Promise<Release | undefined>;
     now?: () => number;
     /**
-     * Start a Pi session that migrates the checkout to a new version (merge or rebase upstream), in a worktree of its
-     * own. Without it, a new version is only shown. Pi Pocket never moves the checkout by itself.
+     * Start an agent session that migrates the checkout to a new version (merge or rebase upstream), in a worktree of its
+     * own. Without it, a new version is only shown. Pia never moves the checkout by itself.
      */
     migrate?: (request: MigrationRequest) => Promise<MigrationStarted>;
     /** The git remote to fetch before a migration starts: `upstream` when not given. */
@@ -141,7 +141,7 @@ export type SyncResult = {
     message: string;
 };
 
-/** What a migration session needs: the checkout, and what Pi reads first. */
+/** What a migration session needs: the checkout, and what the agent reads first. */
 export type MigrationRequest = {
     cwd: string;
     version: string;
@@ -433,7 +433,7 @@ function run(file: string, args: string[], cwd: string, timeoutMs: number, shell
     });
 }
 
-/** What Pi reads first in a migration session: where the new version is, and how to adopt it safely. */
+/** What the agent reads first in a migration session: where the new version is, and how to adopt it safely. */
 export function migrationPrompt(facts: {
     release: Pick<Release, "tag" | "version" | "url">;
     remote: string;
@@ -446,9 +446,9 @@ export function migrationPrompt(facts: {
     const { release, remote, fetched, commit, local } = facts;
 
     return [
-        `Pi Pocket ${release.version} (tag ${release.tag}) is available. This server runs ${facts.version}, from ${facts.root} on ${local.branch ?? "a detached HEAD"} at ${local.commit.slice(0, 12)}.`,
+        `Pia ${release.version} (tag ${release.tag}) is available. This server runs ${facts.version}, from ${facts.root} on ${local.branch ?? "a detached HEAD"} at ${local.commit.slice(0, 12)}.`,
         "",
-        `Pi Pocket did not update itself. It fetched the remote \`${remote}\` (newest: \`${fetched}\`)${commit === "" ? "" : `, and the release's commit is ${commit.slice(0, 12)}`}.`,
+        `Pia did not update itself. It fetched the remote \`${remote}\` (newest: \`${fetched}\`)${commit === "" ? "" : `, and the release's commit is ${commit.slice(0, 12)}`}.`,
         "The owner merges by hand. Your work is to read and report only.",
         "",
         `1. Read what changed: \`git log --oneline HEAD..${fetched}\`, \`git diff --stat HEAD...${fetched}\`, and the release notes${release.url === undefined ? "" : ` (${release.url})`}. Look for a \`[!WARNING]\` alert or steps to do by hand.`,
@@ -608,7 +608,7 @@ export class Updates {
     }
 
     /**
-     * The lock files of two commits name other packages. Pi Pocket's own version is in its lock file too, and changes
+     * The lock files of two commits name other packages. Pia's own version is in its lock file too, and changes
      * with each release: that alone installs nothing. A lock file that cannot be read counts as different.
      */
     async #packagesDiffer(from: string, to: string): Promise<boolean> {
@@ -722,7 +722,7 @@ export class Updates {
         if (available && latest !== undefined) {
             if (!this.#options.supervised) {
                 blockers.push(
-                    "Pi Pocket runs without its launcher, so it cannot restart itself. Start it with `npm start` (or `bin/pi-pocket.js`) to update from the app.",
+                    "Pia runs without its launcher, so it cannot restart itself. Start it with `npm start` (or `bin/pi-pocket.js`) to update from the app.",
                 );
             }
 
@@ -733,7 +733,7 @@ export class Updates {
 
                 if (!this.#canRollBack(installKind)) {
                     blockers.push(
-                        "This launcher cannot recover npm updates. Quit Pi Pocket and start it again before updating from the app.",
+                        "This launcher cannot recover npm updates. Quit Pia and start it again before updating from the app.",
                     );
                 }
 
@@ -754,7 +754,7 @@ export class Updates {
                         ? "This is a local npm install. Update it with `npm install pi-pocket@latest` in that project, then start it again."
                         : installKind === "npx"
                           ? "This copy runs with npx. Stop it, then run `npx pi-pocket@latest`."
-                          : "This copy of Pi Pocket is not a git checkout. Update it the way you installed it.",
+                          : "This copy of Pia is not a git checkout. Update it the way you installed it.",
                 );
             } else if (gitVersion !== undefined && !atLeast(gitVersion, MIN_GIT)) {
                 blockers.push(
@@ -820,16 +820,16 @@ export class Updates {
         if (available) {
             if (latest?.warning === true) {
                 cautions.push(
-                    "The release notes have a warning. Read it, and back up the data folder, before you update. If this version does not start, Pi Pocket does not go back by itself.",
+                    "The release notes have a warning. Read it, and back up the data folder, before you update. If this version does not start, Pia does not go back by itself.",
                 );
             }
 
             if (latest?.unread === true) {
                 cautions.push(
-                    "Pi Pocket could not read this version's release notes, so it cannot tell whether they warn of a step that cannot be undone. Read them on GitHub, and back up the data folder, before you update. If this version does not start, Pi Pocket does not go back by itself.",
+                    "Pia could not read this version's release notes, so it cannot tell whether they warn of a step that cannot be undone. Read them on GitHub, and back up the data folder, before you update. If this version does not start, Pia does not go back by itself.",
                 );
             } else if (latest?.notes === undefined) {
-                cautions.push("Pi Pocket found this version's tag, but not its release notes.");
+                cautions.push("Pia found this version's tag, but not its release notes.");
             }
 
             if (packages) {
@@ -842,13 +842,13 @@ export class Updates {
 
             if (busy > 0) {
                 cautions.push(
-                    `Pi works in ${busy === 1 ? "1 session" : `${busy} sessions`} now. Work continues after the restart, but a tool call that it cuts off comes back as interrupted.`,
+                    `the agent works in ${busy === 1 ? "1 session" : `${busy} sessions`} now. Work continues after the restart, but a tool call that it cuts off comes back as interrupted.`,
                 );
             }
 
             if (this.#options.supervised && !this.#options.rollback) {
                 cautions.push(
-                    "The launcher started before this updater: if the new version does not start, it does not go back by itself. Quit Pi Pocket and start it again to get that.",
+                    "The launcher started before this updater: if the new version does not start, it does not go back by itself. Quit Pia and start it again to get that.",
                 );
             }
         } else {
@@ -933,7 +933,7 @@ export class Updates {
     }
 
     /**
-     * The owner asks for it: fetch the `upstream` remote, then start a Pi session that reports what the newest version
+     * The owner asks for it: fetch the `upstream` remote, then start an agent session that reports what the newest version
      * changes. Nothing else starts one. It checks first; 409 when there is no new version.
      */
     async migrate(): Promise<UpdateStatus> {
@@ -941,7 +941,7 @@ export class Updates {
         const latest = this.#latest;
 
         if (latest === undefined || !newer(latest.version, this.#options.version)) {
-            throw new HttpError(409, "Pi Pocket is up to date.");
+            throw new HttpError(409, "Pia is up to date.");
         }
 
         if (this.#options.migrate === undefined) {
@@ -977,7 +977,7 @@ export class Updates {
     }
 
     /**
-     * Fetch the `upstream` remote first, then start a Pi session that reports on the new version. The owner merges it
+     * Fetch the `upstream` remote first, then start an agent session that reports on the new version. The owner merges it
      * by hand; the session does not change the checkout.
      */
     async #startMigration(release: Release): Promise<void> {
@@ -1026,7 +1026,7 @@ export class Updates {
                 : "";
 
         record.commit = commit;
-        const title = `Migrate Pi Pocket to ${release.version}`;
+        const title = `Migrate Pia to ${release.version}`;
         const prompt = migrationPrompt({
             release,
             remote,
@@ -1053,7 +1053,7 @@ export class Updates {
                 ...(started.error === undefined ? {} : { error: started.error }),
             });
             this.#options.log(
-                `Pi Pocket ${release.version} is available: migration session ${started.conversationId} started.`,
+                `Pia ${release.version} is available: migration session ${started.conversationId} started.`,
             );
         } catch (error) {
             writeMigration(this.#root, {
@@ -1082,7 +1082,7 @@ export class Updates {
             const local = await this.#local();
 
             if (!local.git) {
-                throw new HttpError(409, "This copy of Pi Pocket is not a git checkout.");
+                throw new HttpError(409, "This copy of Pia is not a git checkout.");
             }
 
             if (!local.writable) {
@@ -1295,7 +1295,7 @@ export class Updates {
         try {
             const tagged = await tagRelease(this.repository, this.#root);
 
-            // GitHub failed, rather than said there is no release: notes may exist, with a warning Pi Pocket cannot see.
+            // GitHub failed, rather than said there is no release: notes may exist, with a warning Pia cannot see.
             if (failed !== undefined && github !== undefined && tagged !== undefined) {
                 return {
                     ...tagged,
@@ -1344,7 +1344,7 @@ export class Updates {
             let problem: string | undefined;
 
             if (pkg.version !== release.version) {
-                problem = `${release.tag} holds version ${String(pkg.version)}, not ${release.version}: Pi Pocket does not install it.`;
+                problem = `${release.tag} holds version ${String(pkg.version)}, not ${release.version}: Pia does not install it.`;
             } else if (!nodeMeets(pkg.engines?.node, process.versions.node)) {
                 problem = `${release.tag} needs Node.js ${String(pkg.engines?.node)}, and this server runs ${process.versions.node}. Update Node.js first.`;
             } else if (
@@ -1353,7 +1353,7 @@ export class Updates {
                     () => false,
                 ))
             ) {
-                problem = `${release.tag} has no package-lock.json: Pi Pocket does not install it.`;
+                problem = `${release.tag} has no package-lock.json: Pia does not install it.`;
             }
 
             this.#target = {
@@ -1396,7 +1396,7 @@ export class Updates {
             const target = this.#target;
 
             if (!status.available || latest === undefined) {
-                throw new HttpError(409, "Pi Pocket is up to date.");
+                throw new HttpError(409, "Pia is up to date.");
             }
 
             if (status.blockers.length > 0) {
@@ -1408,18 +1408,21 @@ export class Updates {
                     409,
                     latest.warning
                         ? "The release notes have a warning: read it, then confirm that you did."
-                        : "Pi Pocket could not read the release notes: read them on GitHub, then confirm that you did.",
+                        : "Pia could not read the release notes: read them on GitHub, then confirm that you did.",
                 );
             }
 
             if (status.busy > 0 && options.allowBusy !== true) {
-                throw new HttpError(409, "Pi works in a session now: update when it is done.");
+                throw new HttpError(
+                    409,
+                    "the agent works in a session now: update when it is done.",
+                );
             }
 
             const stillWanted = () =>
                 options.stillWanted?.() ??
                 (this.#options.busy() > 0 && options.allowBusy !== true
-                    ? "Pi started to work in a session: update when it is done."
+                    ? "the agent started to work in a session: update when it is done."
                     : undefined);
 
             if (status.installKind === "npm-global") {
@@ -1435,7 +1438,7 @@ export class Updates {
             }
 
             this.#options.log(
-                `Updating Pi Pocket from ${this.#options.version} to ${latest.version}${options.by === undefined ? "" : ` (${options.by})`}.`,
+                `Updating Pia from ${this.#options.version} to ${latest.version}${options.by === undefined ? "" : ` (${options.by})`}.`,
             );
 
             if (status.packages) {
@@ -1452,7 +1455,7 @@ export class Updates {
                             fromVersion: this.#options.version,
                             toVersion: latest.version,
                         },
-                        `The update to ${latest.version} did not install its packages, so Pi Pocket stays at ${this.#options.version}: ${describe(error)}`,
+                        `The update to ${latest.version} did not install its packages, so Pia stays at ${this.#options.version}: ${describe(error)}`,
                         this.#now,
                     );
 
@@ -1551,7 +1554,7 @@ export class Updates {
 
                     throw new HttpError(
                         500,
-                        `The update to ${latest.version} stopped part way (${describe(error)}). Restart the server (menu → Restart server): Pi Pocket then puts the version before back.`,
+                        `The update to ${latest.version} stopped part way (${describe(error)}). Restart the server (menu → Restart server): Pia then puts the version before back.`,
                     );
                 }
 
@@ -1611,7 +1614,7 @@ export class Updates {
         };
 
         this.#options.log(
-            `Updating Pi Pocket from ${pending.fromVersion} to ${pending.toVersion}${by === undefined ? "" : ` (${by})`}.`,
+            `Updating Pia from ${pending.fromVersion} to ${pending.toVersion}${by === undefined ? "" : ` (${by})`}.`,
         );
         // Someone started to work while npm staged the package: nothing failed, so no outcome is noted (as for git),
         // and an install by itself tries this release again once the sessions are quiet.
@@ -1648,7 +1651,7 @@ export class Updates {
                         this.#root,
                         pending,
                         false,
-                        `The update to ${latest.version} failed, so Pi Pocket stays at ${pending.fromVersion}: ${describe(error)}`,
+                        `The update to ${latest.version} failed, so Pia stays at ${pending.fromVersion}: ${describe(error)}`,
                         this.#now,
                     );
                 }
@@ -1745,7 +1748,7 @@ export class Updates {
                 this.#root,
                 pending,
                 true,
-                `Pi Pocket updated from ${pending.fromVersion} to ${pending.toVersion}.`,
+                `Pia updated from ${pending.fromVersion} to ${pending.toVersion}.`,
                 this.#now,
             );
             void rm(paths.previous, { recursive: true, force: true }).catch(() => {});
@@ -1759,7 +1762,7 @@ export class Updates {
                 this.#root,
                 pending,
                 false,
-                `The checkout changed during the update to ${pending.toVersion}, so Pi Pocket did not finish it.`,
+                `The checkout changed during the update to ${pending.toVersion}, so Pia did not finish it.`,
                 this.#now,
             );
         }

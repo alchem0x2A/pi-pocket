@@ -1,17 +1,17 @@
 /**
- * PiP, "Pi in Pocket": the owner's assistant, which looks after their other sessions. PiP is a conversation of its own,
+ * Pia, the owner's assistant, which looks after their other sessions. It is a conversation of its own,
  * kept out of the session list and shown in a small panel over whatever is open (`web/pip.js`). Its extension
  * (`extensions/pip.ts`) is selected there only, and gives it tools to list, read, start, message, stop, archive, and
  * schedule sessions, to see the calls waiting for approval and deny them (never allow: that stays a person's), and to
- * follow a session until its run ends. Every tool acts as PiP's person, with exactly their rights: the checks are the
+ * follow a session until its run ends. Every tool acts as Pia's person, with exactly their rights: the checks are the
  * ones their own requests meet.
  *
- * A follow is a durable task in PiP's conversation: it waits for the message PiP sent (or for the session to go idle),
- * then sends PiP a report. Request ids keep a restart from sending a message or a report twice.
+ * A follow is a durable task in Pia's conversation: it waits for the message Pia sent (or for the session to go idle),
+ * then sends Pia a report. Request ids keep a restart from sending a message or a report twice.
  *
- * PiP checks before it acts: it messages, stops, archives, schedules in, or watches a PR from a session only after it
- * looked at that session lately (read it, started it, or had a report from it). And it never chooses a model: it passes
- * one, or names one in what it sends, only when its person named that model in their own words to it.
+ * Pia checks before it acts: it messages, stops, archives, schedules in, or watches a PR from a session only after it
+ * looked at that session lately (read it, started it, or had a report from it). It can choose a model for a new session
+ * or switch a session when the request needs one.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
@@ -32,7 +32,7 @@ import {
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { FollowsDoc, SessionsDoc } from "./docs.ts";
+import { assistantOwner, FollowsDoc, SessionsDoc } from "./docs.ts";
 import { NOTE_ENTRY } from "./entry-format.ts";
 import { describe, HttpError } from "./errors.ts";
 import { clip, defang, quoted } from "./fence.ts";
@@ -45,50 +45,26 @@ import type { RepoWatchRequest, RepoWatchView } from "./repo-watches.ts";
 import { clientKey, requestFor } from "./requests.ts";
 import { describeMoment, describeRepeat } from "./when.ts";
 import {
-    type AssistantProfile,
     cleanName,
     ensurePiaWorkspace,
     PIA_DEFAULT_NAME,
-    piaExtensions,
-    piaAgentsFile,
     piaWorkspace,
-    profileOf,
     readShared,
 } from "./pia.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-/** PiP's extension: its tools, its prompt, and the follow task. Selected in PiP's conversation only. */
-export const PIP_EXTENSION = "pocket-pip";
-/** What PiP is called, in the app and in what it sends. */
-export const PIP_NAME = "PiP";
-/**
- * The extensions PiP runs with, in order. Not the system prompt (PiP's extension has its own) nor anything that works
- * on files and commands beyond reading: PiP hands hands-on work to sessions.
- */
-export const PIP_EXTENSIONS = [
-    "coding-tools",
-    // Core's own: its hook takes the values extensions hide (`host.hide`) out of PiP's tool results too.
-    "pocket-core",
-    PIP_EXTENSION,
-    "pocket-artifacts",
-    "pocket-schedules",
-    "pocket-guard",
-    "pocket-codemode",
-    "pocket-memory",
-];
-/**
- * The tools PiP goes without: Pi Durable's coding tools (it reads files, and changes nothing itself), and the artifact
- * card, which its small panel does not draw (`artifact` still opens in the viewer).
- */
-export const PIP_WITHOUT = ["bash", "write", "edit", "artifact_inline"];
-/** How reports from followed sessions start, so PiP knows what they are. */
+/** Existing agent selections store this extension id. Keep it stable while the module and display name use Pia. */
+export const PIA_EXTENSION = "pocket-pip";
+/** What Pia is called, in the app and in what it sends. */
+export const PIA_NAME = "Pia";
+/** How reports from followed sessions start, so Pia knows what they are. */
 export const REPORT_HEAD = "[report] ";
-/** Sessions PiP may start in an hour, so a confused loop cannot fill the list. */
+/** Sessions Pia may start in an hour, so a confused loop cannot fill the list. */
 const STARTS_PER_HOUR = 20;
 /**
- * Messages, follows, and schedules PiP may make in an hour. Reports start PiP's runs with nobody watching: this keeps
- * a loop (follow, report, follow; or PiP and a session messaging each other) from spending without end.
+ * Messages, follows, and schedules Pia may make in an hour. Reports start Pia's runs with nobody watching: this keeps
+ * a loop (follow, report, follow; or Pia and a session messaging each other) from spending without end.
  */
 const ACTIONS_PER_HOUR = 60;
 /** How long a clone may take, and how long a folder's repository is kept before git is asked again. */
@@ -96,15 +72,15 @@ const CLONE_TIMEOUT_MS = 15 * 60_000;
 const ORIGIN_FOR_MS = 5 * 60_000;
 /** How long a follow that reported is remembered, so a replayed call that made it does not make another. */
 const FOLLOW_MEMORY_MS = 24 * 3_600_000;
-/** How long PiP's look at a session (a read, its start, a report from it) counts as knowing what it is doing. */
+/** How long Pia's look at a session (a read, its start, a report from it) counts as knowing what it is doing. */
 const CHECKED_FOR_MS = 15 * 60_000;
 /**
- * How long after a follow reported its session's "Pi finished" stays muted: long enough for the push of the same run's
+ * How long after a follow reported its session's "the agent finished" stays muted: long enough for the push of the same run's
  * end, which comes a few seconds later, and short enough not to mute the next run's.
  */
 const REPORTED_JUST_NOW_MS = 60_000;
 
-/** How what a session said reaches PiP: fenced, so it reads as data, not as instructions. */
+/** How what a session said reaches Pia: fenced, so it reads as data, not as instructions. */
 export const SESSION_OPEN = "<session-output>";
 export const SESSION_CLOSE = "</session-output>";
 /** Follows waiting at once, at most. */
@@ -115,17 +91,17 @@ const LINE_CHARS = 600;
 
 type FollowInput = {
     sessionId: ConversationId;
-    /** PiP's person: the report is sent for them. */
+    /** Pia's person: the report is sent for them. */
     userId: string;
     title: string;
-    /** The message PiP sent, whose answer the report carries; absent: report when the session is next idle. */
+    /** The message Pia sent, whose answer the report carries; absent: report when the session is next idle. */
     requestId?: string;
 };
 type FollowState = { phase: "wait" } | { phase: "report"; text: string };
 type FollowRuntime = TaskRuntime<FollowInput, FollowState, null, object>;
 
-/** One session as PiP lists it. */
-export type PipSession = {
+/** One session as Pia lists it. */
+export type PiaSession = {
     id: number;
     title: string;
     state: "working" | "needs approval" | "idle";
@@ -137,12 +113,12 @@ export type PipSession = {
     subagents?: string;
 };
 
-/** What a tab's PiP button shows: whether PiP works, and when it last answered. */
-export type PipState = { id: number; busy: boolean; endedAt?: number };
+/** What a tab's Pia button shows: whether Pia works, and when it last answered. */
+export type PiaState = { id: number; busy: boolean; endedAt?: number };
 
 const finished = { status: "terminal", outcome: { status: "completed", result: null } } as const;
 
-/** A session's words, fenced for PiP; a fence inside them cannot end the fence early. */
+/** A session's words, fenced for Pia; a fence inside them cannot end the fence early. */
 export function fenced(text: string): string {
     return `${SESSION_OPEN}\n${defang(text)}\n${SESSION_CLOSE}`;
 }
@@ -185,23 +161,23 @@ export function ago(moment: number, now: number): string {
     return hours < 48 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
 }
 
-export class Pip {
+export class Pia {
     readonly #app: PocketApp;
-    /** A PiP being made, by person, so two tabs opening it at once make one. */
+    /** A Pia being made, by person, so two tabs opening it at once make one. */
     readonly #creating = new Map<string, Promise<ConversationId>>();
-    /** When each PiP started its recent sessions, and made its recent messages and follows: for the hourly limits. */
+    /** When each Pia started its recent sessions, and made its recent messages and follows: for the hourly limits. */
     readonly #recent = new Map<string, number[]>();
     /** Clones under way, by repository, so two asks clone once; and folders' repositories, kept a few minutes. */
     readonly #cloning = new Map<string, Promise<string>>();
     readonly #origins = new Map<string, { repo: string | undefined; at: number }>();
     /**
-     * When each PiP last looked at each session (`pip:session`): read it, started it, or had a report from it. In
-     * memory: after a restart PiP looks again before it acts.
+     * When each Pia last looked at each session (`pia:session`): read it, started it, or had a report from it. In
+     * memory: after a restart Pia looks again before it acts.
      */
     readonly #checked = new Map<string, number>();
-    /** The durable task behind each follow; PiP's extension installs it. */
+    /** The durable task behind each follow; Pia's extension installs it. */
     readonly task: Task<FollowInput, FollowState, null, object>;
-    /** How long a report waits before it looks again whether PiP is back on (tests shorten it). */
+    /** How long a report waits before it looks again whether Pia is back on (tests shorten it). */
     holdMs = 60_000;
 
     constructor(app: PocketApp) {
@@ -224,52 +200,42 @@ export class Pip {
         });
     }
 
-    // ─── Profile ────────────────────────────────────────────────────────────
-
-    /** The assistant profile in force (`pia.ts`): Classic unless the owner chose Pia. */
-    profile(): {
-        mode: AssistantProfile;
-        name: string;
-        workspace: string;
-        agentsFile: string;
-        defaultFolder: string;
-    } {
-        const app = this.#app;
-        const mode = profileOf(app.config.assistantProfile);
-
-        return {
-            mode,
-            name:
-                mode === "pia"
-                    ? (cleanName(app.config.assistantName) ?? PIA_DEFAULT_NAME)
-                    : PIP_NAME,
-            workspace: piaWorkspace(app.dataDir),
-            agentsFile: piaAgentsFile(app.dataDir),
-            defaultFolder: app.defaultCwd,
-        };
+    /** The name shown for the assistant. */
+    name(): string {
+        return cleanName(this.#app.config.assistantName) ?? PIA_DEFAULT_NAME;
     }
 
-    /** The shared AGENTS.md every Pia chat reads; undefined in Classic, or when there is none. */
+    /** The assistant's default workspace. */
+    workspace(): string {
+        return piaWorkspace(this.#app.dataDir);
+    }
+
+    /** The server's default folder for new sessions. */
+    defaultFolder(): string | undefined {
+        return this.#app.defaultCwd;
+    }
+
+    /** The shared AGENTS.md every assistant chat reads. */
     sharedContext(): string | undefined {
-        return this.profile().mode === "pia" ? readShared(this.#app.dataDir) : undefined;
+        return readShared(this.#app.dataDir);
     }
 
-    /** Whether this conversation is a PiP that runs commands: a Pia chat while the profile is Pia. */
+    /** Whether this private assistant conversation can run normal session tools. */
     runsCommands(conversationId: ConversationId): boolean {
-        return this.ownerOf(conversationId) !== undefined && this.profile().mode === "pia";
+        return this.ownerOf(conversationId) !== undefined;
     }
 
-    // ─── Whose PiP ──────────────────────────────────────────────────────────
+    // ─── Whose Pia ──────────────────────────────────────────────────────────
 
-    /** Whether this person may have a PiP: the owner, while its extension is on. */
+    /** Whether this person may have a Pia: the owner, while its extension is on. */
     available(user: User): boolean {
-        return user.role === "owner" && this.#app.loader.extensionNames().includes(PIP_EXTENSION);
+        return user.role === "owner" && this.#app.loader.extensionNames().includes(PIA_EXTENSION);
     }
 
-    /** The conversation of this person's PiP, once they have one. */
+    /** The conversation of this person's Pia, once they have one. */
     idOf(userId: string): ConversationId | undefined {
         for (const [id, meta] of Object.entries(this.#app.sessionCatalogue())) {
-            if (meta.pip === userId) {
+            if (assistantOwner(meta) === userId) {
                 return Number(id) as unknown as ConversationId;
             }
         }
@@ -278,8 +244,7 @@ export class Pip {
     }
 
     /**
-     * PiP turned off: each one's run stops, and any compaction of its context, which would go on without PiP's own
-     * summary (`pip-compact.ts`) and read what came from outside as it is. Nothing new reaches it until it is back.
+     * The owner turned Pia off: stop its current work and compaction before the extension unloads.
      */
     async stopAll(): Promise<void> {
         const app = this.#app;
@@ -299,17 +264,17 @@ export class Pip {
                     await app.harness.abortTask(compaction.taskId, context);
                 }
             } catch (error) {
-                app.log(`PiP ${String(id)} was not stopped: ${describe(error)}`);
+                app.log(`Pia ${String(id)} was not stopped: ${describe(error)}`);
             }
         }
     }
 
-    /** The person whose PiP a conversation is; undefined for every other conversation. */
+    /** The person whose Pia a conversation is; undefined for every other conversation. */
     ownerOf(conversationId: ConversationId): string | undefined {
-        return this.#app.sessionMeta(conversationId)?.pip;
+        return assistantOwner(this.#app.sessionMeta(conversationId));
     }
 
-    /** The name of the person whose PiP a conversation is; undefined for every other conversation. */
+    /** The name of the person whose Pia a conversation is; undefined for every other conversation. */
     ownerName(conversationId: ConversationId): string | undefined {
         const userId = this.ownerOf(conversationId);
 
@@ -318,8 +283,8 @@ export class Pip {
             : (this.#app.config.userById(userId)?.name ?? "the owner");
     }
 
-    /** What this person's PiP button shows; null when they have no PiP. */
-    state(user: User): PipState | null {
+    /** What this person's Pia button shows; null when they have no Pia. */
+    state(user: User): PiaState | null {
         const id = this.available(user) ? this.idOf(user.id) : undefined;
 
         if (id === undefined) {
@@ -335,14 +300,14 @@ export class Pip {
         };
     }
 
-    /** This person's PiP, made the first time they open it. Its agent is set to what PiP runs with each time. */
+    /** This person's Pia, made the first time they open it. Its agent is set to what Pia runs with each time. */
     async ensure(user: User): Promise<ConversationId> {
         if (user.role !== "owner") {
-            throw new HttpError(403, "PiP is the owner's for now.");
+            throw new HttpError(403, "Pia is the owner's for now.");
         }
 
         if (!this.available(user)) {
-            throw new HttpError(409, "PiP is turned off in Extensions.");
+            throw new HttpError(409, "Pia is turned off in Extensions.");
         }
 
         const existing = this.idOf(user.id);
@@ -367,8 +332,7 @@ export class Pip {
         const app = this.#app;
         const initial = app.commands.defaultModel();
         const now = Date.now();
-        const pia = this.profile().mode === "pia";
-        const cwd = pia ? ensurePiaWorkspace(app.dataDir) : app.defaultCwd;
+        const cwd = ensurePiaWorkspace(app.dataDir);
         const conversation = await app.harness.createConversation(
             {
                 ownership: { kind: "ownerless" },
@@ -382,20 +346,15 @@ export class Pip {
                 init: async (tx, id) => {
                     const agent = await tx.doc(AgentDoc, id);
 
-                    if (pia) {
-                        agent.extensions = piaExtensions(PIP_EXTENSION);
-                    } else {
-                        agent.extensions = [...PIP_EXTENSIONS];
-                        agent.tools = { remove: [...PIP_WITHOUT] };
-                    }
+                    agent.extensions = { add: [PIA_EXTENSION] };
 
                     (await tx.doc(SessionsDoc)).items[String(id)] = {
-                        title: PIP_NAME,
+                        title: this.name(),
                         cwd,
                         createdAt: now,
                         updatedAt: now,
                         createdBy: user.id,
-                        pip: user.id,
+                        pia: user.id,
                     };
                 },
             },
@@ -406,12 +365,12 @@ export class Pip {
     }
 
     /**
-     * Give every PiP what this version runs it with, before work resumes: a run or a report that comes before anyone opens
+     * Give every Pia what this version runs it with, before work resumes: a run or a report that comes before anyone opens
      * the panel then runs with it too (its hook that hides values, say).
      */
     async tuneAll(log: (line: string) => void): Promise<void> {
         for (const [id, meta] of Object.entries(this.#app.sessionCatalogue())) {
-            if (meta.pip === undefined) {
+            if (assistantOwner(meta) === undefined) {
                 continue;
             }
 
@@ -420,42 +379,37 @@ export class Pip {
                 await this.#tune(Number(id) as unknown as ConversationId);
             } catch (error) {
                 log(
-                    `PiP ${id} could not be brought up to date: ${error instanceof Error ? error.message : String(error)}`,
+                    `Pia ${id} could not be brought up to date: ${error instanceof Error ? error.message : String(error)}`,
                 );
             }
         }
     }
 
-    /**
-     * Give PiP the extensions and tools this version and profile run it with, when it has others (made by an older
-     * version, or under the other profile). The conversation, its history, and its follows stay as they are.
-     *
-     * The folder changes only as the profile changes: a PiP that enters Pia (its selection is still Classic's list)
-     * starts in the shared workspace, and one that goes back to Classic leaves the workspace for the default folder. A
-     * folder chosen after that stays: the workspace is a default, not a rule.
-     */
+    /** Keep an existing assistant conversation on the current tools and workspace. */
     async #tune(id: ConversationId): Promise<void> {
         const app = this.#app;
         const agent = await app.agentState(id);
-        const pia = this.profile().mode === "pia";
-        const wasPia = agent?.extensions !== undefined && !Array.isArray(agent.extensions);
-        const extensions = pia ? piaExtensions(PIP_EXTENSION) : PIP_EXTENSIONS;
-        const tools = pia ? undefined : { remove: PIP_WITHOUT };
+        const alreadyConfigured =
+            agent?.extensions !== undefined && !Array.isArray(agent.extensions);
+        const extensions = { add: [PIA_EXTENSION] };
         let cwd: string | undefined;
 
-        if (pia && !wasPia) {
+        if (!alreadyConfigured) {
             cwd = ensurePiaWorkspace(app.dataDir);
-        } else if (pia) {
+        } else {
             // The workspace and its AGENTS.md come back if someone removed them; the folder stays as it is.
             ensurePiaWorkspace(app.dataDir);
-        } else if (wasPia && agent?.cwd === piaWorkspace(app.dataDir)) {
-            cwd = app.defaultCwd;
         }
+
+        const name = this.name();
+        const currentMeta = app.sessionMeta(id);
+        const titleIsCurrent = currentMeta?.title === name;
 
         if (
             JSON.stringify({ extensions: agent?.extensions, tools: agent?.tools }) ===
-                JSON.stringify({ extensions, tools }) &&
-            cwd === undefined
+                JSON.stringify({ extensions, tools: undefined }) &&
+            cwd === undefined &&
+            titleIsCurrent
         ) {
             return;
         }
@@ -470,27 +424,26 @@ export class Pip {
 
             const state = await tx.doc(AgentDoc, id);
 
-            if (pia) {
-                state.extensions = piaExtensions(PIP_EXTENSION);
-                delete state.tools;
-            } else {
-                state.extensions = [...PIP_EXTENSIONS];
-                state.tools = { remove: [...PIP_WITHOUT] };
-            }
+            state.extensions = extensions;
+            delete state.tools;
 
             if (cwd !== undefined) {
                 state.cwd = cwd;
+            }
 
-                const meta = (await tx.doc(SessionsDoc)).items[String(id)];
+            const meta = (await tx.doc(SessionsDoc)).items[String(id)];
 
-                if (meta !== undefined) {
+            if (meta !== undefined) {
+                meta.title = name;
+
+                if (cwd !== undefined) {
                     meta.cwd = cwd;
                 }
             }
         }, context);
     }
 
-    /** Count one more of PiP's actions of a kind, or refuse when it made `max` in the last hour. */
+    /** Count one more of Pia's actions of a kind, or refuse when it made `max` in the last hour. */
     #count(user: User, kind: "start" | "act", max: number): void {
         const key = `${user.id}:${kind}`;
         const now = Date.now();
@@ -508,7 +461,7 @@ export class Pip {
     }
 
     /**
-     * A schedule set up in `conversationId` under `key` by `make`, counted as one of PiP's actions when PiP sets it up:
+     * A schedule set up in `conversationId` under `key` by `make`, counted as one of Pia's actions when Pia sets it up:
      * in its own conversation (its schedule tool), or for `user` in a session. A key already used finds its schedule
      * without counting again; a schedule `make` refuses (a `when` it cannot read) gives its count back.
      */
@@ -533,7 +486,7 @@ export class Pip {
         return this.#counted(counted, make);
     }
 
-    /** Do `make`, counted as one of PiP's actions; refused (nothing made), it gives its count back. */
+    /** Do `make`, counted as one of Pia's actions; refused (nothing made), it gives its count back. */
     async #counted<T>(user: User, make: () => Promise<T>): Promise<T> {
         this.#count(user, "act", ACTIONS_PER_HOUR);
 
@@ -547,7 +500,7 @@ export class Pip {
     }
 
     /**
-     * Send a message for PiP's person, once for a key however often the call runs: a message already sent under it is
+     * Send a message for Pia's person, once for a key however often the call runs: a message already sent under it is
      * found, not sent again (nor checked again: a limit reached since does not undo it).
      */
     async #submit(
@@ -571,7 +524,7 @@ export class Pip {
             return requestId;
         }
 
-        // Only a message not sent yet: a replayed call finds the one it sent, whatever PiP knows after a restart.
+        // Only a message not sent yet: a replayed call finds the one it sent, whatever Pia knows after a restart.
         await checks();
         this.#count(user, "act", ACTIONS_PER_HOUR);
 
@@ -580,32 +533,32 @@ export class Pip {
                 id,
                 user,
                 { text, requestId: asked, ...(steer ? { mode: "steer" as const } : {}) },
-                PIP_NAME,
+                PIA_NAME,
             )
         ).requestId;
     }
 
-    /** PiP's person, from its conversation; an error when the conversation is no PiP, or its person is gone. */
-    #person(pipId: ConversationId): User {
-        const userId = this.ownerOf(pipId);
+    /** Pia's person, from its conversation; an error when the conversation is no Pia, or its person is gone. */
+    #person(piaId: ConversationId): User {
+        const userId = this.ownerOf(piaId);
         const user = userId === undefined ? undefined : this.#app.config.userById(userId);
 
         if (user === undefined) {
-            throw new Error("Only PiP has these tools.");
+            throw new Error("Only Pia has these tools.");
         }
 
         return user;
     }
 
-    /** A session PiP may act on: one its person can see, and not PiP itself. */
-    #session(pipId: ConversationId, user: User, sessionId: number): ConversationId {
+    /** A session Pia may act on: one its person can see, and not Pia itself. */
+    #session(piaId: ConversationId, user: User, sessionId: number): ConversationId {
         const id = sessionId as unknown as ConversationId;
 
-        if (id === pipId) {
+        if (id === piaId) {
             throw new Error("That is your own conversation.");
         }
 
-        if (this.#app.sessionMeta(id)?.pip !== undefined) {
+        if (assistantOwner(this.#app.sessionMeta(id)) !== undefined) {
             throw new Error(`There is no session ${String(sessionId)}.`);
         }
 
@@ -618,17 +571,17 @@ export class Pip {
         return id;
     }
 
-    /** PiP just looked at a session, and knows what it is doing. */
-    #looked(pipId: ConversationId, sessionId: ConversationId | number): void {
-        this.#checked.set(`${String(pipId)}:${String(sessionId)}`, Date.now());
+    /** Pia just looked at a session, and knows what it is doing. */
+    #looked(piaId: ConversationId, sessionId: ConversationId | number): void {
+        this.#checked.set(`${String(piaId)}:${String(sessionId)}`, Date.now());
     }
 
     /**
-     * Refuse to act on a session PiP has not looked at lately: what it would send or stop may be what the session does
+     * Refuse to act on a session Pia has not looked at lately: what it would send or stop may be what the session does
      * not need. `doing` says what in a few words ("message", "stop").
      */
-    #requireLooked(pipId: ConversationId, sessionId: number, doing: string): void {
-        const at = this.#checked.get(`${String(pipId)}:${String(sessionId)}`);
+    #requireLooked(piaId: ConversationId, sessionId: number, doing: string): void {
+        const at = this.#checked.get(`${String(piaId)}:${String(sessionId)}`);
 
         if (at === undefined || Date.now() - at > CHECKED_FOR_MS) {
             throw new Error(
@@ -640,9 +593,11 @@ export class Pip {
     /**
      * The signed-in model for a loose name ("luna max", "codex sol", "opus"): the best fit, on a provider that works now,
      * with the thinking level it names. Several fits at once are spread: the one whose account has used least, or the
-     * first when usage is unknown. No fit is an error that lists nothing to pick from; PiP asks its person then.
+     * first when usage is unknown. No fit is an error that lists nothing to pick from; Pia asks its person then.
      */
-    async #modelFor(spec: string): Promise<{ model: { provider: string; modelId: string }; level?: ModelThinkingLevel }> {
+    async #modelFor(
+        spec: string,
+    ): Promise<{ model: { provider: string; modelId: string }; level?: ModelThinkingLevel }> {
         const app = this.#app;
         const exact = findModel(app.models, spec);
         const { models, level } = exact
@@ -674,11 +629,11 @@ export class Pip {
     }
 
     /** Change the model of a session, for its person: when it hit a limit, say. Takes a loose name. */
-    async setModel(pipId: ConversationId, sessionId: number, spec: string): Promise<string> {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+    async setModel(piaId: ConversationId, sessionId: number, spec: string): Promise<string> {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
-        this.#requireLooked(pipId, sessionId, "change the model of");
+        this.#requireLooked(piaId, sessionId, "change the model of");
         const { model, level } = await this.#modelFor(spec);
 
         await this.#app.commands.configure(id, user, {
@@ -689,13 +644,13 @@ export class Pip {
         return `${model.provider}/${model.modelId}${level === undefined ? "" : ` (thinking ${level})`}`;
     }
 
-    /** A session's state now, in a few words, for the results of PiP's tools that act on it. */
-    async status(pipId: ConversationId, sessionId: number): Promise<string> {
+    /** A session's state now, in a few words, for the results of Pia's tools that act on it. */
+    async status(piaId: ConversationId, sessionId: number): Promise<string> {
         const app = this.#app;
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
         const meta = app.sessionMeta(id)!;
-        // Messages not taken yet, PiP's just now among them: a session about to start is not idle.
+        // Messages not taken yet, Pia's just now among them: a session about to start is not idle.
         const waiting = (await app.harness.snapshot(InboxDoc, id, context))?.items.length ?? 0;
         const state = app.approvals
             .all()
@@ -710,17 +665,17 @@ export class Pip {
         return `/s/${String(sessionId)} now: ${state}${waiting > 0 ? `, ${String(waiting)} message${waiting === 1 ? "" : "s"} waiting` : ""}${meta.archived === true ? ", archived" : ""}, last active ${ago(meta.updatedAt, Date.now())}.`;
     }
 
-    // ─── What PiP's tools do ────────────────────────────────────────────────
+    // ─── What Pia's tools do ────────────────────────────────────────────────
 
-    /** The sessions PiP's person can see, newest first. */
+    /** The sessions Pia's person can see, newest first. */
     sessions(
-        pipId: ConversationId,
+        piaId: ConversationId,
         filter: { query?: string; state?: string; archived?: boolean; limit?: number } = {},
-    ): { sessions: PipSession[]; more: number; folders: string[] } {
+    ): { sessions: PiaSession[]; more: number; folders: string[] } {
         const app = this.#app;
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
         const words = (filter.query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-        const all = app.sessions(user).map((session): PipSession => {
+        const all = app.sessions(user).map((session): PiaSession => {
             const counts = session.subagents;
 
             return {
@@ -774,11 +729,11 @@ export class Pip {
         };
     }
 
-    /** The newest part of a session, as text for PiP: its state, what waits there, and its last messages. */
-    async read(pipId: ConversationId, sessionId: number, entries = 40): Promise<string> {
+    /** The newest part of a session, as text for Pia: its state, what waits there, and its last messages. */
+    async read(piaId: ConversationId, sessionId: number, entries = 40): Promise<string> {
         const app = this.#app;
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
         const meta = app.sessionMeta(id)!;
         const conversation = await app.conversation(id);
         const page = await conversation.entries(
@@ -809,7 +764,7 @@ export class Pip {
                 for (const block of entry.blocks) {
                     if (block.type === "text" && block.text.trim() !== "") {
                         lines.push(
-                            `Pi: ${clip(block.text, entry.id === lastAnswer ? ANSWER_CHARS : LINE_CHARS)}`,
+                            `the agent: ${clip(block.text, entry.id === lastAnswer ? ANSWER_CHARS : LINE_CHARS)}`,
                         );
                     } else if (block.type === "toolCall") {
                         lines.push(
@@ -846,7 +801,7 @@ export class Pip {
             : app.isBusy(id)
               ? "working"
               : "idle";
-        // What waits there and what is scheduled were written by the session's Pi or people: inside the fence too.
+        // What waits there and what is scheduled were written by the session's agent or people: inside the fence too.
         const pending = [
             ...(waiting.length === 0 ? [] : ["Waiting for approval:", ...waiting]),
             ...(schedules.length === 0
@@ -861,7 +816,7 @@ export class Pip {
                   ]),
         ];
 
-        this.#looked(pipId, id);
+        this.#looked(piaId, id);
         const head = [
             `#${String(sessionId)} ${quoted(meta.title ?? "New session")} · ${state}${meta.archived === true ? " · archived" : ""}`,
             `Folder: ${snippet(homePath(app.cwdOf(id)), 300)}${meta.worktree === undefined ? "" : ` (worktree, branch ${snippet(meta.worktree.branch, 120)})`}`,
@@ -875,12 +830,12 @@ export class Pip {
     }
 
     /**
-     * Start a session for PiP's person, in a folder (the default one when absent), with a model only when its person
-     * named it. Its first message goes with `send`, so a replayed call that made the session sends it once; it is checked
-     * here first (`message`), so a message that names a model nobody chose leaves no session behind.
+     * Start a session for Pia's person, in a folder (the default one when absent), with a model Pia selects when needed.
+     * Its first message goes with `send`, so a replayed call that made the session sends it once. A model failure leaves
+     * no session behind.
      */
     async start(
-        pipId: ConversationId,
+        piaId: ConversationId,
         request: {
             folder?: string;
             repo?: string;
@@ -891,9 +846,10 @@ export class Pip {
         },
     ): Promise<ConversationId> {
         const app = this.#app;
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
         // Before anything is made: a model that is not there, or that nobody chose, leaves no session behind.
-        const chosen = request.model === undefined ? undefined : await this.#modelFor(request.model);
+        const chosen =
+            request.model === undefined ? undefined : await this.#modelFor(request.model);
         const model = chosen?.model;
 
         if (request.folder !== undefined && request.repo !== undefined) {
@@ -902,7 +858,7 @@ export class Pip {
 
         this.#count(user, "start", STARTS_PER_HOUR);
         const folder =
-            request.repo === undefined ? request.folder : await this.checkout(pipId, request.repo);
+            request.repo === undefined ? request.folder : await this.checkout(piaId, request.repo);
         const { id } = await app.commands.createSession(
             user,
             {
@@ -920,33 +876,33 @@ export class Pip {
             });
         }
 
-        // PiP made it, and knows what it is doing: nothing yet.
-        this.#looked(pipId, id);
+        // Pia made it, and knows what it is doing: nothing yet.
+        this.#looked(piaId, id);
 
         return id;
     }
 
     /**
-     * Send a session a message for PiP's person: queued behind its work, or steering it. Once for a key: a replayed call
+     * Send a session a message for Pia's person: queued behind its work, or steering it. Once for a key: a replayed call
      * finds the message it sent.
      */
     async send(
-        pipId: ConversationId,
+        piaId: ConversationId,
         sessionId: number,
         message: string,
         steer: boolean,
         key: string,
         options: { started?: boolean } = {},
     ): Promise<{ requestId: string }> {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         return {
             requestId: await this.#submit(id, user, message, key, steer, async () => {
                 // The first message of a session the same call started (`started`) needs no look, there being nothing to
                 // see, and was checked for model names as the session started.
                 if (options.started !== true) {
-                    this.#requireLooked(pipId, sessionId, "message");
+                    this.#requireLooked(piaId, sessionId, "message");
                 }
             }),
         };
@@ -955,15 +911,15 @@ export class Pip {
     // ─── GitHub ─────────────────────────────────────────────────────────────
 
     /**
-     * Where PiP's person works on a GitHub repository: the checkout a session they started works in (its `origin` is
+     * Where Pia's person works on a GitHub repository: the checkout a session they started works in (its `origin` is
      * the repository), or else a clone, made now, in the data folder's `repos/`. Only their own sessions' folders: one
      * a guest made could hold the guest's instructions (an AGENTS.md). Only a repository gh's account can push to:
      * someone else's would bring its own instructions into a session that can run commands. A clone is made beside its
      * place and moved there once complete, so a clone cut off midway is never taken for one.
      */
-    async checkout(pipId: ConversationId, repo: string): Promise<string> {
+    async checkout(piaId: ConversationId, repo: string): Promise<string> {
         const app = this.#app;
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
         const named = parseRepo(repo);
 
         if (named === undefined) {
@@ -981,7 +937,7 @@ export class Pip {
         const folders = new Set<string>();
 
         for (const meta of Object.values(app.sessionCatalogue())) {
-            if (meta.pip === undefined && meta.createdBy === user.id) {
+            if (assistantOwner(meta) === undefined && meta.createdBy === user.id) {
                 folders.add(meta.worktree?.source ?? meta.cwd);
             }
         }
@@ -1058,7 +1014,7 @@ export class Pip {
         }
     }
 
-    /** A folder's GitHub repository, kept a few minutes: PiP asks of many folders. */
+    /** A folder's GitHub repository, kept a few minutes: Pia asks of many folders. */
     async #origin(folder: string): Promise<string | undefined> {
         const now = Date.now();
         const known = this.#origins.get(folder);
@@ -1074,14 +1030,14 @@ export class Pip {
         return repo;
     }
 
-    /** Watch a session's pull request for PiP's person: its branch's, or `pr` (a number, address, or owner/name#12). */
-    async watchPr(pipId: ConversationId, sessionId: number, pr: string | undefined, key: string) {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+    /** Watch a session's pull request for Pia's person: its branch's, or `pr` (a number, address, or owner/name#12). */
+    async watchPr(piaId: ConversationId, sessionId: number, pr: string | undefined, key: string) {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         // A replayed call finds the watch it started; anything else is looked at first.
         if ((await this.#app.watches.get(id))?.key !== key) {
-            this.#requireLooked(pipId, sessionId, "watch a pull request from");
+            this.#requireLooked(piaId, sessionId, "watch a pull request from");
         }
 
         // Counted even when refused: it asked GitHub, which the hourly count also keeps in bounds.
@@ -1095,34 +1051,34 @@ export class Pip {
     }
 
     /** A session's PR watch, or stopping it. */
-    async prWatch(pipId: ConversationId, sessionId: number, stop: boolean) {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+    async prWatch(piaId: ConversationId, sessionId: number, stop: boolean) {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         if (stop) {
-            this.#requireLooked(pipId, sessionId, "stop the PR watch of");
+            this.#requireLooked(piaId, sessionId, "stop the PR watch of");
         }
 
         return stop ? this.#app.watches.stop(id) : this.#app.watches.get(id);
     }
 
-    /** Watch a repository for PiP's person: what happens there comes to PiP, or to session `to`. */
+    /** Watch a repository for Pia's person: what happens there comes to Pia, or to session `to`. */
     async addRepoWatch(
-        pipId: ConversationId,
+        piaId: ConversationId,
         request: Omit<RepoWatchRequest, "target" | "byPi" | "key"> & { to?: number },
         key: string,
     ): Promise<RepoWatchView> {
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
         const { to, ...rest } = request;
 
-        // Strangers' issues and pull requests are let in by a person, in the hooks sheet, never by PiP.
+        // Strangers' issues and pull requests are let in by a person, in the hooks sheet, never by Pia.
         if (rest.anyone === true) {
             throw new Error(
                 "Only your person can let a watch take issues and pull requests from anyone: ask them to turn it on in Menu → Webhooks and watches once the watch is made.",
             );
         }
 
-        const target = to === undefined ? pipId : this.#session(pipId, user, to);
+        const target = to === undefined ? piaId : this.#session(piaId, user, to);
 
         // Counted even when refused: it asked GitHub, which the hourly count also keeps in bounds.
         this.#count(user, "act", ACTIONS_PER_HOUR);
@@ -1130,32 +1086,32 @@ export class Pip {
         return this.#app.repoWatches.add(user, { ...rest, target, byPi: true, key });
     }
 
-    /** PiP's person's repository watches, each with where it sends. */
-    async repoWatches(pipId: ConversationId): Promise<(RepoWatchView & { to: string })[]> {
+    /** Pia's person's repository watches, each with where it sends. */
+    async repoWatches(piaId: ConversationId): Promise<(RepoWatchView & { to: string })[]> {
         const app = this.#app;
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
 
         return (await app.repoWatches.list(user))
             .filter((watch) => watch.by === user.id)
             .map((watch) => ({
                 ...watch,
                 to:
-                    watch.target === Number(pipId)
+                    watch.target === Number(piaId)
                         ? "you"
                         : `session ${watch.target} (${quoted(app.sessionMeta(watch.target as unknown as ConversationId)?.title ?? "untitled", 80)})`,
             }));
     }
 
-    async removeRepoWatch(pipId: ConversationId, id: string): Promise<RepoWatchView> {
-        return this.#app.repoWatches.remove(this.#person(pipId), id);
+    async removeRepoWatch(piaId: ConversationId, id: string): Promise<RepoWatchView> {
+        return this.#app.repoWatches.remove(this.#person(piaId), id);
     }
 
     /** Stop a session's run. */
-    async stop(pipId: ConversationId, sessionId: number): Promise<boolean> {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+    async stop(piaId: ConversationId, sessionId: number): Promise<boolean> {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
-        this.#requireLooked(pipId, sessionId, "stop");
+        this.#requireLooked(piaId, sessionId, "stop");
         const busy = this.#app.isBusy(id);
 
         await this.#app.commands.abort(id, this.#through(user));
@@ -1164,22 +1120,22 @@ export class Pip {
     }
 
     /** Archive a session, or bring it back. */
-    async archive(pipId: ConversationId, sessionId: number, archived: boolean): Promise<void> {
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+    async archive(piaId: ConversationId, sessionId: number, archived: boolean): Promise<void> {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         // Bringing one back hides nothing; archiving it hides what may still need its person.
         if (archived && this.#app.sessionMeta(id)?.archived !== true) {
-            this.#requireLooked(pipId, sessionId, "archive");
+            this.#requireLooked(piaId, sessionId, "archive");
         }
 
         await this.#app.commands.updateSession(id, this.#through(user), { archived });
     }
 
-    /** The calls waiting for approval in the sessions PiP's person can see. */
-    approvals(pipId: ConversationId) {
+    /** The calls waiting for approval in the sessions Pia's person can see. */
+    approvals(piaId: ConversationId) {
         const app = this.#app;
-        const user = this.#person(pipId);
+        const user = this.#person(piaId);
 
         return app.approvals
             .all()
@@ -1190,7 +1146,7 @@ export class Pip {
                 return {
                     id: request.id,
                     session: Number(root),
-                    // Written by the session's Pi or people: quoted, as data.
+                    // Written by the agent in the session or by people: quoted, as data.
                     title: quoted(app.sessionMeta(root)?.title ?? "New session"),
                     subagent: root !== request.conversationId,
                     tool: request.tool,
@@ -1200,37 +1156,37 @@ export class Pip {
             });
     }
 
-    /** Deny a waiting call. PiP never allows one: that stays a person's decision. */
-    async deny(pipId: ConversationId, approvalId: string): Promise<boolean> {
-        const user = this.#person(pipId);
+    /** Deny a waiting call. Pia never allows one: that stays a person's decision. */
+    async deny(piaId: ConversationId, approvalId: string): Promise<boolean> {
+        const user = this.#person(piaId);
 
         return this.#app.answerApproval(approvalId, false, this.#through(user));
     }
 
-    /** A session's scheduled messages; or one set up there, for PiP's person, marked as sent through PiP. */
-    async schedules(pipId: ConversationId, sessionId: number) {
-        const user = this.#person(pipId);
+    /** A session's scheduled messages; or one set up there, for Pia's person, marked as sent through Pia. */
+    async schedules(piaId: ConversationId, sessionId: number) {
+        const user = this.#person(piaId);
 
-        return this.#app.schedules.list(this.#session(pipId, user, sessionId));
+        return this.#app.schedules.list(this.#session(piaId, user, sessionId));
     }
 
     async schedule(
-        pipId: ConversationId,
+        piaId: ConversationId,
         sessionId: number,
         when: string,
         message: string,
         key: string,
     ) {
         const app = this.#app;
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         await app.requireDriver(id, user);
 
-        // A replayed call finds the schedule it made; a new one is for a session PiP looked at, naming no model nobody
+        // A replayed call finds the schedule it made; a new one is for a session Pia looked at, naming no model nobody
         // chose.
         if (!(await app.schedules.list(id)).some((item) => item.key === key)) {
-            this.#requireLooked(pipId, sessionId, "schedule messages in");
+            this.#requireLooked(piaId, sessionId, "schedule messages in");
         }
 
         // A schedule is work to come, counted like a message.
@@ -1240,7 +1196,7 @@ export class Pip {
             () =>
                 app.schedules.add(id, {
                     when,
-                    text: `[via ${PIP_NAME}] ${message}`,
+                    text: `[via ${PIA_NAME}] ${message}`,
                     requestedBy: user.id,
                     key,
                 }),
@@ -1248,53 +1204,53 @@ export class Pip {
         );
     }
 
-    async cancelSchedule(pipId: ConversationId, sessionId: number, scheduleId: string) {
+    async cancelSchedule(piaId: ConversationId, sessionId: number, scheduleId: string) {
         const app = this.#app;
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
 
         await app.requireDriver(id, user);
-        this.#requireLooked(pipId, sessionId, "cancel schedules in");
+        this.#requireLooked(piaId, sessionId, "cancel schedules in");
 
         return app.schedules.cancel(id, scheduleId);
     }
 
     /**
-     * Report to PiP when a session's run ends: the answer to the message PiP sent under `requestId`, or, without one,
+     * Report to Pia when a session's run ends: the answer to the message Pia sent under `requestId`, or, without one,
      * what the session says once its run ends. A session that is idle now, with no message to wait for, is answered at
-     * once in `now`, rather than by a report: a report starts a run of PiP's. `key` makes the follow once, however
+     * once in `now`, rather than by a report: a report starts a run of Pia's. `key` makes the follow once, however
      * often its call runs, also after it reported.
      */
     async follow(
-        pipId: ConversationId,
+        piaId: ConversationId,
         sessionId: number,
         requestId: string | undefined,
         key: string,
     ): Promise<{ now?: string }> {
         const app = this.#app;
-        const user = this.#person(pipId);
-        const id = this.#session(pipId, user, sessionId);
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
         const title = app.sessionMeta(id)?.title ?? "New session";
 
         if (requestId === undefined && !app.isBusy(id)) {
             const now = await this.#lastWords(id, title, "is idle");
 
-            this.#looked(pipId, id);
+            this.#looked(piaId, id);
 
             return { now };
         }
 
-        // Following a run of its own (no message of PiP's to wait for) is for a session PiP looked at: a report starts a
-        // run of PiP's. A replayed call finds the follow it made.
+        // Following a run of its own (no message of Pia's to wait for) is for a session Pia looked at: a report starts a
+        // run of Pia's. A replayed call finds the follow it made.
         if (
             requestId === undefined &&
-            (await app.harness.snapshot(FollowsDoc, pipId, context))?.items[key] === undefined
+            (await app.harness.snapshot(FollowsDoc, piaId, context))?.items[key] === undefined
         ) {
-            this.#requireLooked(pipId, sessionId, "follow");
+            this.#requireLooked(piaId, sessionId, "follow");
         }
 
         await app.harness.commit(async (tx) => {
-            const follows = (await tx.doc(FollowsDoc, pipId)).items;
+            const follows = (await tx.doc(FollowsDoc, piaId)).items;
 
             if (follows[key] !== undefined) {
                 return;
@@ -1343,7 +1299,7 @@ export class Pip {
                     title,
                     ...(requestId === undefined ? {} : { requestId }),
                 },
-                { ownership: { kind: "conversation" }, background: true, conversationId: pipId },
+                { ownership: { kind: "conversation" }, background: true, conversationId: piaId },
             );
 
             follows[key] = { taskId: Number(taskId), session: sessionId, at: now };
@@ -1353,27 +1309,27 @@ export class Pip {
     }
 
     /**
-     * Whether a session's person hears of its run's end from their PiP: a live follow waits on it, or one reported just
-     * now. Its own "Pi finished" would say the same twice. Not while PiP is off or a spend limit holds it back: its
+     * Whether a session's person hears of its run's end from their Pia: a live follow waits on it, or one reported just
+     * now. Its own "the agent finished" would say the same twice. Not while Pia is off or a spend limit holds it back: its
      * report would then start no run, and push nothing.
      */
     async reportsOn(sessionId: ConversationId, userId: string): Promise<boolean> {
         const app = this.#app;
         const user = app.config.userById(userId);
-        const pip = this.idOf(userId);
+        const pia = this.idOf(userId);
 
         if (
             user === undefined ||
-            pip === undefined ||
+            pia === undefined ||
             !this.available(user) ||
-            app.spend.heldBack(pip, userId) !== undefined
+            app.spend.heldBack(pia, userId) !== undefined
         ) {
             return false;
         }
 
         const now = Date.now();
         const follows = Object.values(
-            (await app.harness.snapshot(FollowsDoc, pip, context))?.items ?? {},
+            (await app.harness.snapshot(FollowsDoc, pia, context))?.items ?? {},
         ).filter((follow) => follow.session === Number(sessionId));
 
         if (
@@ -1402,14 +1358,14 @@ export class Pip {
         return live;
     }
 
-    /** What PiP's person does through PiP, so activity lines and decisions say so. */
+    /** What Pia's person does through Pia, so activity lines and decisions say so. */
     #through(user: User): User {
-        return { ...user, name: `${user.name} via ${PIP_NAME}` };
+        return { ...user, name: `${user.name} via ${PIA_NAME}` };
     }
 
     // ─── Follows ────────────────────────────────────────────────────────────
 
-    /** A session's last words, for PiP: how its run ended, and Pi's last answer, fenced. */
+    /** A session's last words, for Pia: how its run ended, and the agent's last answer, fenced. */
     async #lastWords(id: ConversationId, title: string, state: string): Promise<string> {
         const name = `${quoted(title, 80)} (/s/${String(id)})`;
         const page = await (await this.#app.conversation(id)).entries({}, 16, undefined, context);
@@ -1418,7 +1374,7 @@ export class Pip {
             .find((entry) => entry?.kind === "assistant");
 
         if (last?.kind !== "assistant") {
-            return `${name} ${state}, with no answer from Pi yet.`;
+            return `${name} ${state}, with no answer from the agent yet.`;
         }
 
         if (last.stopReason === "aborted") {
@@ -1433,12 +1389,12 @@ export class Pip {
             .flatMap((block) => (block.type === "text" ? [block.text] : []))
             .join("\n");
 
-        return `${name} ${state}. Pi's last answer:\n${fenced(clip(text, ANSWER_CHARS))}`;
+        return `${name} ${state}. The agent's last answer:\n${fenced(clip(text, ANSWER_CHARS))}`;
     }
 
     /**
      * Wait for the session's run to end, then go on to report what came of it. A follow that cannot wait (the session
-     * is gone, a read fails) reports that instead, so PiP is never left waiting for nothing.
+     * is gone, a read fails) reports that instead, so Pia is never left waiting for nothing.
      */
     async #wait(input: FollowInput, runtime: FollowRuntime, context: Context): Promise<void> {
         let text: string;
@@ -1464,7 +1420,7 @@ export class Pip {
         );
     }
 
-    /** What came of the run PiP follows, once it ended. */
+    /** What came of the run Pia follows, once it ended. */
     async #outcome(input: FollowInput, runtime: FollowRuntime, context: Context): Promise<string> {
         const session = await runtime.conversation(input.sessionId, context);
         const name = `${quoted(input.title, 80)} (/s/${String(input.sessionId)})`;
@@ -1492,7 +1448,7 @@ export class Pip {
             return `Your message to ${name} never arrived.`;
         }
 
-        // The submission PiP made: a request id already known finds it without sending anything.
+        // The submission Pia made: a request id already known finds it without sending anything.
         const submission = await session.submit({ type: "input", content: "", requestId }, context);
         // Pi Durable leaves a failed run's queue alone, so a queued message waits for a boundary that never comes: once
         // the session is idle with it still queued, withdraw it, which ends the wait below.
@@ -1552,9 +1508,9 @@ export class Pip {
         return `${name} answered your message:\n${fenced(clip(text, ANSWER_CHARS) || "(no text)")}`;
     }
 
-    /** Mark this follow as reported in PiP's list, where it stays a while so a replayed call does not follow again. */
-    async #settleFollow(tx: Tx, pipId: ConversationId, taskId: number): Promise<void> {
-        const follows = (await tx.doc(FollowsDoc, pipId)).items;
+    /** Mark this follow as reported in Pia's list, where it stays a while so a replayed call does not follow again. */
+    async #settleFollow(tx: Tx, piaId: ConversationId, taskId: number): Promise<void> {
+        const follows = (await tx.doc(FollowsDoc, piaId)).items;
 
         for (const follow of Object.values(follows)) {
             if (follow.taskId === taskId && follow.doneAt === undefined) {
@@ -1564,7 +1520,7 @@ export class Pip {
     }
 
     /**
-     * Give PiP the report: as a message that it answers, or, while a spend limit holds work back, as a note it sees with
+     * Give Pia the report: as a message that it answers, or, while a spend limit holds work back, as a note it sees with
      * its next message. Either way under a request id of its own, so a restart does not send it twice.
      */
     async #report(
@@ -1573,9 +1529,9 @@ export class Pip {
         runtime: FollowRuntime,
         context: Context,
     ): Promise<void> {
-        const pipId = runtime.conversationId;
+        const piaId = runtime.conversationId;
 
-        // PiP turned off keeps its follows: a report waits until it is on again, as its schedules, watches, and hooks
+        // Pia turned off keeps its follows: a report waits until it is on again, as its schedules, watches, and hooks
         // do, so no run starts in its conversation without its rules and tools.
         const person = this.#app.config.userById(input.userId);
 
@@ -1587,26 +1543,26 @@ export class Pip {
             );
         }
 
-        const pip = await this.#app.harness.conversation(pipId, context);
+        const pia = await this.#app.harness.conversation(piaId, context);
         const requestId = requestFor(input.userId, `pip-report-${String(runtime.taskId)}`);
 
-        // The report says what the session did: PiP has looked at it.
-        this.#looked(pipId, input.sessionId);
+        // The report says what the session did: Pia has looked at it.
+        this.#looked(piaId, input.sessionId);
 
-        if (pip !== undefined) {
+        if (pia !== undefined) {
             try {
-                if (this.#app.spend.heldBack(pipId, input.userId) === undefined) {
-                    await pip.submit(
+                if (this.#app.spend.heldBack(piaId, input.userId) === undefined) {
+                    await pia.submit(
                         { type: "input", content: text, whenBusy: "followUp", requestId },
                         context,
                     );
                 } else {
-                    await pip.submit(
+                    await pia.submit(
                         {
                             type: "write",
                             entry: {
                                 kind: NOTE_ENTRY,
-                                data: { text, by: "pip", name: PIP_NAME },
+                                data: { text, by: "pia", name: PIA_NAME },
                                 model: [
                                     {
                                         role: "user",
@@ -1621,12 +1577,12 @@ export class Pip {
                     );
                 }
             } catch (error) {
-                runtime.report(new Error(`PiP's report was not delivered: ${describe(error)}`));
+                runtime.report(new Error(`Pia's report was not delivered: ${describe(error)}`));
             }
         }
 
         await runtime.commit(async (tx) => {
-            await this.#settleFollow(tx, pipId, Number(runtime.taskId));
+            await this.#settleFollow(tx, piaId, Number(runtime.taskId));
 
             return finished;
         }, context);

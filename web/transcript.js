@@ -1,5 +1,5 @@
-// The conversation, as a column of turns: a person's message, then what Pi did (its thinking and tool calls folded
-// into one line that opens into a timeline), then Pi's reply, any approval, and the live line while Pi works.
+// The conversation, as a column of turns: a person's message, then what the agent did (its thinking and tool calls folded
+// into one line that opens into a timeline), then the agent's reply, any approval, and the live line while the agent works.
 import { Component } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { activityOpen } from "./activity-fold.js";
@@ -67,7 +67,7 @@ const REPORT = /^\[subagent (\S+) (answered|failed)([^\]]*)\]\s?([\s\S]*)$/;
 const NEXT_REPORT = /\n\n(?=\[subagent \S+ (?:answered|failed))/;
 
 /**
- * A background task's message to Pi (`background.ts`): its head line, its command, and the end of its output fenced.
+ * A background task's message to the agent (`background.ts`): its head line, its command, and the end of its output fenced.
  * Its time is short ("2m 04s"), which keeps a long line that is not one quick to turn down.
  */
 const BACKGROUND =
@@ -86,14 +86,14 @@ function fencedOutput(rest) {
 /** How a scheduled message starts (see src/server/schedules.ts). */
 const SCHEDULED = "[scheduled] ";
 
-/** A message the app sent for a person, and what sent it: PiP, a PR watch, a webhook (`submit` in src/server/commands.ts). */
+/** A message the app sent for a person, and what sent it: Pia, a PR watch, a webhook (`submit` in src/server/commands.ts). */
 const VIA = /^\[via ([^\]\n]{1,300})\] /;
-/** What came from outside in such a message, fenced as data for Pi: a check's log, a webhook's post, GitHub's events. */
+/** What came from outside in such a message, fenced as data for the agent: a check's log, a webhook's post, GitHub's events. */
 const FENCED =
     /<(ci-log|webhook-payload|github-event)((?: [a-z]+="[^"\n]*")*)>\n([\s\S]*?)\n<\/\1>/g;
 const FENCE_LABELS = { "webhook-payload": "What was posted", "github-event": "On GitHub" };
 
-/** A message from the app with what it fenced for Pi shown as blocks of its own, named after what each is. */
+/** A message from the app with what it fenced for the agent shown as blocks of its own, named after what each is. */
 function FencedText({ text }) {
     const parts = [];
     let last = 0;
@@ -122,11 +122,11 @@ function FencedText({ text }) {
     return parts;
 }
 
-/** A goal's check that did not pass, as Pi is told about it (see src/server/extensions/goals.ts): what, then its output. */
+/** A goal's check that did not pass, as the agent is told about it (see src/server/extensions/goals.ts): what, then its output. */
 const GOAL_CHECK =
     /^\[goal\] `([\s\S]*?)` (still fails|was cut off by a server restart) \(([^)]*)\)\. ([\s\S]*)$/;
 
-/** A skill run with `/skill:name`, as Pi gets it (see `expandSkillCommand` in src/server/prompts.ts): its name, file, and the request. */
+/** A skill run with `/skill:name`, as the agent gets it (see `expandSkillCommand` in src/server/prompts.ts): its name, file, and the request. */
 const SKILL = /^<skill name="([^"]+)" location="([^"]+)">\n[\s\S]*?\n<\/skill>(?:\n\n([\s\S]+))?$/;
 
 /** An @mention of a file or folder in a message, as the message box writes it. */
@@ -377,12 +377,12 @@ function UserEntry({ entry, view, users }) {
         entry.from ??
         (view.conversation?.kind === "subagent" ? "Main agent" : undefined);
     const [written, attachments] = splitAttachments(entry.text);
-    // Set up earlier to go out now: by a person (who shows as its author) or by Pi.
+    // Set up earlier to go out now: by a person (who shows as its author) or by the agent.
     // Only a message nobody typed: someone writing "[via …]" themselves gets no label.
     const via = authorId === undefined ? VIA.exec(written) : null;
     const sent = via ? written.slice(via[0].length) : written;
     const scheduled = sent.startsWith(SCHEDULED);
-    // A linked session's message: shown by its label and its fence alone, so the words before the fence (which tell Pi
+    // A linked session's message: shown by its label and its fence alone, so the words before the fence (which tell the agent
     // how to read it) can change without changing how older messages show.
     const peerText =
         via && /^linked session \S+$/.test(via[1])
@@ -394,9 +394,9 @@ function UserEntry({ entry, view, users }) {
     const skill = SKILL.exec(body);
     const pictures = files.filter((file) => file.path && file.mime.startsWith("image/"));
     const others = files.filter((file) => !pictures.includes(file));
-    const name = author ?? (scheduled ? "Pi" : undefined);
+    const name = author ?? (scheduled ? "the agent" : undefined);
     // Your own messages take the accent; someone else's, their color; one from someone the app does not know (a name
-    // the message carries, the main agent, Pi's own schedule), a quiet one.
+    // the message carries, the main agent, the agent's own schedule), a quiet one.
     const mark =
         authorId === store.state.me?.id || (authorId === undefined && name === undefined)
             ? "var(--accent)"
@@ -404,7 +404,7 @@ function UserEntry({ entry, view, users }) {
               ? "var(--muted)"
               : personColor(authorId);
 
-    // Who it is from, for themes: you, someone else, a linked session, or no one the app knows (Pi's schedule, the main
+    // Who it is from, for themes: you, someone else, a linked session, or no one the app knows (the agent's schedule, the main
     // agent, a watch or a webhook).
     const from =
         peerText !== undefined
@@ -526,7 +526,7 @@ function Collapsible({ text, limit = 600 }) {
     </div>`;
 }
 
-// ─── What Pi did: its thinking and tool calls, a line each on a timeline ───────────────
+// ─── What the agent did: its thinking and tool calls, a line each on a timeline ───────────────
 
 /** The tools that publish artifacts: `artifact_inline` also shows its page as a card in the reply. */
 const isArtifactCall = (name) => name === "artifact" || name === INLINE_TOOL;
@@ -556,7 +556,7 @@ function StepMark({ status, kind }) {
     </span>`;
 }
 
-/** What Pi did with its memory tool, as a step's label. */
+/** What the agent did with its memory tool, as a step's label. */
 const MEMORY_WORDS = {
     add: "saved a lesson",
     update: "changed a lesson",
@@ -771,7 +771,7 @@ function decisionOf(decisions, call, result) {
 
 /**
  * Where a call is: waiting for approval, denied, running, done, failed, or stopped before it finished. A call with
- * nothing to say for it yet runs while it is being written, or while Pi works on the answer that asked for it
+ * nothing to say for it yet runs while it is being written, or while the agent works on the answer that asked for it
  * (`canRun`); any other never will.
  */
 function callStatus({ result, slot, approval, decision, streaming, canRun, busy }) {
@@ -1065,7 +1065,7 @@ function ToolStep({
     });
     const watch = call.name === "browser" && browserAvailable() && !store.state.browserOpen;
     // What a call made shows under its line, as on today's cards: what it returned as images, an artifact, the browser.
-    // A lesson Pi saved, changed, or forgot: its state, and approving it where it happened.
+    // A lesson the agent saved, changed, or forgot: its state, and approving it where it happened.
     const lesson =
         call.name === "memory" &&
         typeof details?.lesson === "string" &&
@@ -1178,7 +1178,7 @@ function ToolStep({
 /** Groups opened or closed by hand, per conversation and group, for as long as the page is open. */
 const openedGroups = new Map();
 /**
- * An open group draws its newest steps, this many, and a button for the rest: a long run of Pi's alone can be hundreds of
+ * An open group draws its newest steps, this many, and a button for the rest: a long run of the agent's alone can be hundreds of
  * steps, which made opening its session freeze on a phone. Groups shown in full, by hand or by a jump, are kept here.
  */
 const GROUP_STEPS = 24;
@@ -1246,7 +1246,7 @@ function GroupTime({ id, start, end, live }) {
 }
 
 /**
- * Pi's thinking and tool calls between two of its words, as one line: what they did, and how long they took. It opens
+ * the agent's thinking and tool calls between two of its words, as one line: what they did, and how long they took. It opens
  * into a timeline, a line per call, each drawn again only when what it shows changes. Open while it is live or in the
  * newest turn, closed before, unless opened or closed by hand; Appearance's Keep activity folded starts every group
  * closed.
@@ -1475,7 +1475,7 @@ function ActivityGroup({
 }
 
 /**
- * A page Pi showed in its reply (`artifact_inline`): its card once the call has published, between the words around
+ * A page the agent showed in its reply (`artifact_inline`): its card once the call has published, between the words around
  * it. Until then, and if the call failed, was denied, or stopped, its step as the timeline draws it, so the reason shows.
  */
 function InlineRow({ item, results, slots, approvals, busy, conversationId }) {
@@ -1550,8 +1550,8 @@ function stepLive(step, results, slots, approvals, busy) {
 }
 
 /**
- * A question for the person Pi works for, from an extension (`host.ask`): its fields, sent only by that person, and
- * declined by anyone who can steer. What is typed goes to the extension that asked, never to Pi or into the transcript.
+ * A question for the person the agent works for, from an extension (`host.ask`): its fields, sent only by that person, and
+ * declined by anyone who can steer. What is typed goes to the extension that asked, never to the agent or into the transcript.
  */
 function AskCard({ approval }) {
     const { me, users } = store.state;
@@ -1564,7 +1564,7 @@ function AskCard({ approval }) {
     const mine = (approval.requestedBy ?? owner) === me?.id;
     const who =
         users?.find?.((each) => each.id === approval.requestedBy)?.name ??
-        "the person Pi works for";
+        "the person the agent works for";
     const ready = form.fields.every((field) => values[field.name] !== "");
 
     const answer = (allow) => {
@@ -1614,7 +1614,7 @@ function AskCard({ approval }) {
                   ${
                       form.fields.length > 0 &&
                       html`<div class="muted small">
-                          What you type goes to the page or tool that asked. Pi does not see it.
+                          What you type goes to the page or tool that asked. The agent does not see it.
                       </div>`
                   }`
                 : html`<div class="muted small">Waiting for ${who} to answer.</div>`
@@ -1701,9 +1701,9 @@ function ApprovalCard({ approval }) {
     </div>`;
 }
 
-// ─── Pi's words ───────────────────────────────────────────────────────────────────────
+// ─── the agent's words ───────────────────────────────────────────────────────────────────────
 
-// The actions under Pi's answers, after its reactions: the app's own items of the `reply` slot (slots.js), which a
+// The actions under the agent's answers, after its reactions: the app's own items of the `reply` slot (slots.js), which a
 // person can hide and reorder in Appearance, with extensions' before More, which stays last. Each gets the answer
 // (`entry`, its `text`), whether it is pinned, and the reaction picker's state.
 defineItem("reply", {
@@ -1789,7 +1789,7 @@ defineItem("reply", {
         </button>`,
 });
 
-/** Under Pi's answers: the message time, reactions, and ways to talk about it with the people here. */
+/** Under the agent's answers: the message time, reactions, and ways to talk about it with the people here. */
 function AnswerActions({ entry }) {
     const { view, me, users, server } = store.state;
     const [picking, setPicking] = useState(false);
@@ -1823,7 +1823,7 @@ function AnswerActions({ entry }) {
     </div>`;
 }
 
-/** How one of Pi's answers ended, under its last words: a failed request, a stop, or the answer's actions. */
+/** How one of the agent's answers ended, under its last words: a failed request, a stop, or the answer's actions. */
 function AnswerEnd({ entry }) {
     // A final answer (not a step between tool calls) with something to say gets the reply tools.
     const answer = collab() && entry.stopReason !== "toolUse" && entry.blocks.some(says);
@@ -1836,7 +1836,7 @@ function AnswerEnd({ entry }) {
     ${answer && html`<${AnswerActions} entry=${entry} />`}`;
 }
 
-/** A run of Pi's words: plain prose, and how the answer ended when they are its last. */
+/** A run of the agent's words: plain prose, and how the answer ended when they are its last. */
 function Reply({ item, conversationId }) {
     const [fresh] = useState(() => settledFor !== null && settledFor === conversationId);
     const { entry, blocks } = item;
@@ -1862,10 +1862,10 @@ function Reply({ item, conversationId }) {
 function Divider({ entry }) {
     const [open, setOpen] = useState(false);
 
-    // A session continued from Pi in the terminal: what is above is Pi's, from that session's file.
+    // A session continued from the agent in the terminal: what is above is the agent's, from that session's file.
     if (entry.kind === "fromPi") {
         return html`<div class="divider">
-            <span>Continued from Pi in the terminal</span>
+            <span>Continued from the agent in the terminal</span>
             <div class="muted small mono">${entry.file}</div>
         </div>`;
     }
@@ -2017,17 +2017,17 @@ function OutputCard({ entry, command, meta, failed = false, longCommand = false,
     </div>`;
 }
 
-/** An extension command's card: text for the people here, never in Pi's context. */
+/** An extension command's card: text for the people here, never in the agent's context. */
 function CommandEntry({ entry }) {
     return html`<${OutputCard}
         entry=${entry}
         command=${`/${entry.command}`}
-        meta=${`${entry.name} · not shown to Pi${entry.clipped ? " · only the end is kept" : ""}`}
+        meta=${`${entry.name} · not shown to the agent${entry.clipped ? " · only the end is kept" : ""}`}
         copy=${true}
     />`;
 }
 
-/** A command someone ran with `!` (or `!!`, which Pi does not see): what it printed, and how it ended. */
+/** A command someone ran with `!` (or `!!`, which the agent does not see): what it printed, and how it ended. */
 function ShellEntry({ entry }) {
     // A long command (a paste in it, say) shows its first lines until opened.
     const longCommand = entry.command.split("\n").length > 3 || entry.command.length > 240;
@@ -2041,16 +2041,16 @@ function ShellEntry({ entry }) {
     return html`<${OutputCard}
         entry=${entry}
         command=${`$ ${entry.command}`}
-        meta=${`${entry.name}${end ? ` · ${end}` : ""}${entry.context ? "" : " · not shown to Pi"}`}
+        meta=${`${entry.name}${end ? ` · ${end}` : ""}${entry.context ? "" : " · not shown to the agent"}`}
         failed=${Boolean(end)}
         longCommand=${longCommand}
     />`;
 }
 
-/** Something a person did that Pi was told about, such as undoing a file. */
+/** Something a person did that the agent was told about, such as undoing a file. */
 function NoteEntry({ entry }) {
     return html`<div class="note-line" id=${`entry-${entry.id}`}>
-        ${entry.name} ${entry.text}. <span class="muted">Pi was told.</span>
+        ${entry.name} ${entry.text}. <span class="muted">the agent was told.</span>
     </div>`;
 }
 
@@ -2088,7 +2088,7 @@ function toBottom(element) {
     );
 }
 
-/** `!` commands this tab started that have no entry yet: still running, or waiting for Pi to finish its turn. */
+/** `!` commands this tab started that have no entry yet: still running, or waiting for the agent to finish its turn. */
 function PendingShells({ conversationId, rows }) {
     const pending = store.state.pendingShells.filter(
         (each) =>
@@ -2171,7 +2171,7 @@ function agentsKey(view) {
 /**
  * Everything a row shows besides its entry, as values that compare with Object.is. Each update from the server builds
  * new objects for the whole view, so this picks out the parts one row uses: a row whose parts did not change skips
- * rendering, and a long thread stays cheap while Pi streams into its newest message.
+ * rendering, and a long thread stays cheap while the agent streams into its newest message.
  */
 function rowDeps(entry) {
     const { view, users, me, server } = store.state;
@@ -2222,7 +2222,7 @@ function callDeps(block, results, slots, approvals) {
 }
 
 /**
- * What a run of Pi's words shows besides its text: the answer's reactions and pin, who is looking, and the actions under
+ * What a run of the agent's words shows besides its text: the answer's reactions and pin, who is looking, and the actions under
  * it (`actions`, the reply slot's `slotKey`, the same for every answer of a draw).
  */
 function replyDeps(item, actions) {
@@ -2437,7 +2437,7 @@ function runStart(conversationId, entries, busy) {
             .some((entry) => entry.kind === "assistant" && entry.stopReason !== "toolUse");
 
     const begin = () => {
-        // Pi answered it already (stopped, failed, or done): this run is not that message's.
+        // the agent answered it already (stopped, failed, or done): this run is not that message's.
         const sent =
             newest?.at === undefined || finished(at + 1)
                 ? undefined
@@ -2469,7 +2469,7 @@ function canAnswer(approvals) {
     return (
         canSteer() &&
         approvals.some((approval) =>
-            // An ask (`host.ask`) is for the person Pi works for, or the owner when nobody is known.
+            // An ask (`host.ask`) is for the person the agent works for, or the owner when nobody is known.
             approval.form
                 ? (approval.requestedBy ?? owner) === me?.id
                 : !(
@@ -2597,7 +2597,7 @@ function LiveThought({ generation, entries, id }) {
             ? "Waiting for thinking text…"
             : "No thinking text shared for this response.";
 
-    return html`<section class="live-thought" id=${id} aria-label="Pi's thinking">
+    return html`<section class="live-thought" id=${id} aria-label="the agent's thinking">
         <div class="live-thought-label">${label}</div>
         <div
             class=${`live-thought-text ${empty ? "is-empty" : ""} ${streaming ? "streaming" : ""}`}
@@ -2611,9 +2611,9 @@ function LiveThought({ generation, entries, id }) {
 }
 
 /**
- * The end of the live turn, in one line: what Pi does (thinks, works, waits for an approval, retries a failed request,
+ * The end of the live turn, in one line: what the agent does (thinks, works, waits for an approval, retries a failed request,
  * compacts its context), for how long, and how to stop it. Screen readers hear what it does when that changes, not the
- * seconds counting. With Appearance → Show thinking on, Pi's newest thought shows above the line, and a chevron before
+ * seconds counting. With Appearance → Show thinking on, the agent's newest thought shows above the line, and a chevron before
  * the line's dot folds it; folded, nothing of the thought is drawn or looked for.
  */
 function LiveLine({ live, approvals, start, entries, conversationId }) {
@@ -2662,7 +2662,7 @@ function LiveLine({ live, approvals, start, entries, conversationId }) {
 
     const partial = live.generation?.message?.blocks ?? [];
     const retry = live.generation?.retry;
-    // Pi's request waits for the provider's limit to clear (`limit-gate.ts`): until a time, or a try.
+    // the agent's request waits for the provider's limit to clear (`limit-gate.ts`): until a time, or a try.
     const limit = live.limit;
     const working = (live.tools ?? []).some((slot) => slot.status !== "done");
     const waiting = approvals.length > 0;
@@ -2707,8 +2707,8 @@ function LiveLine({ live, approvals, start, entries, conversationId }) {
                 class=${`live-fold ${open ? "open" : ""}`}
                 aria-expanded=${open}
                 aria-controls=${thoughtId}
-                aria-label=${open ? "Hide Pi's thinking" : "Show Pi's thinking"}
-                title=${open ? "Hide Pi's thinking" : "Show Pi's thinking"}
+                aria-label=${open ? "Hide the agent's thinking" : "Show the agent's thinking"}
+                title=${open ? "Hide the agent's thinking" : "Show the agent's thinking"}
                 onClick=${fold}
             ><${Icon} name="chevron" size=${14} class="chev" /></button>`
         }
@@ -3163,9 +3163,9 @@ export function Transcript() {
                 entries.length === 0 &&
                 !view.live.busy &&
                 html`<div class="empty hint">
-                    <div class="pi">π</div>
+                    <div class="assistant-logo"><${Icon} name="pia" size=${46} /></div>
                     <p>
-                        ${conversation.kind === "subagent" ? "This subagent has no messages yet." : "Ask anything. Pi works in this session's folder, and keeps working if the server restarts."}
+                        ${conversation.kind === "subagent" ? "This subagent has no messages yet." : "Ask anything. The agent works in this session's folder, and keeps working if the server restarts."}
                     </p>
                 </div>`
             }

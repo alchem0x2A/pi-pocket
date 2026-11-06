@@ -45,7 +45,7 @@ function whyNot() {
     }
 
     if (view.live?.busy) {
-        return "Pi is working: switch once it is done, or stop it.";
+        return "the agent is working: switch once it is done, or stop it.";
     }
 
     return null;

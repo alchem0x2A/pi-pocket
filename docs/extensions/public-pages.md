@@ -1,6 +1,6 @@
 # Public pages
 
-A public page is a page that a module shows to anyone with its link, with no sign-in: a form for a client, a question for a person who has no account here. The module makes a link, and Pi Pocket serves it at `/l/<token>`. The token is the whole of the access.
+A public page is a page that a module shows to anyone with its link, with no sign-in: a form for a client, a question for a person who has no account here. The module makes a link, and Pia serves it at `/l/<token>`. The token is the whole of the access.
 
 Public pages came in 0.22.0, and are experimental: they can change in a minor release ([API versions](reference/api-versions.md)). Check that they are there (`typeof web.publicPage === "function"`) to work with an older server too.
 
@@ -53,10 +53,10 @@ export default function createFeedback(_host: Host, web: Web) {
 
 ## What the page can do
 
-Pi Pocket sends every public page with a content security policy that puts it in a sandbox:
+Pia sends every public page with a content security policy that puts it in a sandbox:
 
 - **No script runs**, and the page loads nothing from anywhere: no scripts, fonts, or images from other places (`data:` images work). Put the styles in a `<style>` element.
-- **The page has an opaque origin.** A person who opens a link while they are signed in to Pi Pocket lends the page none of their access: it cannot read their cookies or the app's answers. A form cannot call the app's API either, which takes only requests with the `X-Pocket` header.
+- **The page has an opaque origin.** A person who opens a link while they are signed in to Pia lends the page none of their access: it cannot read their cookies or the app's answers. A form cannot call the app's API either, which takes only requests with the `X-Pocket` header.
 - **Forms post only to this server.** Give a form `method="post"` and no `action`, so it posts back to its own link.
 - No referrer goes to a page that it links to, so the token does not leak. No browser and no search engine keeps the page.
 
@@ -74,8 +74,8 @@ It answers with the page's HTML, or `{ html, status }`. Throw `web.error(status,
 
 Everyone on the internet who has the link can read the page and send the form.
 
-- **Escape all that you put in the page**: what Pi or a person wrote, and above all what an earlier visitor sent. The sandbox stops scripts, but not HTML that changes what the page says.
-- **Treat what comes in as text from a stranger.** Check its length. Before Pi reads it, mark it as data, not instructions ([Text from other places](host.md#text-from-other-places)). A name that someone typed is not who they are.
+- **Escape all that you put in the page**: what the agent or a person wrote, and above all what an earlier visitor sent. The sandbox stops scripts, but not HTML that changes what the page says.
+- **Treat what comes in as text from a stranger.** Check its length. Before the agent reads it, mark it as data, not instructions ([Text from other places](host.md#text-from-other-places)). A name that someone typed is not who they are.
 - **Show only what the link is for.** Do not put the session's transcript, files, or names on the page unless the person who made the link chose to share them.
 - **Give links a short life and few uses.** Let the people who made them see and end them.
 
@@ -87,5 +87,5 @@ A module keeps a limited number of links open, and each link's `data`, each form
 
 ## See also
 
-- Ask someone (`src/server/extensions/ask-someone.ts`), a built-in module: Pi writes a question, a person shares it as a link for one answer, and the answer comes back to the session.
+- Ask someone (`src/server/extensions/ask-someone.ts`), a built-in module: the agent writes a question, a person shares it as a link for one answer, and the answer comes back to the session.
 - [Routes](routes.md): the module's routes for signed-in people.

@@ -1,4 +1,4 @@
-// Linked sessions (`linked-sessions.ts`): a repeat acts once, a link shares nothing, and the checks of whom Pi works for
+// Linked sessions (`linked-sessions.ts`): a repeat acts once, a link shares nothing, and the checks of whom the agent works for
 // apply before anything is made or sent.
 import {
     type App,
@@ -42,7 +42,7 @@ after(async () => {
     cleanUp();
 });
 
-/** A session with someone Pi works for: linked sessions act as them. */
+/** A session with someone the agent works for: linked sessions act as them. */
 async function source() {
     const id = await newSession(app);
 
@@ -194,7 +194,7 @@ test("someone who cannot see the origin learns nothing of it and cannot reach it
     await app.commands.updateSession(id, owner(app), { title: "Secret origin" });
     const { session: target } = await start(id);
     const { user } = app.config.addUser("Target only", "guest", [String(target)]);
-    // Someone who sees the linked session but not the origin: the origin's name stays out of the list Pi gets.
+    // Someone who sees the linked session but not the origin: the origin's name stays out of the list the agent gets.
     const [origin] = await app.linkedSessions.list(target);
 
     assert.ok(origin !== undefined && origin.title === undefined && origin.cwd === undefined);
@@ -218,7 +218,7 @@ test("someone who cannot see the origin learns nothing of it and cannot reach it
         requestId: "guest",
     });
 
-    // With Pi working for them in the linked session, its peers are out of reach.
+    // With the agent working for them in the linked session, its peers are out of reach.
     await (await app.harness.submission(submissionId, context))!.wait(context);
     assert.deepEqual(await app.linkedSessions.list(target), []);
     await assert.rejects(send(target, origin.address), /not linked/);
@@ -243,7 +243,7 @@ test("linked sessions exchange more than 10 turns, and no message count stops th
     );
     assert.equal((await app.harness.snapshot(LinkedSessionRelayDoc, id, context))?.sent, 25);
 
-    // A count stored by an older Pi Pocket, at its old limit, stops nothing either.
+    // A count stored by an older Pia, at its old limit, stops nothing either.
     await app.harness.commit(async (tx) => {
         (await tx.doc(LinkedSessionRelayDoc, id)).sent = 20;
     }, context);

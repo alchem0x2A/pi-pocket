@@ -1,6 +1,6 @@
 /**
- * What Pi costs, and limits on it. A conversation's spend is its `pi.usage` total; a session's is its own and its
- * subagents'. Spend is also counted per person: work goes to whoever asked for it, the person Pi works for there when
+ * What the agent costs, and limits on it. A conversation's spend is its `pi.usage` total; a session's is its own and its
+ * subagents'. Spend is also counted per person: work goes to whoever asked for it, the person the agent works for there when
  * the work's usage is committed. The owner can limit a session or a person. Past a limit, new messages are refused,
  * and a run that crosses it is stopped; the model request that crossed it still counts.
  */
@@ -22,7 +22,7 @@ const COUNT_AFTER_MS = 250;
 export const dollars = (amount: number) => `$${amount.toFixed(2)}`;
 
 export type SpendSummary = {
-    /** Everything Pi spent on this server; only the owner sees it. */
+    /** Everything the agent spent on this server; only the owner sees it. */
     total?: number;
     sessions: { id: number; title: string; spent: number; budget?: number }[];
     /** Everyone for the owner; others see themselves. */
@@ -49,7 +49,7 @@ export class Spend {
 
     /**
      * Start from what is stored: every conversation's spend, then count what a crash left uncounted. That goes to whoever
-     * Pi works for there now, as whom it was for is not stored.
+     * the agent works for there now, as whom it was for is not stored.
      */
     async load(ids: readonly ConversationId[]): Promise<void> {
         const harness = this.#app.harness;
@@ -98,7 +98,7 @@ export class Spend {
     }
 
     /**
-     * A conversation's usage changed: called from the commit listener, when whom Pi works for is who asked for this
+     * A conversation's usage changed: called from the commit listener, when whom the agent works for is who asked for this
      * work. Storing it waits for a moment.
      */
     usageChanged(id: ConversationId, usage: UsageState | null, alreadyPaid = false): void {
@@ -341,7 +341,7 @@ export class Spend {
     }
 
     /**
-     * Why work Pi starts with nobody asking (a scheduled message, the next round toward a goal) may not start: a limit
+     * Why work the agent starts with nobody asking (a scheduled message, the next round toward a goal) may not start: a limit
      * the session or its payer reached. `userId` pays when given, else whoever asked last.
      */
     heldBack(id: ConversationId, userId = this.payer(id)): string | undefined {
@@ -392,7 +392,7 @@ export class Spend {
             }
 
             this.#stopping.add(id);
-            app.notice("warning", `Pi stopped: ${why}.`, id);
+            app.notice("warning", `the agent stopped: ${why}.`, id);
             void app
                 .conversation(id)
                 .then((conversation) => conversation.abort(context))
@@ -404,7 +404,7 @@ export class Spend {
         }
     }
 
-    /** The owner limits what Pi may spend in a session (`null`: no limit). */
+    /** The owner limits what the agent may spend in a session (`null`: no limit). */
     async setSessionBudget(user: User, id: ConversationId, budget: unknown): Promise<void> {
         requireOwner(user);
         const amount = budgetOf(budget);
@@ -432,7 +432,7 @@ export class Spend {
         );
     }
 
-    /** The owner limits what Pi may spend for a person (`null`: no limit). */
+    /** The owner limits what the agent may spend for a person (`null`: no limit). */
     setPersonBudget(user: User, userId: string, budget: unknown): void {
         requireOwner(user);
         const person = this.#app.config.userById(userId);
@@ -475,17 +475,17 @@ export class Spend {
                 ...(budget === undefined ? {} : { budget }),
             };
         });
-        // PiP is out of the session list, not out of the spending: its person sees what it cost.
-        const pip = app.pip.idOf(user.id);
+        // Pia is out of the session list, not out of the spending: its person sees what it cost.
+        const pia = app.pia.idOf(user.id);
 
-        if (pip !== undefined) {
+        if (pia !== undefined) {
             // With its limit, like any session's: the owner sees it, and can clear it.
-            const budget = app.sessionMeta(pip)?.budget;
+            const budget = app.sessionMeta(pia)?.budget;
 
             sessions.push({
-                id: Number(pip),
-                title: "PiP",
-                spent: byRoot.get(pip) ?? 0,
+                id: Number(pia),
+                title: "Pia",
+                spent: byRoot.get(pia) ?? 0,
                 ...(budget === undefined ? {} : { budget }),
             });
         }

@@ -132,7 +132,7 @@ test("a session in its own worktree starts with the folder as it is, on a branch
     assert.match(gitIn(repo, "branch", "--list", worktree.branch), new RegExp(worktree.branch));
 });
 
-test("a worktree Pi is working in stays until Pi stops", async () => {
+test("a worktree the agent is working in stays until the agent stops", async () => {
     const { id } = await app.commands.createSession(owner(app), {
         cwd: join(repo, "app"),
         worktree: true,
@@ -146,14 +146,14 @@ test("a worktree Pi is working in stays until Pi stops", async () => {
         requestId: "slow",
     });
 
-    await until(() => app.isBusy(id), "Pi to start");
+    await until(() => app.isBusy(id), "the agent to start");
     await assert.rejects(app.commands.removeWorktree(id, owner(app), true), {
         status: 409,
-        message: /Pi is working in the worktree/,
+        message: /the agent is working in the worktree/,
     });
     await app.commands.abort(id, owner(app));
     await (await app.harness.submission(submissionId, context))!.wait(context);
-    await until(() => !app.isBusy(id), "Pi to stop");
+    await until(() => !app.isBusy(id), "the agent to stop");
     await app.commands.removeWorktree(id, owner(app), true);
 });
 
@@ -192,7 +192,7 @@ test("a worktree another session works in stays, and a session's subagents leave
     const helper = (await app.harness.snapshot(SubagentsDoc, id, context))!.agents.helper!
         .conversationId;
 
-    // Pi answers the report too: everything settles before the worktree may go.
+    // the agent answers the report too: everything settles before the worktree may go.
     await until(
         () => !app.isBusy(id) && !app.isBusy(helper),
         "the session and its helper to be done",

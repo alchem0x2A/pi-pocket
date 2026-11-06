@@ -3,7 +3,7 @@
  * skill or prompt template), the session's own model writes a short title in its place, unless someone
  * renamed the session first. Never another model picked on the side, such as a cheaper one of the same provider: nobody
  * chose that one, and it may cost what nobody agreed to. A reply that is no title (the model thinking aloud, or cut off)
- * leaves the first one. What it costs counts as the session's spend, like Pi's own requests.
+ * leaves the first one. What it costs counts as the session's spend, like the agent's own requests.
  */
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { Usage } from "@earendil-works/pi-ai";

@@ -110,5 +110,5 @@ export function reportCheckpointDefault(compatModule: string, kind: string): voi
     }
 
     scope.warned.add(key);
-    scope.report(`${module}: document ${kind} has no checkpointWhen; Pi Pocket uses deltas only`);
+    scope.report(`${module}: document ${kind} has no checkpointWhen; Pia uses deltas only`);
 }

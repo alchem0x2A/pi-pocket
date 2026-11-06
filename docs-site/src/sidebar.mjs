@@ -58,11 +58,11 @@ export const SIDEBAR = [
             ["docs/extensions/policies/api-stability.md", "API stability"],
             ["docs/extensions/policies/security-model.md", "Security for authors"],
             ["docs/extensions/policies/gallery-review.md", "Gallery review"],
-            ["SECURITY.md", "Security of Pi Pocket"],
+            ["SECURITY.md", "Security of Pia"],
         ],
     },
     {
-        label: "Pi Pocket's own code",
+        label: "Pia's own code",
         collapsed: true,
         items: [
             ["docs/index.md", "Documentation map"],

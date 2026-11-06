@@ -1,4 +1,4 @@
-// Forks, sending a message again (edited, or to another model), new contexts, and instructions for Pi.
+// Forks, sending a message again (edited, or to another model), new contexts, and instructions for the agent.
 import {
     type App,
     cleanUp,
@@ -343,7 +343,7 @@ test("forks need a steering person with access to every session, and an existing
     );
 });
 
-test("a new context hides earlier messages from Pi but keeps them for people, with an optional handoff note", async () => {
+test("a new context hides earlier messages from the agent but keeps them for people, with an optional handoff note", async () => {
     const id = await newSession(app);
 
     await say(app, id, "remember the word apricot");
@@ -356,7 +356,7 @@ test("a new context hides earlier messages from Pi but keeps them for people, wi
     assert.equal((await ofKind(id, "pi.user")).length, 2, "the transcript keeps everything");
 });
 
-test("instructions for Pi go into every request of a session and can be cleared", async () => {
+test("instructions for the agent go into every request of a session and can be cleared", async () => {
     const id = await newSession(app);
 
     await app.commands.setInstructions(id, owner(app), "Always answer in French.");

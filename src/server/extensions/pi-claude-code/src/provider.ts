@@ -16,7 +16,7 @@ async function providerEnvironment(ctx: AuthContext): Promise<ProviderEnv | unde
   return Object.keys(env).length ? env : undefined;
 }
 
-// Pi resolves provider-scoped settings (such as PI_CLAUDE_CODE_COMMAND) only
+// the agent resolves provider-scoped settings (such as PI_CLAUDE_CODE_COMMAND) only
 // through auth hooks. Remember the latest values so model discovery and the
 // status command look at the same Claude Code installation as requests do.
 let lastProviderEnv: ProviderEnv | undefined;
@@ -42,14 +42,14 @@ export function createClaudeCodeProvider() {
       apiKey: {
         name: "Claude Code login",
         // Report the external Claude Code subscription as OAuth-shaped auth so
-        // Pi can label list-price accounting as "(sub)". Requests still resolve
+        // the agent can label list-price accounting as "(sub)". Requests still resolve
         // through this ambient method; credentials remain owned by Claude Code.
         async check({ ctx, signal }) {
           const providerEnv = await providerEnvironment(ctx);
           lastProviderEnv = providerEnv;
           const status = await getClaudeStatus(claudeCodeEnv(), signal);
           // Only report the provider as configured when Claude Code is
-          // installed and logged in, so Pi hides its models otherwise.
+          // installed and logged in, so the agent hides its models otherwise.
           if (!status.available || !status.loggedIn) return undefined;
           return {
             type: status.subscription ? "oauth" : "api_key",
@@ -67,7 +67,7 @@ export function createClaudeCodeProvider() {
           };
         },
       },
-      // Metadata marker for Pi's subscription-aware UI. This is deliberately
+      // Metadata marker for the agent's subscription-aware UI. This is deliberately
       // not the request auth path and never imports Claude Code credentials.
       // Login and logout are handled by the Claude Code CLI itself.
       oauth: {

@@ -1,11 +1,11 @@
 /**
- * Ask someone: Pi writes a question that someone outside the chat can answer, and you share it by link or as text. The
- * link opens a page with no sign-in, where they answer once; the answer comes back to the session for you to give Pi.
+ * Ask someone: the agent writes a question that someone outside the chat can answer, and you share it by link or as text. The
+ * link opens a page with no sign-in, where they answer once; the answer comes back to the session for you to give the agent.
  */
 import { createHash } from "node:crypto";
 import { Type } from "@earendil-works/pi-ai";
 import { defineDoc, defineExtension, defineTool } from "@earendil-works/pi-durable";
-// Types only: at run time this module uses nothing of Pi Pocket's but the host and web, as a drop-in would.
+// Types only: at run time this module uses nothing of Pia's but the host and web, as a drop-in would.
 import type {
     ConversationWebRequest,
     ExtensionWeb,
@@ -17,7 +17,7 @@ import type {
 type Question = {
     conversation: number;
     createdAt: number;
-    /** Who Pi wrote it for. */
+    /** Who the agent wrote it for. */
     by?: string;
     title: string;
     text: string;
@@ -80,7 +80,7 @@ function escape(text: string): string {
     return text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 }
 
-/** The few marks of Markdown that Pi writes most, as HTML, after the text is escaped: bold, code, and lists. */
+/** The few marks of Markdown that the agent writes most, as HTML, after the text is escaped: bold, code, and lists. */
 function render(text: string): string {
     const inline = (part: string) =>
         escape(part)
@@ -194,7 +194,7 @@ ${error ? `<p class="error">${escape(error)}</p>` : ""}
     );
 }
 
-/** Whether Pi Pocket `version` has public links (0.22.0 or newer): an older server loaded this file before a restart. */
+/** Whether Pia `version` has public links (0.22.0 or newer): an older server loaded this file before a restart. */
 function supported(web: ExtensionWeb | undefined): web is ExtensionWeb {
     return (
         web !== undefined &&

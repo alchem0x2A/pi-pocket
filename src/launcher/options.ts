@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { ACCESS_MODES, type AccessMode, isAccessMode } from "./access.ts";
 import { restoreTerminal } from "./term.ts";
 
-const HELP = `Pi Pocket: a durable, multiplayer, mobile-first web app for Pi agents.
+const HELP = `Pia: a durable, multiplayer, mobile-first web app for coding agents.
 
 Usage: pi-pocket [options]
 

@@ -31,5 +31,5 @@ export default function createServerStatus(_host: unknown, web: Web) {
     timer.unref();
     web.onDispose(() => clearInterval(timer));
 
-    // No tools or hooks for Pi: this module only adds to the app.
+    // No tools or hooks for the agent: this module only adds to the app.
 }

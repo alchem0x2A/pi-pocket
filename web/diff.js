@@ -784,10 +784,10 @@ function writeViewed(id, viewed) {
     localStorage.setItem(`${VIEWED_KEY}.${id}`, JSON.stringify(viewed));
 }
 
-/** How long after the conversation moves on the changes are read again: soon when quiet, less often while Pi works. */
+/** How long after the conversation moves on the changes are read again: soon when quiet, less often while the agent works. */
 const QUIET_WAIT = 1200;
 const BUSY_WAIT = 4000;
-/** While Pi works, the longest the changes go without being read again. */
+/** While the agent works, the longest the changes go without being read again. */
 const BUSY_MAX = 8000;
 
 /** What changed, per conversation: the last answer, and the request on its way, shared by everything that shows it. */
@@ -801,7 +801,7 @@ export function reloadChanges(id = store.state.conversationId) {
         return known.pending;
     }
 
-    // The conversation's newest entry when it asked: nothing newer, and Pi quiet, what it said still holds.
+    // The conversation's newest entry when it asked: nothing newer, and the agent quiet, what it said still holds.
     const entry = id === store.state.conversationId ? store.state.view.order?.at(-1) : undefined;
     // What shows now: an answer the same as it draws nothing again (each draw is the whole app's).
     const shown = JSON.stringify([known.data, known.error]);
@@ -833,8 +833,8 @@ export function reloadChanges(id = store.state.conversationId) {
 
 /**
  * What changed in this conversation's folder, `{ changes, error }`, fetched when first wanted and again a moment after
- * the conversation moves on (Pi's edits show up on their own) while `live`. A tab out of sight waits until it shows
- * again; with nothing new since the last answer and Pi quiet, the answer holds (Refresh asks again).
+ * the conversation moves on (the agent's edits show up on their own) while `live`. A tab out of sight waits until it shows
+ * again; with nothing new since the last answer and the agent quiet, the answer holds (Refresh asks again).
  */
 export function useChanges(live = true) {
     const id = store.state.conversationId;
@@ -869,7 +869,7 @@ export function useChanges(live = true) {
         };
 
         const shown = () => !document.hidden && look(true);
-        // While Pi works, entries come quickly: look less often then, but at least every few seconds.
+        // While the agent works, entries come quickly: look less often then, but at least every few seconds.
         const since = Date.now() - (changesCache.get(id)?.at ?? 0);
         const wait = busy ? Math.max(0, Math.min(BUSY_WAIT, BUSY_MAX - since)) : QUIET_WAIT;
         const timer = setTimeout(() => {
@@ -1089,7 +1089,7 @@ function TreeNode({ node, depth, current, viewed, onPick }) {
         >
             <span class=${`change-kind ${file.kind}`}>${KIND_LETTERS[file.kind]}</span>
             <span class="dr-name">${file.path.split("/").pop()}</span>
-            ${file.byPi && html`<span class="dr-pi" title="Pi edited it">π</span>`}
+            ${file.byPi && html`<span class="dr-agent" title="the agent edited it"><${Icon} name="pia" size=${12} /></span>`}
             <span class="dr-tail">${viewed(file) ? html`<${Icon} name="check" size=${13} />` : html`<${ChangeCounts} added=${file.added ?? 0} removed=${file.removed ?? 0} />`}</span>
         </button>`,
     )}`;
@@ -1247,7 +1247,7 @@ function ReviewFile({
             onViewed=${(on) => onViewed(file.path, on ? (entry?.print ?? "?") : undefined)}
             open=${open && !viewed}
             onToggle=${onToggle}
-            note=${html`${file.byPi && html`<span class="chip dv-chip">Pi</span>`}${stale && html`<span class="chip dv-chip warn" title="It changed after you marked it viewed">changed</span>`}`}
+            note=${html`${file.byPi && html`<span class="chip dv-chip">the agent</span>`}${stale && html`<span class="chip dv-chip warn" title="It changed after you marked it viewed">changed</span>`}`}
         />
     </div>`;
 }
@@ -1274,7 +1274,7 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
     const [viewed, setViewedState] = useState(() => readViewed(id));
     const [folded, setFolded] = useState({});
     const [filter, setFilter] = useState("");
-    const [onlyPi, setOnlyPi] = useState(false);
+    const [onlyAgent, setOnlyPi] = useState(false);
     const [current, setCurrent] = useState(null);
     const [treeOpen, setTreeOpen] = useState(false);
     const prints = useRef({});
@@ -1352,7 +1352,7 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
     const files = (changes?.files ?? [])
         .filter(
             (file) =>
-                (!onlyPi || file.byPi) &&
+                (!onlyAgent || file.byPi) &&
                 (filter === "" || file.path.toLowerCase().includes(filter.toLowerCase())),
         )
         .sort(treeOrder);
@@ -1366,7 +1366,7 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
     const seen = files.filter(isViewed).length;
     const added = files.reduce((sum, file) => sum + (file.added ?? 0), 0);
     const removed = files.reduce((sum, file) => sum + (file.removed ?? 0), 0);
-    const tree = useMemo(() => treeOf(files), [changes, filter, onlyPi]);
+    const tree = useMemo(() => treeOf(files), [changes, filter, onlyAgent]);
 
     const scrollTo = (path) => {
         const element = ref.current?.querySelector(`.dr-file[data-path="${CSS.escape(path)}"]`);
@@ -1494,7 +1494,7 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
                                     </span>`)
                           }
                       </span>`
-                    : html`<span class="muted small">Not a git repository: only Pi's edits are listed.</span>`
+                    : html`<span class="muted small">Not a git repository: only the agent's edits are listed.</span>`
             }
             ${
                 all.length > 0 &&
@@ -1534,12 +1534,12 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
                     all.some((file) => file.byPi) &&
                     html`<button
                         type="button"
-                        class=${`chip toggle ${onlyPi ? "on" : ""}`}
-                        aria-pressed=${onlyPi ? "true" : "false"}
-                        title="Only the files Pi edited"
-                        onClick=${() => setOnlyPi(!onlyPi)}
+                        class=${`chip toggle ${onlyAgent ? "on" : ""}`}
+                        aria-pressed=${onlyAgent ? "true" : "false"}
+                        title="Only the files the agent edited"
+                        onClick=${() => setOnlyPi(!onlyAgent)}
                     >
-                        π only
+                        Agent only
                     </button>`
                 }
                 <${WrapToggle} />
@@ -1630,8 +1630,8 @@ export function DiffReview({ active = true, autoFocus = false, covering = false 
         }
         ${
             changes.piOnly.length > 0 &&
-            html`<div class="dr-pionly">
-                <div class="group-title">${changes.repo ? "Pi also edited (no uncommitted change)" : "Pi wrote or edited"}</div>
+            html`<div class="dr-agent-only">
+                <div class="group-title">${changes.repo ? "the agent also edited (no uncommitted change)" : "the agent wrote or edited"}</div>
                 ${changes.piOnly.map(
                     (
                         each,

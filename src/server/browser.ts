@@ -1,6 +1,6 @@
 /**
  * The built-in browser: one headless Chromium on this machine, driven over the DevTools protocol through a pipe, with a
- * page per conversation that Pi (the `browser` tool) and the people in the conversation (the Browser panel) share.
+ * page per conversation that the agent (the `browser` tool) and the people in the conversation (the Browser panel) share.
  * People see the page as a stream of JPEG frames and send it taps, scrolls, and keys. The page runs on this machine, not
  * in their own browser: it does not share their app tab or its cookies, and pages only this machine can reach (a dev
  * server on localhost) work from a phone too.

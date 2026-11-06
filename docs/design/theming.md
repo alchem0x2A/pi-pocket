@@ -1,6 +1,6 @@
 # Theming (design for 0.14.0)
 
-Status: removed. Pi Pocket has one palette now (see architecture.md).
+Status: removed. Pia has one palette now (see architecture.md).
 
 Status: built for 0.14.0 (phases 1 and 2, except what is deferred below); the gallery's theme entries (phase 3) are built separately. [extensions/themes.md](../extensions/themes.md) and [extensions/reference/theme-surface.md](../extensions/reference/theme-surface.md) describe what was built. It differs from this design in these ways:
 
@@ -43,7 +43,7 @@ The goal, from issue #90, point 3: "A theme should be a folder. Copy the main th
 7. **The stable surface** is tokens, `data-part` names, and documented states.
 8. **The owner adds themes. Each person chooses in each browser**, as for appearance now.
 9. **Live reload swaps the stylesheet without a page reload.** A broken theme keeps its last good version.
-10. **Edit with Pi.** A theme card can start a session in the theme's folder.
+10. **Edit with the agent.** A theme card can start a session in the theme's folder.
 
 ## The format by example
 
@@ -163,10 +163,10 @@ Each part is a `data-part` attribute. An element can have more than one part (`[
 | Area             | Parts                                                                                                                                                                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Frame            | `app` (the whole layout), `rail`, `rail-button`, `sidebar`, `session-list`, `session-search`, `session-tabs`, `session-group`, `session-row`, `home` (the wide home screen), `pane` (the conversation's window), `topbar` |
-| Conversation     | `transcript`, `prompt` (a person's message), `reply` (Pi's answer), `reply-actions`, `thinking`, `activity` (a group of tool calls), `tool-call`, `approval`, `live-line`, `code-block`                                   |
+| Conversation     | `transcript`, `prompt` (a person's message), `reply` (the agent's answer), `reply-actions`, `thinking`, `activity` (a group of tool calls), `tool-call`, `approval`, `live-line`, `code-block`                            |
 | Composer         | `composer` (all of it), `dock` (the queue and the bars), `subagents-bar`, `message-box`, `composer-tools`, `send-button`, `model-chip`, `status-line`                                                                     |
 | Layers           | `sheet` (with `data-sheet="<type>"`), `sheet-head`, `sheet-body`, `menu`, `launcher`, `notices`, `notice`                                                                                                                 |
-| Panels (phase 2) | `people-panel`, `peeks`, `peek-tile`, `files-panel`, `browser-panel`, `pip`, `subagents-board`, `extension-page` (with `data-module`), `diff`, `sign-in`, `boot`                                                          |
+| Panels (phase 2) | `people-panel`, `peeks`, `peek-tile`, `files-panel`, `browser-panel`, `pia`, `subagents-board`, `extension-page` (with `data-module`), `diff`, `sign-in`, `boot`                                                          |
 
 **States.**
 
@@ -186,10 +186,10 @@ Each part is a `data-part` attribute. An element can have more than one part (`[
 
 ## Who may do what
 
-| Action                                                        | Owner | Guests, viewers |
-| ------------------------------------------------------------- | ----- | --------------- |
-| Choose the theme and colors for this browser                  | Yes   | Yes             |
-| Duplicate, Edit with Pi, Remove, (later) install from gallery | Yes   | No              |
+| Action                                                               | Owner | Guests, viewers |
+| -------------------------------------------------------------------- | ----- | --------------- |
+| Choose the theme and colors for this browser                         | Yes   | Yes             |
+| Duplicate, Edit with the agent, Remove, (later) install from gallery | Yes   | No              |
 
 Remove moves the folder to `themes/.removed/`, which is not listed, so a mistaken tap loses nothing. The stored key `appearance.theme` keeps its meaning (the palette), because `pocket.*` keys are contracts. The theme gets a new key.
 
@@ -225,7 +225,7 @@ Estimates are in agent-days, with checks and review included.
 2. Tokens: derive soft fills and lines from the named tokens; add `--focus-ring`, `--transcript-width`, and `--composer-width`; change about 95 radii and 23 shadows to tokens. A diff of computed styles on the main screens must show no change. (1.5)
 3. Parts: the 37 parts above and their states, in about 12 files. (1)
 4. Server: `themes.ts` (list, check, watch, serve, duplicate, remove), its routes, and the `themes` event. (2)
-5. Web: the Theme row in Appearance, with Duplicate, Edit with Pi, and Remove; loading; first paint; the live swap; safe mode. (1.5)
+5. Web: the Theme row in Appearance, with Duplicate, Edit with the agent, and Remove; loading; first paint; the live swap; safe mode. (1.5)
 6. The Pocket starter folder; the docs (with the docs-site agent), `map.md`, `architecture.md`, and `features.md`; two lean tests, for the surface list and for the CSS checks. (0.5)
 
 **Phase 2: the full surface. About 4 days.** A type scale (about 300 sizes into 7 steps, reviewed screen by screen, because half-pixel changes show); the 11 panel parts; `extends`; contrast warnings; resize handles and swipes that read where the sidebar is; themes in the launcher and `/theme`; and the owner's default theme for new browsers.
@@ -235,7 +235,7 @@ Estimates are in agent-days, with checks and review included.
 ## Risks
 
 1. **The layers and `pocket.style()` must ship together.** Without both, extension CSS beats the whole app (seen in the experiment).
-2. **The JavaScript assumes positions:** the resize handle, swipes, the dock's sizing, and PiP's corner. A theme that moves regions can break them. Phase 1 documents which layout changes are supported, and phase 2 makes the JavaScript read real positions.
+2. **The JavaScript assumes positions:** the resize handle, swipes, the dock's sizing, and Pia's corner. A theme that moves regions can break them. Phase 1 documents which layout changes are supported, and phase 2 makes the JavaScript read real positions.
 3. **The token sweep can change the look.** Check each step with a diff of computed styles, not with screenshots alone.
 4. **Every part is a promise.** Keep the list short, and use aliases for a rename.
 5. **Merge conflicts with the i18n sweep.** Plan the order.
@@ -251,7 +251,7 @@ Estimates are in agent-days, with checks and review included.
 4. **A choice for each browser, or for each person on all devices?** Recommendation: each browser, as now, with an owner default for new browsers in phase 2.
 5. **A broken theme: keep its last good version, or fall back to Pocket at once?** Recommendation: keep the last good version, as extensions do.
 6. **Safe mode (`?noext=1`) also turns off the theme?** Recommendation: yes, so there is one safe mode to learn.
-7. **Edit with Pi in phase 1?** Recommendation: yes. It is small, and it makes themes usable from a phone.
+7. **Edit with the agent in phase 1?** Recommendation: yes. It is small, and it makes themes usable from a phone.
 8. **`extends` in phase 2, up to 3 levels?** Recommendation: yes.
 9. **Fence the approval UI from themes, for example in a shadow root?** Recommendation: no. A fence does not stop overlays. Rely on owner-only installs and gallery review.
 10. **Everyone signed in can read a theme's files. Is that acceptable?** Recommendation: yes, as for browser modules. The docs say to keep nothing private in a theme.

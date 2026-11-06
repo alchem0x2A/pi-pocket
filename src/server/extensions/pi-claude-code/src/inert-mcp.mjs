@@ -27,7 +27,7 @@ for await (const line of lines) {
   } else if (request.method === "tools/call") {
     result = {
       isError: true,
-      content: [{ type: "text", text: "Denied: Claude Code tools are inert; only Pi executes tools." }],
+      content: [{ type: "text", text: "Denied: Claude Code tools are inert; only the agent executes tools." }],
     };
   }
 

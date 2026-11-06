@@ -37,7 +37,7 @@ test("rewrites usage-credit rejections into non-retryable billing errors", () =>
     const message = normalizeError(new Error(upstream));
     assert.match(message, /^Claude Code billing:/);
     assert.ok(message.endsWith(upstream));
-    // Even with transient-looking text attached, Pi must never retry a request
+    // Even with transient-looking text attached, the agent must never retry a request
     // Anthropic routed to usage credits.
     assert.equal(isRetryableAssistantError(failedMessage(`${message} 429 overloaded`)), false);
   }

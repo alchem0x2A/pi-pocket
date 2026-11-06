@@ -1,9 +1,9 @@
 /**
- * The Pi Pocket server core: one durable Harness over one SQLite file, shared by every session, every subagent, and
+ * The Pia server core: one durable Harness over one SQLite file, shared by every session, every subagent, and
  * every connected browser. Browsers attach to a conversation's committed view; nothing a browser sees exists only in
  * memory, except who is connected, who is typing, and which tool calls wait for approval.
  *
- * What people ask of Pi lives in `commands.ts`, the people's side of a session in `collab.ts`, push notifications in
+ * What people ask of the agent lives in `commands.ts`, the people's side of a session in `collab.ts`, push notifications in
  * `alerts.ts`, provider sign-ins in `providers.ts`, and each conversation's shared live view in `room.ts`.
  */
 import { homedir } from "node:os";
@@ -53,6 +53,7 @@ import { Commands } from "./commands.ts";
 import { LinkedSessions } from "./linked-sessions.ts";
 import { APP_ROOT, ConfigStore, modulesWith, type ModelChoice, type User } from "./config.ts";
 import {
+    assistantOwner,
     ArtifactAssetDoc,
     ArtifactBodyDoc,
     type ArtifactMeta,
@@ -92,7 +93,14 @@ import { type GuardStatus, LancetGuard } from "./lancet.ts";
 import { takeLock } from "./lock.ts";
 import { hasRipgrep, localToolRegistry } from "./local-tools.ts";
 import { Memory } from "./memory.ts";
-import { hiddenBy, isThinkingLevel, modelInfo, modelList, resolveModel, THINKING_LEVELS } from "./models.ts";
+import {
+    hiddenBy,
+    isThinkingLevel,
+    modelInfo,
+    modelList,
+    resolveModel,
+    THINKING_LEVELS,
+} from "./models.ts";
 import { type MigrationRequest, type MigrationStarted, Updates } from "./updates.ts";
 import { Restarts, type RestartStatus } from "./restart.ts";
 import { runningToolCount } from "./running.ts";
@@ -102,9 +110,8 @@ import { configureHttp } from "./net.ts";
 import { createPublicFetch } from "./public-fetch.ts";
 import { PiSessions } from "./pi-sessions.ts";
 import { Hooks } from "./hooks.ts";
-import { Pip, PIP_EXTENSION } from "./pip.ts";
-import { cleanName, type AssistantProfile, profileDefault, profileOf } from "./pia.ts";
-import { PIP_COMPACT_CHOICES, PipCompaction } from "./pip-compact.ts";
+import { Pia, PIA_EXTENSION } from "./pip.ts";
+import { cleanName } from "./pia.ts";
 import { CompactionReview } from "./compaction-review.ts";
 import { RepoWatches } from "./repo-watches.ts";
 import { snippet } from "./projection.ts";
@@ -157,8 +164,8 @@ const CLEANUP_LIMIT_MS = 3000;
 /** The extension module with the browser tool. While it is off, the Browser panel is off too. */
 const BROWSER_FILE = "browser.ts";
 const BROWSER_EXTENSION = "pocket-browser";
-/** The extension module that is PiP. */
-const PIP_FILE = "pip.ts";
+/** The extension module that is Pia. */
+const PIA_FILE = "pip.ts";
 /** The extension module with the subagent tool, rebuilt when the models subagents may use change. */
 const SUBAGENTS_FILE = "subagents.ts";
 /** The hours a run may wait for a provider's limit, as the owner may choose them (0: not at all). */
@@ -215,7 +222,7 @@ export function subagentState(entry: SubagentEntry): SubagentState {
  */
 const BOARD_FINISHED = 24;
 
-/** How long a read of Pi's settings serves skills and trust before it is read again. */
+/** How long a read of the agent's settings serves skills and trust before it is read again. */
 const SETTINGS_STALE_MS = 30_000;
 
 /** A session's subagents as the board gets them: all but its oldest finished ones past `BOARD_FINISHED`. */
@@ -275,11 +282,11 @@ export interface OpenOptions {
     now?: () => number;
     /** The browser to run for the Browser panel and tool; null for none. Undefined finds one on this machine. */
     browser?: string | null;
-    /** The home folder, whose `.agents/skills/` every session has. Undefined is Pi's: `$HOME`. Tests use their own. */
+    /** The home folder, whose `.agents/skills/` every session has. Undefined is the agent's: `$HOME`. Tests use their own. */
     home?: string;
     /** Restart the server, as Menu → Restart server does (`main.ts`); undefined where nothing can (tests). */
     restart?: () => void;
-    /** Where Pi Pocket's own code is, for its updates; tests give a checkout of their own. */
+    /** Where Pia's own code is, for its updates; tests give a checkout of their own. */
     appRoot?: string;
 }
 
@@ -310,32 +317,30 @@ export class PocketApp {
     /** Keeps the prompt cache warm while a run waits on a tool call (`cache-keeper.ts`). */
     readonly cacheKeeper: CacheKeeper;
     readonly schedules = new Schedules(this);
-    /** Commands Pi runs in the background, watched until they end (`background.ts`). */
+    /** Commands the agent runs in the background, watched until they end (`background.ts`). */
     readonly background = new BackgroundTasks(this);
     readonly goals = new Goals(this);
     readonly shell = new Shell(this);
     readonly spend = new Spend(this);
-    /** Who Pi works for in each conversation, and who wrote and queued each message. */
+    /** Who the agent works for in each conversation, and who wrote and queued each message. */
     readonly attribution = new Attribution(this);
     /** The conversation's folder: files, the viewer, changes, and uploads. */
     readonly workspace = new Workspace(this);
     /** The conversation's stored history, as people read it. */
     readonly transcripts = new Transcripts(this);
-    /** Pi's sessions from the terminal, which the owner can continue here. */
+    /** the agent's sessions from the terminal, which the owner can continue here. */
     readonly piSessions = new PiSessions(this);
-    /** PiP, the owner's assistant: its conversation, what its tools do, and the follows that report to it. */
-    readonly pip = new Pip(this);
-    /** PiP's context kept small: compacted sooner than a session's, with summaries of its own (`pip-compact.ts`). */
-    readonly pipCompaction = new PipCompaction(this);
+    /** Pia, the owner's assistant: its conversation, what its tools do, and the follows that report to it. */
+    readonly pia = new Pia(this);
     /** Writes session summaries with the owner's chosen review model, when set. */
     readonly compactionReview = new CompactionReview(this);
     /** Sessions' watches of their pull requests (`watches.ts`). */
     readonly watches = new Watches(this);
-    /** PiP's standing orders on GitHub repositories: what happens there goes to PiP or a session (`repo-watches.ts`). */
+    /** Pia's standing orders on GitHub repositories: what happens there goes to Pia or a session (`repo-watches.ts`). */
     readonly repoWatches = new RepoWatches(this);
-    /** Webhooks: addresses other services post to, each a message to a session or PiP (`hooks.ts`). */
+    /** Webhooks: addresses other services post to, each a message to a session or Pia (`hooks.ts`). */
     readonly hooks = new Hooks(this);
-    /** Lessons Pi keeps across sessions, for a project or everywhere. */
+    /** Lessons the agent keeps across sessions, for a project or everywhere. */
     readonly memory = new Memory(this);
     /** Each person's favorite working folders, shared by their devices. */
     readonly folderFavorites = new FolderFavorites(this);
@@ -355,11 +360,11 @@ export class PocketApp {
     readonly commandEnvs = new CommandEnvs((line) => this.#log(line));
     /** Other people's drop-ins, from a reviewed index: found, installed off, read, updated, removed (`gallery.ts`). */
     readonly gallery = new Gallery(this);
-    /** Updates of Pi Pocket itself: the newest release, and updating to it (`updates.ts`). */
+    /** Updates of Pia itself: the newest release, and updating to it (`updates.ts`). */
     readonly updates: Updates;
-    /** Restarting the server: whether it is needed, the check before, and Pi's requests (`restart.ts`). */
+    /** Restarting the server: whether it is needed, the check before, and the agent's requests (`restart.ts`). */
     readonly restarts: Restarts;
-    /** Each conversation's browser page, which Pi and the people in the conversation share. */
+    /** Each conversation's browser page, which the agent and the people in the conversation share. */
     readonly browsers: Browsers;
     /** What extension modules add to the app: their routes, browser modules, and events (`extension-web.ts`). */
     readonly webs: ExtensionWebs;
@@ -391,12 +396,8 @@ export class PocketApp {
     readonly #subagents = new Map<ConversationId, SubagentsOf>();
     #sessions: Record<string, SessionMeta> = {};
     #sessionsTimer: NodeJS.Timeout | undefined;
-    /** The extensions installed now: every conversation runs with them, except PiP's own, which PiP alone selects. */
+    /** The extensions installed now: every conversation runs with them, except Pia's own, which Pia alone selects. */
     #registry: RegistryReader | undefined;
-    /** Profile switches, one after another (`setAssistantProfile`). */
-    #profileSwitch: Promise<void> = Promise.resolve();
-    /** The local tool view: told when the profile changes, so discovery turns on or off at once. */
-    #localTools: { changed(): void } | undefined;
     #unsubscribeCommits: (() => void) | undefined;
     #unsubscribeApprovals: (() => void) | undefined;
     #unsubscribeBrowsers: (() => void) | undefined;
@@ -410,7 +411,7 @@ export class PocketApp {
     readonly #shapers: ModelRequestShaper[] = [];
     /**
      * Each provider's registrations by extension modules (`host.registerModelProvider`), newest last: the newest is in
-     * Pi's runtime, and removing it puts back the one before.
+     * the agent's runtime, and removing it puts back the one before.
      */
     readonly #modelProviders = new Map<string, { token: symbol; config: ProviderConfig }[]>();
     readonly #home: string;
@@ -435,7 +436,7 @@ export class PocketApp {
             quiesce: (paused) => this.pauseReloads(paused),
             busy: () => this.#busy.size,
             log: (line) => this.#log(line),
-            // Releases from somewhere else: a fork's, or a copy of Pi Pocket's repository to try updates on.
+            // Releases from somewhere else: a fork's, or a copy of Pia's repository to try updates on.
             ...(process.env.PI_POCKET_UPDATES_REPO
                 ? { repository: process.env.PI_POCKET_UPDATES_REPO }
                 : {}),
@@ -549,9 +550,9 @@ export class PocketApp {
     }
 
     /**
-     * A module's model provider goes into Pi's runtime in place of the one in force, and stays until its removal. Pi
+     * A module's model provider goes into the agent's runtime in place of the one in force, and stays until its removal. The agent
      * merges a registration into the one before, so the one before goes first: a new version starts from its own config
-     * alone. When Pi refuses the config, the one before comes back and the registration throws.
+     * alone. When the agent refuses the config, the one before comes back and the registration throws.
      */
     #registerModelProvider(provider: string, config: ProviderConfig): () => void {
         const token = Symbol(provider);
@@ -572,7 +573,7 @@ export class PocketApp {
             throw error;
         }
 
-        // Only once Pi took it: a registration that failed has no removal, and must not stand in for the one before.
+        // Only once the agent took it: a registration that failed has no removal, and must not stand in for the one before.
         registrations.push({ token, config });
         this.#modelProviders.set(provider, registrations);
         this.#modelProviderChanged(provider);
@@ -616,7 +617,7 @@ export class PocketApp {
         this.#modelProviderChanged(provider);
     }
 
-    /** Pi refreshes a provider locally once it changes: tabs get the models it has then, and sessions their state. */
+    /** the agent refreshes a provider locally once it changes: tabs get the models it has then, and sessions their state. */
     #modelProviderChanged(provider: string): void {
         if (this.#closing !== undefined) {
             return;
@@ -666,7 +667,7 @@ export class PocketApp {
         }, 50);
     }
 
-    /** While an update moves Pi Pocket's checkout, edited web files and modules load nothing (`updates.ts`). */
+    /** While an update moves Pia's checkout, edited web files and modules load nothing (`updates.ts`). */
     reloadsPaused = false;
 
     pauseReloads(paused: boolean): void {
@@ -806,18 +807,18 @@ export class PocketApp {
             background: this.background,
             goals: this.goals,
             browsers: this.browsers,
-            pip: Object.assign(this.pip, {
+            pia: Object.assign(this.pia, {
                 inbox: {
                     forAssistant: this.inbox.forAssistant.bind(this.inbox),
                     pendingCountForAssistant: this.inbox.pendingCountForAssistant.bind(this.inbox),
                     taggedCountsForAssistant: this.inbox.taggedCountsForAssistant.bind(this.inbox),
                 },
             }),
+            pip: this.pia,
             inboxNotes: {
                 post: this.inbox.postAsAgent.bind(this.inbox),
                 read: this.inbox.readAsAgent.bind(this.inbox),
             },
-            pipCompaction: this.pipCompaction,
             compactionReview: this.compactionReview,
             watches: this.watches,
             repoWatches: this.repoWatches,
@@ -830,15 +831,9 @@ export class PocketApp {
         };
 
         // Keep local tool exposure policy separate from the loader and upstream execution environment.
-        // Discovery is the Pia profile's: Classic keeps upstream's registry as it is (`pia.ts`).
-        const localRegistry = localToolRegistry(
-            registry,
-            await hasRipgrep(),
-            () => profileOf(this.config.assistantProfile) === "pia",
-        );
+        const localRegistry = localToolRegistry(registry, await hasRipgrep());
 
         this.#registry = localRegistry;
-        this.#localTools = localRegistry;
         const dropIn = join(this.dataDir, "extensions");
 
         try {
@@ -853,7 +848,7 @@ export class PocketApp {
                 ),
             );
         } catch (error) {
-            this.#log(`Drop-in extensions cannot import Pi Pocket's packages: ${describe(error)}`);
+            this.#log(`Drop-in extensions cannot import Pia's packages: ${describe(error)}`);
         }
 
         try {
@@ -866,11 +861,8 @@ export class PocketApp {
             registry,
             host,
             { builtIn: join(APP_ROOT, "src", "server", "extensions"), dropIn },
-            // The owner's choice first; with none, the profile's default (Pia: subagents and background off), then the
-            // module's own.
-            (file) =>
-                this.config.extensionChoice(file) ??
-                profileDefault(profileOf(this.config.assistantProfile), file),
+            // The owner's choice first; with none, the module's own default applies.
+            (file) => this.config.extensionChoice(file),
             // What a module's load says can name the server's folders, or quote a provider: the owner's to read.
             { webs: this.webs, notify: (level, message) => this.ownerNotice(level, message) },
         );
@@ -947,14 +939,14 @@ export class PocketApp {
             void this.guard.warm().catch(() => {});
         }
 
-        await this.pip.tuneAll((line) => this.#log(line));
+        await this.pia.tuneAll((line) => this.#log(line));
         // Work a previous process left unfinished continues now.
         this.harness.resume();
     }
 
     /**
      * What this process keeps in memory about every conversation, read back from storage at startup: which are busy,
-     * their agents, chat, subagents, and who Pi works for in each. Authors a crash kept out of the authors documents are
+     * their agents, chat, subagents, and who the agent works for in each. Authors a crash kept out of the authors documents are
      * written back, in one commit. Returns every conversation's id.
      */
     async #recover(storage: Storage): Promise<ConversationId[]> {
@@ -1030,7 +1022,7 @@ export class PocketApp {
         }
 
         // Usage in a commit is from the work that was going on before it: it is counted before a message the same
-        // commit places changes whom Pi works for.
+        // commit places changes whom the agent works for.
         for (const change of publication.changes) {
             if (
                 change.type === "document" &&
@@ -1065,7 +1057,7 @@ export class PocketApp {
                 this.attribution.submissionCommitted(change.value);
 
                 // A run that failed because its provider's sign-in could not be renewed marks that provider; one that
-                // was answered shows its provider works, and a mark it had (signed in again in Pi's terminal app, say)
+                // was answered shows its provider works, and a mark it had (signed in again in the agent's terminal app, say)
                 // is asked again.
                 if (change.value.status === "unanswered" && change.value.reason === "model_error") {
                     this.providers.runFailed(change.value.detail);
@@ -1096,7 +1088,7 @@ export class PocketApp {
     }
 
     /**
-     * Pi started work in session `id` at `at`: it moves up the list, as a message sent there does, whatever started it
+     * the agent started work in session `id` at `at`: it moves up the list, as a message sent there does, whatever started it
      * (a scheduled message, a subagent's report, a message sent again after a restart). One moved up since `at` (a
      * message through `Commands.submit` moves it too) is left as it is. A commit listener may not commit, so this commits
      * after it.
@@ -1145,8 +1137,8 @@ export class PocketApp {
             if (busy !== this.#busy.has(id)) {
                 const session = Number(this.rootOf(id));
 
-                // For extensions (`host.on`): PiP's runs are its person's alone.
-                if (this.#sessions[String(session)]?.pip === undefined) {
+                // For extensions (`host.on`): Pia's runs are its person's alone.
+                if (assistantOwner(this.#sessions[String(session)]) === undefined) {
                     this.events.emit(busy ? "run.started" : "run.ended", {
                         conversationId: Number(id),
                         session,
@@ -1170,9 +1162,8 @@ export class PocketApp {
 
                 if (!busy) {
                     this.spend.runEnded(id);
-                    // No request follows the last tool call of a run that ended or was stopped (PiP's runs too).
+                    // No request follows the last tool call of a run that ended or was stopped (Pia's runs too).
                     this.cacheKeeper.runEnded(Number(id));
-                    this.pipCompaction.runEnded(id);
 
                     if (this.#sessions[String(id)] !== undefined) {
                         this.#endedAt.set(id, Date.now());
@@ -1258,7 +1249,7 @@ export class PocketApp {
         return sessionsChanged;
     }
 
-    /** How model requests stream here: Pi's timeout and retries. Pi Durable's requests and PiP's summaries use them. */
+    /** How model requests stream here: the agent's timeout and retries. Pi Durable's requests and Pia's summaries use them. */
     streamSettings(): { timeoutMs: number; maxRetryDelayMs?: number; maxRetries?: number } {
         const read = <T>(get: () => T): T | undefined => {
             try {
@@ -1298,13 +1289,13 @@ export class PocketApp {
         return {
             // A phase can wait for hours without changing state; repeated process kills must not park it.
             restartLimit: Infinity,
-            // Every installed extension, in install order, but PiP's: its tools and prompt are for its conversation only,
+            // Every installed extension, in install order, but Pia's: its tools and prompt are for its conversation only,
             // which selects it by name (`pip.ts`).
             get extensions() {
                 return registry()
                     ?.snapshot()
                     .installed()
-                    .filter((extension) => extension.name !== PIP_EXTENSION);
+                    .filter((extension) => extension.name !== PIA_EXTENSION);
             },
             get stream() {
                 return stream();
@@ -1324,13 +1315,13 @@ export class PocketApp {
         } as HarnessSettings;
     }
 
-    /** What changed in the session list, as events for extensions (`host.on`). PiP's conversations send none. */
+    /** What changed in the session list, as events for extensions (`host.on`). Pia's conversations send none. */
     #sessionEvents(before: Record<string, SessionMeta>, after: Record<string, SessionMeta>): void {
         for (const [key, meta] of Object.entries(after)) {
             const was = before[key];
             const conversationId = Number(key);
 
-            if (meta.pip !== undefined) {
+            if (assistantOwner(meta) !== undefined) {
                 continue;
             }
 
@@ -1390,12 +1381,12 @@ export class PocketApp {
 
         for (const client of this.#clients) {
             // Server-wide notices can name other sessions' folders: people invited to one session do not get them. One
-            // about PiP reaches the tabs with its panel open too: the panel has no notices of its own.
+            // about Pia reaches the tabs with its panel open too: the panel has no notices of its own.
             const reaches =
                 conversationId === undefined
                     ? client.user.sessions === undefined
                     : (client.conversationId === conversationId ||
-                          client.pip?.conversationId === conversationId) &&
+                          client.pia?.conversationId === conversationId) &&
                       this.canSee(client.user, conversationId);
 
             if (reaches) {
@@ -1406,8 +1397,8 @@ export class PocketApp {
 
     /**
      * The owner asked to migrate to a new version (`updates.ts` fetched upstream first): a session for them, in the
-     * checkout, where Pi reads what changed and reports, in plan mode when it is on, so it changes nothing. The owner
-     * merges by hand. The first message goes for the owner, since Pi works for them.
+     * checkout, where the agent reads what changed and reports, in plan mode when it is on, so it changes nothing. The owner
+     * merges by hand. The first message goes for the owner, since the agent works for them.
      */
     async #startMigration(request: MigrationRequest): Promise<MigrationStarted> {
         const owner = this.config.users.find((each) => each.role === "owner");
@@ -1422,7 +1413,7 @@ export class PocketApp {
         });
         let error: string | undefined;
 
-        // Plan mode keeps Pi from changing files or running commands that change things: the merge is the owner's.
+        // Plan mode keeps the agent from changing files or running commands that change things: the merge is the owner's.
         await this.commands.setPlan(id, owner, true).catch(() => {});
 
         try {
@@ -1433,7 +1424,7 @@ export class PocketApp {
                     text: request.prompt,
                     requestId: `migrate-${request.version.replace(/[^\w-]/g, "-")}`,
                 },
-                "Pi Pocket updates",
+                "Pia updates",
             );
         } catch (failed) {
             error = `The migration session started, but its first message did not go: ${describe(failed)}`;
@@ -1442,8 +1433,8 @@ export class PocketApp {
         this.ownerNotice(
             error === undefined ? "info" : "warning",
             error === undefined
-                ? `Pi Pocket ${request.version} is available. Upstream fetched; a migration session started.`
-                : `Pi Pocket ${request.version} is available. ${error}`,
+                ? `Pia ${request.version} is available. Upstream fetched; a migration session started.`
+                : `Pia ${request.version} is available. ${error}`,
         );
 
         return {
@@ -1555,7 +1546,7 @@ export class PocketApp {
 
         client.send("hello", this.#helloFor(client, hello));
         this.#sendSessions(client, this.sessions(client.user));
-        this.#sendPip(client);
+        this.#sendPia(client);
 
         if (arriving) {
             this.#peopleChanged(client.user.id);
@@ -1623,7 +1614,7 @@ export class PocketApp {
         }
 
         client.peeks = undefined;
-        this.#closePip(client);
+        this.#closePia(client);
 
         if (!this.#online(client.user.id)) {
             this.#peopleChanged(client.user.id);
@@ -1745,13 +1736,13 @@ export class PocketApp {
     }
 
     /**
-     * A tab opened or closed its PiP panel. While it is open, the tab gets PiP's conversation as `pipview` events, from a
-     * view of its own beside the one the tab shows, and counts as looking at PiP, so its answers push nothing. Opening
-     * makes this person's PiP the first time. A request numbered `seq` below one already taken arrived late, and is
+     * A tab opened or closed its Pia panel. While it is open, the tab gets Pia's conversation as `piaview` events, from a
+     * view of its own beside the one the tab shows, and counts as looking at Pia, so its answers push nothing. Opening
+     * makes this person's Pia the first time. A request numbered `seq` below one already taken arrived late, and is
      * dropped.
      */
-    async setPip(user: User, connection: string, on: boolean, seq?: number): Promise<void> {
-        const id = on ? await this.pip.ensure(user) : undefined;
+    async setPia(user: User, connection: string, on: boolean, seq?: number): Promise<void> {
+        const id = on ? await this.pia.ensure(user) : undefined;
 
         for (const client of this.#clients) {
             if (client.user.id !== user.id || client.connection !== connection) {
@@ -1759,27 +1750,27 @@ export class PocketApp {
             }
 
             if (seq !== undefined) {
-                if (seq <= (client.pipSeq ?? -Infinity)) {
+                if (seq <= (client.piaSeq ?? -Infinity)) {
                     continue;
                 }
 
-                client.pipSeq = seq;
+                client.piaSeq = seq;
             }
 
-            if (client.pip !== undefined && client.pip.conversationId !== id) {
-                this.#closePip(client);
+            if (client.pia !== undefined && client.pia.conversationId !== id) {
+                this.#closePia(client);
             }
 
-            if (id !== undefined && client.pip === undefined) {
-                void this.#openPip(client, id);
+            if (id !== undefined && client.pia === undefined) {
+                void this.#openPia(client, id);
             }
         }
 
-        // Made just now: the tab learns its id from the PiP state.
+        // Made just now: the tab learns its id from the Pia state.
         this.#scheduleSessions();
     }
 
-    async #openPip(tab: Client, id: ConversationId): Promise<void> {
+    async #openPia(tab: Client, id: ConversationId): Promise<void> {
         const panel: Client = {
             id: tab.id,
             user: tab.user,
@@ -1795,28 +1786,31 @@ export class PocketApp {
             // Only the view: the panel has no chat, notes, or browser of its own.
             send: (event, data) => {
                 if (event === "view") {
-                    tab.send("pipview", data);
+                    tab.send(
+                        tab.protocol === undefined || tab.protocol >= 6 ? "piaview" : "pipview",
+                        data,
+                    );
                 }
             },
         };
 
-        tab.pip = panel;
+        tab.pia = panel;
         let room: Room;
 
         try {
             room = await this.room(id);
         } catch (error) {
-            if (tab.pip === panel) {
-                tab.pip = undefined;
+            if (tab.pia === panel) {
+                tab.pia = undefined;
             }
 
-            this.#log(`PiP's view did not open: ${describe(error)}`);
+            this.#log(`Pia's view did not open: ${describe(error)}`);
 
             return;
         }
 
         // The tab left, or closed the panel, while the view opened.
-        if (!this.#clients.has(tab) || tab.pip !== panel) {
+        if (!this.#clients.has(tab) || tab.pia !== panel) {
             this.releaseRoom(room);
 
             return;
@@ -1827,23 +1821,26 @@ export class PocketApp {
         room.push(panel, true);
     }
 
-    #closePip(tab: Client): void {
-        const panel = tab.pip;
+    #closePia(tab: Client): void {
+        const panel = tab.pia;
 
-        tab.pip = undefined;
+        tab.pia = undefined;
 
         if (panel?.conversationId !== undefined) {
             this.#leaveRoom(panel, panel.conversationId);
         }
     }
 
-    /** Send a tab its person's PiP state, unless it is what the tab last got. */
-    #sendPip(client: Client): void {
-        const json = JSON.stringify(this.pip.state(client.user));
+    /** Send a tab its person's Pia state, unless it is what the tab last got. */
+    #sendPia(client: Client): void {
+        const json = JSON.stringify(this.pia.state(client.user));
 
-        if (json !== client.pipSent) {
-            client.pipSent = json;
-            client.send("pip", JSON.parse(json) as unknown);
+        if (json !== client.piaSent) {
+            client.piaSent = json;
+            client.send(
+                client.protocol === undefined || client.protocol >= 6 ? "pia" : "pip",
+                JSON.parse(json) as unknown,
+            );
         }
     }
 
@@ -1881,7 +1878,7 @@ export class PocketApp {
         for (const client of this.#clients) {
             if (
                 client.user.id === userId &&
-                (client.conversationId === id || client.pip?.conversationId === id) &&
+                (client.conversationId === id || client.pia?.conversationId === id) &&
                 client.visible !== false
             ) {
                 return true;
@@ -1981,14 +1978,14 @@ export class PocketApp {
     }
 
     /**
-     * People invited to one session see only that session and its subagents. A PiP is its own person's alone: its tools
+     * People invited to one session see only that session and its subagents. A Pia is its own person's alone: its tools
      * act as them, so anyone else who could write to it would act as them too.
      */
     canSee(user: User, id: ConversationId): boolean {
         const root = this.rootOf(id);
-        const pip = this.#sessions[String(root)]?.pip;
+        const pia = assistantOwner(this.#sessions[String(root)]);
 
-        if (pip !== undefined && pip !== user.id) {
+        if (pia !== undefined && pia !== user.id) {
             return false;
         }
 
@@ -2001,17 +1998,17 @@ export class PocketApp {
         }
     }
 
-    /** Viewers read, chat, and react; they never make Pi do anything. */
+    /** Viewers read, chat, and react; they never make the agent do anything. */
     requireSteer(user: User): void {
         if (user.role === "viewer") {
             throw new HttpError(
                 403,
-                "You can view this session but not steer Pi. Ask the owner for steering rights.",
+                "You can view this session but not steer the agent. Ask the owner for steering rights.",
             );
         }
     }
 
-    /** While take turns is on, only the driver sends to Pi or changes its settings. */
+    /** While take turns is on, only the driver sends to the agent or changes its settings. */
     async requireDriver(id: ConversationId, user: User): Promise<void> {
         this.requireSteer(user);
         const turns = await this.harness.snapshot(TurnsDoc, this.rootOf(id), context);
@@ -2240,14 +2237,14 @@ export class PocketApp {
         }
     }
 
-    /** All signed-in models, with Pi's enabledModels scope marked for the picker. */
+    /** All signed-in models, with the agent's enabledModels scope marked for the picker. */
     async modelList() {
-        // Pi settings are read from JSON; the SDK expects an array of strings.
+        // the agent settings are read from JSON; the SDK expects an array of strings.
         const configured = this.settings.getEnabledModels();
         const patterns = Array.isArray(configured)
             ? configured.filter((pattern): pattern is string => typeof pattern === "string")
             : [];
-        // The scope asks Pi which models are available, which reads its sign-ins: one that cannot be read leaves the
+        // The scope asks the agent which models are available, which reads its sign-ins: one that cannot be read leaves the
         // scope out, as in a picker without one, rather than failing `hello` and with it every tab.
         const { scopedModels } =
             patterns.length > 0
@@ -2256,10 +2253,15 @@ export class PocketApp {
                   }))
                 : { scopedModels: [] };
 
-        // Pi Pocket's own setting, beside Pi's: models people never want offered, left out of the All list too.
+        // Pia's own setting, beside the agent's: models people never want offered, left out of the All list too.
         const settings = this.settings.getSettings() as { hiddenModels?: unknown };
 
-        return modelList(this.models, this.signInNeeded, scopedModels, hiddenBy(settings.hiddenModels));
+        return modelList(
+            this.models,
+            this.signInNeeded,
+            scopedModels,
+            hiddenBy(settings.hiddenModels),
+        );
     }
 
     async hello(user: User) {
@@ -2277,7 +2279,7 @@ export class PocketApp {
                 pocketVersion: pocketVersion(),
                 supervised: this.supervised,
                 startedAt: this.startedAt,
-                // Whether a restart is needed, how one is done, and Pi's requests: the owner's alone (`restart.ts`).
+                // Whether a restart is needed, how one is done, and the agent's requests: the owner's alone (`restart.ts`).
                 ...(user.role === "owner" ? { restart: this.restarts.status() } : {}),
                 home: homedir(),
                 defaultCwd: this.defaultCwd,
@@ -2311,16 +2313,14 @@ export class PocketApp {
                 defaultModel: this.config.defaultModel ?? null,
                 // The optional model and thinking level that writes context summaries.
                 compactionModel: this.config.compactionModel ?? null,
-                // The models Pi may start subagents on: the owner's to see and change.
+                // The models the agent may start subagents on: the owner's to see and change.
                 ...(user.role === "owner"
                     ? { subagentModels: [...this.config.subagentModels] }
                     : {}),
-                // This person may have a PiP, the assistant over every screen (`pip.ts`).
-                pip: this.pip.available(user),
-                // Tokens of context above which PiP compacts itself once idle; 0: only as sessions do.
-                pipCompactAt: this.pipCompaction.compactAt,
-                // The assistant profile and the name the panel shows (`pia.ts`); Classic is PiP as upstream.
-                assistant: { profile: this.pip.profile().mode, name: this.pip.profile().name },
+                // This person may have the owner's assistant, Pia.
+                pia: this.pia.available(user),
+                pip: this.pia.available(user),
+                assistant: { name: this.pia.name() },
                 // The most hours a run waits for a provider's limit to clear; 0: it does not wait (`limit-gate.ts`).
                 limitWaitHours: this.config.limitWaitHours,
             },
@@ -2370,7 +2370,7 @@ export class PocketApp {
                     this.#sendSessions(client, this.sessions(client.user));
                 }
 
-                this.#sendPip(client);
+                this.#sendPia(client);
 
                 if (client.board === true) {
                     board ??= this.subagents();
@@ -2428,8 +2428,8 @@ export class PocketApp {
         return Object.entries(this.#sessions)
             .filter(
                 ([id, meta]) =>
-                    // PiP is not a session people pick: it shows in its own panel (`pip.ts`).
-                    meta.pip === undefined &&
+                    // Pia is not a session people pick: it shows in its own panel (`pip.ts`).
+                    assistantOwner(meta) === undefined &&
                     (user?.sessions === undefined || user.sessions.includes(id)),
             )
             .map(([id, meta]) => {
@@ -2442,14 +2442,14 @@ export class PocketApp {
                 const endedAt = this.#endedAt.get(Number(id) as unknown as ConversationId);
                 const counts = countSubagents(subagents.get(id) ?? []);
                 const background = this.#background.get(Number(id) as unknown as ConversationId);
-                // Which of Pi's sessions it continues is the owner's to know (the Pi sessions sheet), not the list's.
+                // Which of the agent's sessions it continues is the owner's to know (the agent sessions sheet), not the list's.
                 const { fromPi: _fromPi, linkedFrom, ...shown } = meta;
                 // Linking does not share the origin: do not leak its id to someone who only sees the new chat.
                 const origin =
                     linkedFrom === undefined ? undefined : this.#sessions[String(linkedFrom.id)];
                 const visibleOrigin =
                     origin !== undefined &&
-                    origin.pip === undefined &&
+                    assistantOwner(origin) === undefined &&
                     (user === undefined ||
                         this.canSee(user, linkedFrom!.id as unknown as ConversationId));
 
@@ -2495,7 +2495,7 @@ export class PocketApp {
         return this.#sessions[String(id)];
     }
 
-    /** Every session's catalogue entry, PiP's included, by id. */
+    /** Every session's catalogue entry, Pia's included, by id. */
     sessionCatalogue(): Readonly<Record<string, SessionMeta>> {
         return this.#sessions;
     }
@@ -2536,8 +2536,8 @@ export class PocketApp {
                 (meta === undefined ? `Conversation ${String(room.id)}` : "New session"),
             cwd: agent.cwd ?? meta?.cwd ?? this.defaultCwd,
             archived: meta?.archived === true,
-            // PiP's own conversation, opened as a page: some session things (a PR to watch) are not for it.
-            ...(meta?.pip === undefined ? {} : { pip: true }),
+            // Pia's own conversation, opened as a page: some session things (a PR to watch) are not for it.
+            ...(assistantOwner(meta) === undefined ? {} : { pia: true }),
             ...(room.parent === undefined ? {} : { parent: room.parent }),
             ...(room.subagentName === undefined ? {} : { subagentName: room.subagentName }),
             // Each browser finds the source's title in its own session list, so only people who can open it get a link.
@@ -2585,10 +2585,10 @@ export class PocketApp {
      */
     cannotAllow(user: User, request: ApprovalRequest): string | undefined {
         if (user.role === "viewer") {
-            return "You can view this session but not steer Pi.";
+            return "You can view this session but not steer the agent.";
         }
 
-        // An ask (`host.ask`) is answered by the person Pi works for: what it asks for is theirs. With nobody known, the
+        // An ask (`host.ask`) is answered by the person the agent works for: what it asks for is theirs. With nobody known, the
         // owner answers it. Anyone who can steer can decline it.
         if (request.form !== undefined) {
             const answerer =
@@ -2596,7 +2596,7 @@ export class PocketApp {
 
             return answerer === user.id
                 ? undefined
-                : "Only the person Pi works for here can answer this.";
+                : "Only the person the agent works for here can answer this.";
         }
 
         if (this.config.approvalRule !== "others" || user.role === "owner") {
@@ -2916,11 +2916,11 @@ export class PocketApp {
         return this.#agents.get(id)?.cwd ?? this.#sessions[String(id)]?.cwd ?? this.defaultCwd;
     }
 
-    /** When Pi's settings were last read: Pi's CLI, or a person, can change them while Pi Pocket runs. */
+    /** When the agent's settings were last read: the agent's CLI, or a person, can change them while Pia runs. */
     #settingsReadAt = Date.now();
 
     /**
-     * What says where Pi's skills are, besides a session's folder: Pi's folder and settings, and the home folder. Pi's
+     * What says where the agent's skills are, besides a session's folder: the agent's folder and settings, and the home folder. The agent's
      * settings are read again when the copy is older than `SETTINGS_STALE_MS`, in the background: a change (such as
      * `defaultProjectTrust`) counts from the request after.
      */
@@ -2945,24 +2945,24 @@ export class PocketApp {
         return { agentDir: getAgentDir(), home: this.#home, settingsPaths, defaultProjectTrust };
     }
 
-    /** Pi's skills for a session working in `cwd`, from the places Pi looks (`skills.ts`). */
+    /** the agent's skills for a session working in `cwd`, from the places the agent looks (`skills.ts`). */
     skills(cwd: string): Skill[] {
         return loadSessionSkills(cwd, this.#skillSources());
     }
 
     /**
-     * Whether Pi trusts the project a conversation works in, and the project skills that wait for it. The owner's: the
+     * Whether the agent trusts the project a conversation works in, and the project skills that wait for it. The owner's: the
      * skills may be in folders above the session's, which someone invited to it cannot see.
      */
     projectTrust(id: ConversationId, user: User): ProjectTrust {
         if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner decides which projects Pi trusts.");
+            throw new HttpError(403, "Only the owner decides which projects the agent trusts.");
         }
 
         return readProjectTrust(this.cwdOf(id), this.#skillSources());
     }
 
-    /** The owner's answer to "trust this project?", saved where Pi's CLI keeps its own, as its `/trust` does. */
+    /** The owner's answer to "trust this project?", saved where the agent's CLI keeps its own, as its `/trust` does. */
     setProjectTrust(id: ConversationId, user: User, choice: TrustChoice): ProjectTrust {
         // Before anything is saved: only the owner may read it, or answer.
         const now = this.projectTrust(id, user);
@@ -2970,7 +2970,7 @@ export class PocketApp {
         if (now.unreadable) {
             throw new HttpError(
                 409,
-                "Pi's trust store (~/.pi/agent/trust.json) cannot be read, so no answer can be saved. Mend or delete it first.",
+                "the agent's trust store (~/.pi/agent/trust.json) cannot be read, so no answer can be saved. Mend or delete it first.",
             );
         }
 
@@ -2983,7 +2983,7 @@ export class PocketApp {
         return this.projectTrust(id, user);
     }
 
-    /** Pi's skills in a conversation's folder, to run as `/skill:name`. */
+    /** the agent's skills in a conversation's folder, to run as `/skill:name`. */
     skillCommands(id: ConversationId): SkillCommand[] {
         try {
             return this.skills(this.cwdOf(id)).map((skill) => ({
@@ -2997,7 +2997,7 @@ export class PocketApp {
         }
     }
 
-    /** Pi's prompt templates, as a conversation in its folder offers them. */
+    /** the agent's prompt templates, as a conversation in its folder offers them. */
     promptTemplates(id: ConversationId): PromptTemplate[] {
         let paths: string[] = [];
 
@@ -3017,12 +3017,12 @@ export class PocketApp {
 
     // ─── Extensions ─────────────────────────────────────────────────────────
 
-    /** Whether Lancet Guard's module is on here; Pi's own setting may still turn the guard off. */
+    /** Whether Lancet Guard's module is on here; the agent's own setting may still turn the guard off. */
     guardOn(): boolean {
         return this.loader.enabled(GUARD_FILE);
     }
 
-    /** Lancet Guard as it applies here: Pi's own setting, unless the guard extension is off in Pi Pocket. */
+    /** Lancet Guard as it applies here: the agent's own setting, unless the guard extension is off in Pia. */
     async guardStatus(): Promise<GuardStatus> {
         const status = await this.guard.status();
 
@@ -3033,7 +3033,7 @@ export class PocketApp {
         return {
             available: status.available,
             enabled: false,
-            detail: "Lancet Guard is off in Pi Pocket: bash, background, write, and edit calls run unchecked here.",
+            detail: "Lancet Guard is off in Pia: bash, background, write, and edit calls run unchecked here.",
         };
     }
 
@@ -3061,7 +3061,7 @@ export class PocketApp {
                   },
         );
 
-        // The guard row shows Pi's own setting, so the owner can tell "off here" from "off everywhere".
+        // The guard row shows the agent's own setting, so the owner can tell "off here" from "off everywhere".
         return {
             modules,
             guard: await this.guard.status(),
@@ -3106,8 +3106,8 @@ export class PocketApp {
             await this.browsers.closeAll();
         }
 
-        if (file === PIP_FILE && !enabled) {
-            await this.pip.stopAll();
+        if (file === PIA_FILE && !enabled) {
+            await this.pia.stopAll();
         }
 
         this.notice(
@@ -3146,7 +3146,7 @@ export class PocketApp {
         }
 
         if (this.guard.directory === undefined) {
-            throw new HttpError(400, "specpi-lancet-guard is not installed in Pi");
+            throw new HttpError(400, "specpi-lancet-guard is not installed in the agent");
         }
 
         if ((await this.guard.model())?.state === "ready") {
@@ -3271,149 +3271,7 @@ export class PocketApp {
         return shownSettings(fields, next, false);
     }
 
-    /** The owner chooses when PiP compacts itself: above so many tokens of context once idle, or (0) as sessions do. */
-    async setPipCompactAt(user: User, tokens: unknown): Promise<void> {
-        if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner can do that");
-        }
-
-        if (typeof tokens !== "number" || !PIP_COMPACT_CHOICES.includes(tokens)) {
-            throw new HttpError(
-                400,
-                `pipCompactAt must be one of ${PIP_COMPACT_CHOICES.join(", ")}`,
-            );
-        }
-
-        if (tokens === this.pipCompaction.compactAt) {
-            return;
-        }
-
-        this.config.pipCompactAt = tokens;
-        await this.#refreshClients();
-    }
-
-    /**
-     * The owner picks the assistant profile (`pia.ts`). Each PiP keeps its conversation, history, and follows; it gets
-     * the other profile's tools and folder before its next run. Modules whose default differs between the profiles
-     * load or unload, unless the owner chose for them: that choice stays as it is.
-     */
-    async setAssistantProfile(user: User, value: unknown): Promise<void> {
-        if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner can do that");
-        }
-
-        if (value !== "classic" && value !== "pia") {
-            throw new HttpError(400, "assistantProfile must be classic or pia");
-        }
-
-        // One switch at a time, each reading the profile as the one before left it: two tabs switching at once cannot
-        // leave modules or a PiP of the profile that lost.
-        const run = this.#profileSwitch.then(() => this.#switchProfile(value));
-
-        this.#profileSwitch = run.catch(() => {});
-
-        return run;
-    }
-
-    async #switchProfile(value: AssistantProfile): Promise<void> {
-        const before: AssistantProfile = profileOf(this.config.assistantProfile);
-
-        if (value === before) {
-            return;
-        }
-
-        // A PiP at work, or compacting, keeps the tools and folder it started with: switch once it is idle.
-        for (const [id, meta] of Object.entries(this.#sessions)) {
-            if (meta.pip === undefined) {
-                continue;
-            }
-
-            const conversationId = Number(id) as unknown as ConversationId;
-            const live = await this.harness.snapshot(LiveDoc, conversationId, context);
-
-            if (
-                this.isBusy(conversationId) ||
-                live?.run !== undefined ||
-                (live?.compactions?.length ?? 0) > 0
-            ) {
-                throw new HttpError(
-                    409,
-                    "The assistant is working. Switch the profile when it is idle.",
-                );
-            }
-        }
-
-        // Modules the switch would turn off: refused while any session has live work of theirs (a subagent, its
-        // report, a background watch), which would stall without its task definition until the module came back.
-        const unloading = this.loader
-            .files()
-            .filter(
-                (file) =>
-                    this.config.extensionChoice(file) === undefined &&
-                    this.loader.enabled(file) &&
-                    profileDefault(value, file) === false,
-            );
-        const names = new Set(
-            this.loader
-                .list()
-                .filter((module) => unloading.includes(module.file))
-                .flatMap((module) => module.extensions.map((extension) => extension.name)),
-        );
-        const kinds = new Set(
-            (this.#registry?.snapshot().installed() ?? [])
-                .filter((extension) => names.has(extension.name))
-                .flatMap((extension) =>
-                    (extension.tasks ?? []).map((task) => task.definition.name),
-                ),
-        );
-
-        if (kinds.size > 0) {
-            const graph = await this.harness.taskGraph(context);
-
-            try {
-                const live = Object.values(graph.value.tasks).filter((task) =>
-                    kinds.has(task.kind),
-                );
-
-                if (live.length > 0) {
-                    throw new HttpError(
-                        409,
-                        `${String(live.length)} subagent or background task${live.length === 1 ? " runs" : "s run"} in sessions. Switch the profile once they end, or turn those modules on in Extensions to keep them.`,
-                    );
-                }
-            } finally {
-                graph.dispose();
-            }
-        }
-
-        this.config.assistantProfile = value;
-        this.#localTools?.changed();
-
-        // Every module whose default differs between the profiles follows the profile now in force, unless the owner
-        // chose for it; `apply` reads the choice as it is, so a module ends as the final config says.
-        for (const file of this.loader.files()) {
-            if (
-                this.config.extensionChoice(file) === undefined &&
-                profileDefault(before, file) !== profileDefault(value, file)
-            ) {
-                try {
-                    await this.loader.apply(file);
-                } catch (error) {
-                    this.#log(`${file} did not follow the profile: ${describe(error)}`);
-                }
-            }
-        }
-
-        // PiP's inbox tool is Pia-only. Rebuild its registrations when the profile changes, not only after restart.
-        if (this.loader.enabled("pip.ts")) {
-            await this.loader.reload("pip.ts");
-        }
-
-        await this.pip.tuneAll((line) => this.#log(line));
-        await this.#refreshClients();
-    }
-
-    /** The name the Pia profile shows; empty or null goes back to "Pia". */
+    /** The assistant name; empty or null goes back to "Pia". */
     async setAssistantName(user: User, value: unknown): Promise<void> {
         if (user.role !== "owner") {
             throw new HttpError(403, "Only the owner can do that");
@@ -3430,6 +3288,7 @@ export class PocketApp {
         }
 
         this.config.assistantName = name;
+        await this.pia.tuneAll((line) => this.#log(line));
         await this.#refreshClients();
     }
 
@@ -3542,9 +3401,9 @@ export class PocketApp {
         this.providers.needsSignIn(provider) !== undefined;
 
     /**
-     * The owner picks the models Pi may start subagents on (`provider/modelId`, models Pi
-     * knows). Empty, the default: none, and the subagent tool offers Pi no choice of model at all. The tool is rebuilt
-     * to match, so its description and parameters say what Pi may do. This replaces the whole list; the Providers sheet
+     * The owner picks the models the agent may start subagents on (`provider/modelId`, models the agent
+     * knows). Empty, the default: none, and the subagent tool offers the agent no choice of model at all. The tool is rebuilt
+     * to match, so its description and parameters say what the agent may do. This replaces the whole list; the Providers sheet
      * changes one model at a time (`allowSubagentModel`).
      */
     async setSubagentModels(user: User, models: unknown): Promise<void> {
@@ -3573,7 +3432,10 @@ export class PocketApp {
                     : undefined;
 
             if (model === undefined) {
-                throw new HttpError(400, `${spec} is not a model Pi knows (provider/modelId).`);
+                throw new HttpError(
+                    400,
+                    `${spec} is not a model the agent knows (provider/modelId).`,
+                );
             }
 
             const key = `${model.provider}/${model.id}`;
@@ -3589,7 +3451,7 @@ export class PocketApp {
     /**
      * The owner allows one model for subagents, or stops allowing it, and keeps the rest as they are now: what the
      * Providers sheet sends, so two quick taps, or two tabs, never undo each other. The list is read and written with no
-     * wait between, so changes that come together all count. A model stopped need not be one Pi still knows. Returns the
+     * wait between, so changes that come together all count. A model stopped need not be one the agent still knows. Returns the
      * list as it is then.
      */
     async allowSubagentModel(
@@ -3616,7 +3478,10 @@ export class PocketApp {
                     : undefined;
 
             if (found === undefined) {
-                throw new HttpError(400, `${model} is not a model Pi knows (provider/modelId).`);
+                throw new HttpError(
+                    400,
+                    `${model} is not a model the agent knows (provider/modelId).`,
+                );
             }
 
             const key = `${found.provider}/${found.id}`;
@@ -3770,7 +3635,7 @@ export class PocketApp {
 }
 
 /**
- * Continue on the runtime's calls: after Pi and the caller shaped a request, each shaper may replace the payload, the
+ * Continue on the runtime's calls: after the agent and the caller shaped a request, each shaper may replace the payload, the
  * last one closest to the wire. With no shaper, the call goes on untouched. A shaper may answer with a promise. One
  * that throws is logged and skipped: a faulty module must not fail the model call.
  */
