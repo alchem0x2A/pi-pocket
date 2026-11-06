@@ -12,7 +12,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Host, Web } from "./_pocket.d.ts";
+import type { ExtensionWeb as Web, PocketHost as Host } from "../host.ts";
 
 export const pocketApi = 2;
 
@@ -110,7 +110,7 @@ const DEFAULTS: Record<string, Config> = {
         },
         // Node `fetch` and `curl` are challenged by Cloudflare on this host; Python's HTTP stack is not (measured
         // 2026-11-03). So the URL is tried once (fast), then this private helper.
-        command: "python3 -I ~/.pi-pocket/tt-usage-codex.py",
+        command: `python3 -I ${join(import.meta.dirname, "tt-usage", "codex.py")}`,
         cacheSeconds: 300,
         probeModel: "openai-codex/gpt-6-luna",
         probeOnRefresh: true,
@@ -164,7 +164,14 @@ const DEFAULTS: Record<string, Config> = {
     },
 };
 /** The order everywhere (settings, page, tool): OpenAI personal, Codex org, Claude personal, Claude org. */
-const IDS = ["openai", "openai-codex", "claude-code-personal", "claude-code", "aleph", "local-inference"];
+const IDS = [
+    "openai",
+    "openai-codex",
+    "claude-code-personal",
+    "claude-code",
+    "aleph",
+    "local-inference",
+];
 
 /** What a person reads for each state. One short sentence; no internals. */
 const WORDS = {
@@ -176,6 +183,7 @@ const WORDS = {
     failed: "Could not check. Try again.",
     "sign-in": "Sign in again.",
 } as const;
+
 type State = keyof typeof WORDS;
 
 type Verdict = "ok" | "near-limit" | "blocked" | "unknown";
@@ -315,7 +323,8 @@ export default function createUsage(host: Host, web: Web) {
         {
             name: "refreshMinutes",
             label: "Refresh every (minutes, 0 = never)",
-            description: "The timer only fetches accounts whose cache is older than their cache time.",
+            description:
+                "The timer only fetches accounts whose cache is older than their cache time.",
             type: "number",
             default: 10,
             min: 0,
@@ -368,23 +377,32 @@ export default function createUsage(host: Host, web: Web) {
     if (typeof host.shapeModelRequests === "function") {
         web.onDispose(
             host.shapeModelRequests((payload, model) => {
-                const body = payload as { reasoning?: { effort?: string }; reasoning_effort?: string; thinking?: unknown };
+                const body = payload as {
+                    reasoning?: { effort?: string };
+                    reasoning_effort?: string;
+                    thinking?: unknown;
+                };
 
                 efforts.set(
                     `${model.provider}/${model.id}`,
-                    JSON.stringify(body?.reasoning ?? body?.reasoning_effort ?? body?.thinking ?? "none-sent"),
+                    JSON.stringify(
+                        body?.reasoning ?? body?.reasoning_effort ?? body?.thinking ?? "none-sent",
+                    ),
                 );
 
                 return undefined;
             }),
         );
     }
+
     const inflight = new Map<string, Promise<Report>>();
 
     /** The open gates of the reactive limit gate. Read only. */
     function gateOf(id: string, now: number): Report["gate"] {
         try {
-            const file = JSON.parse(readFileSync(join(host.dataDir, "provider-limits.json"), "utf8"));
+            const file = JSON.parse(
+                readFileSync(join(host.dataDir, "provider-limits.json"), "utf8"),
+            );
 
             for (const gate of file.gates ?? []) {
                 if (gate.provider === id && typeof gate.until === "number" && gate.until > now) {
@@ -429,7 +447,11 @@ export default function createUsage(host: Host, web: Web) {
             cached: false,
         };
         const secrets: string[] = [];
-        const fail = (detail: string, source: Report["source"] = "none", state: State = "failed"): Report => ({
+        const fail = (
+            detail: string,
+            source: Report["source"] = "none",
+            state: State = "failed",
+        ): Report => ({
             ...base,
             verdict: "unknown",
             state,
@@ -489,7 +511,8 @@ export default function createUsage(host: Host, web: Web) {
                 const base = config.credential.tokenPath.split(".").slice(0, -1).join(".");
 
                 refreshKept =
-                    dig(file, `${base}.refresh`) !== undefined || dig(file, `${base}.refreshToken`) !== undefined;
+                    dig(file, `${base}.refresh`) !== undefined ||
+                    dig(file, `${base}.refreshToken`) !== undefined;
             } catch (error) {
                 return fail(`Cannot read the credential file: ${(error as Error).message}`);
             }
@@ -518,6 +541,7 @@ export default function createUsage(host: Host, web: Web) {
 
                     return { response, text: await response.text() };
                 };
+
                 let { response, text } = await ask();
 
                 // A Cloudflare challenge page (HTML 403) often passes on a retry (up to 3).
@@ -572,8 +596,16 @@ export default function createUsage(host: Host, web: Web) {
 
         const fields = config.fields ?? {};
         const now = Date.now();
-        const session = windowOf(dig(data, fields.sessionPercent), dig(data, fields.sessionResetAt), now);
-        const weekly = windowOf(dig(data, fields.weeklyPercent), dig(data, fields.weeklyResetAt), now);
+        const session = windowOf(
+            dig(data, fields.sessionPercent),
+            dig(data, fields.sessionResetAt),
+            now,
+        );
+        const weekly = windowOf(
+            dig(data, fields.weeklyPercent),
+            dig(data, fields.weeklyResetAt),
+            now,
+        );
         const extras: Record<string, unknown> = {};
 
         for (const [name, path] of Object.entries(fields.extras ?? {})) {
@@ -585,8 +617,7 @@ export default function createUsage(host: Host, web: Web) {
         }
 
         const plan = dig(data, fields.plan);
-        const flagged =
-            dig(data, fields.blocked) === true || dig(data, fields.allowed) === false;
+        const flagged = dig(data, fields.blocked) === true || dig(data, fields.allowed) === false;
         const near = Number(web.setting("nearLimitPercent") ?? 80);
         const worst = Math.max(session?.percent ?? 0, weekly?.percent ?? 0);
         const gate = gateOf(id, now);
@@ -639,15 +670,21 @@ export default function createUsage(host: Host, web: Web) {
     const withProbe = (report: Report & { probe?: string }): Report & { probe?: string } => {
         const probe = probes.get(report.provider);
 
-        return probe === undefined ? report : { ...report, probe: `${probe.text} (${new Date(probe.at).toISOString()})` };
+        return probe === undefined
+            ? report
+            : { ...report, probe: `${probe.text} (${new Date(probe.at).toISOString()})` };
     };
-
 
     /**
      * Pi's own model runtime (`api.models`), kept from the last tool call. A route has no `models`, so the Refresh
      * button can probe only after a tool of this module ran once in this server's life.
      */
-    let runtime: { getModel(provider: string, modelId: string): unknown; completeSimple(model: never, context: never, options?: never): Promise<never> } | undefined;
+    let runtime:
+        | {
+              getModel(provider: string, modelId: string): unknown;
+              completeSimple(model: never, context: never, options?: never): Promise<never>;
+          }
+        | undefined;
 
     /**
      * One tiny completion through Pi's own runtime: no system prompt, no tools, nothing saved, no session. The runtime
@@ -656,7 +693,13 @@ export default function createUsage(host: Host, web: Web) {
     async function probeDirect(id: string, signal: AbortSignal): Promise<Report> {
         const started = Date.now();
         const { config } = configOf(id);
-        const base = { provider: id, label: config.label ?? id, at: started, cached: false, source: "none" as const };
+        const base = {
+            provider: id,
+            label: config.label ?? id,
+            at: started,
+            cached: false,
+            source: "none" as const,
+        };
         const [provider, modelId] = String(config.probeModel ?? "").split("/");
         const done = (verdict: Verdict, state: State, detail: string): Report => ({
             ...base,
@@ -669,16 +712,29 @@ export default function createUsage(host: Host, web: Web) {
         const model = runtime?.getModel(provider ?? "", modelId ?? "");
 
         if (runtime === undefined || model === undefined) {
-            return done("unknown", "not-checked", "No model runtime yet: no session has sent a request.");
+            return done(
+                "unknown",
+                "not-checked",
+                "No model runtime yet: no session has sent a request.",
+            );
         }
 
         try {
             const reply = (await runtime.completeSimple(
                 model as never,
                 {
-                    messages: [{ role: "user", content: [{ type: "text", text: "Reply with OK." }], timestamp: Date.now() }],
+                    messages: [
+                        {
+                            role: "user",
+                            content: [{ type: "text", text: "Reply with OK." }],
+                            timestamp: Date.now(),
+                        },
+                    ],
                 } as never,
-                { maxTokens: 16, signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]) } as never,
+                {
+                    maxTokens: 16,
+                    signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
+                } as never,
             )) as { stopReason?: string; errorMessage?: string };
 
             if (reply.stopReason === "error" || reply.stopReason === "aborted") {
@@ -687,18 +743,29 @@ export default function createUsage(host: Host, web: Web) {
                 return done(
                     kind === "limit" ? "blocked" : "unknown",
                     kind === "limit" ? "at-limit" : "failed",
-                    `Probe failed, class ${kind}: ${String(reply.errorMessage ?? "no error text").replace(/\s+/g, " ").slice(0, 200)}`,
+                    `Probe failed, class ${kind}: ${String(reply.errorMessage ?? "no error text")
+                        .replace(/\s+/g, " ")
+                        .slice(0, 200)}`,
                 );
             }
 
             return done("ok", "ok", `Answered a probe in ${Date.now() - started} ms.`);
         } catch (error) {
-            return done("unknown", "failed", `Probe failed (class ${classify(String((error as Error).message))}): ${(error as Error).message}`);
+            return done(
+                "unknown",
+                "failed",
+                `Probe failed (class ${classify(String((error as Error).message))}): ${(error as Error).message}`,
+            );
         }
     }
 
     /** One report: from the cache when it is fresh, else asked again. Calls for one account share one request. */
-    async function usage(id: string, force: boolean, signal: AbortSignal, probe = false): Promise<Report> {
+    async function usage(
+        id: string,
+        force: boolean,
+        signal: AbortSignal,
+        probe = false,
+    ): Promise<Report> {
         // Accounts with a `probeOnRefresh` config have no usage endpoint: the tiny request runs ONLY when a person
         // presses Refresh (`probe`). The timer, the page load, and the tool never send it; they show the last result.
         if (configOf(id).config.probeOnRefresh === true) {
@@ -707,11 +774,23 @@ export default function createUsage(host: Host, web: Web) {
                 let report = checked;
 
                 // One try for numbers, when this account has a way to read them. The probe still decides when it fails.
-                if (checked.state !== "not-checked" && ((configOf(id).config.command ?? "") !== "" || (configOf(id).config.url ?? "") !== "")) {
+                if (
+                    checked.state !== "not-checked" &&
+                    ((configOf(id).config.command ?? "") !== "" ||
+                        (configOf(id).config.url ?? "") !== "")
+                ) {
                     const numbers = await lookup(id, signal);
 
                     if (numbers.session !== undefined || numbers.weekly !== undefined) {
-                        report = checked.verdict === "blocked" ? { ...numbers, verdict: "blocked", state: checked.state, reason: checked.reason } : numbers;
+                        report =
+                            checked.verdict === "blocked"
+                                ? {
+                                      ...numbers,
+                                      verdict: "blocked",
+                                      state: checked.state,
+                                      reason: checked.reason,
+                                  }
+                                : numbers;
                     }
                 }
 
@@ -757,8 +836,14 @@ export default function createUsage(host: Host, web: Web) {
         return withProbe(report);
     }
 
-    async function all(force: boolean, signal: AbortSignal, only?: string, probe = false): Promise<Report[]> {
-        const ids = only === undefined ? IDS.filter((id) => configOf(id).config.enabled !== false) : [only];
+    async function all(
+        force: boolean,
+        signal: AbortSignal,
+        only?: string,
+        probe = false,
+    ): Promise<Report[]> {
+        const ids =
+            only === undefined ? IDS.filter((id) => configOf(id).config.enabled !== false) : [only];
 
         return Promise.all(ids.map((id) => usage(id, force, signal, probe)));
     }
@@ -766,7 +851,8 @@ export default function createUsage(host: Host, web: Web) {
     /** The limit gate's wait setting, read only. */
     function waitHours(): number | undefined {
         try {
-            return JSON.parse(readFileSync(join(host.dataDir, "config.json"), "utf8")).limitWaitHours;
+            return JSON.parse(readFileSync(join(host.dataDir, "config.json"), "utf8"))
+                .limitWaitHours;
         } catch {
             return undefined;
         }
@@ -808,9 +894,8 @@ export default function createUsage(host: Host, web: Web) {
         return `${lines.join("\n")}\nTimes are ${ZONE}.`;
     }
 
-
     /** Private to the owner: a tool call from a session that another person steers must not show these numbers. */
-    function requireOwner(conversationId: number): void {
+    function requireOwner(conversationId: Parameters<typeof host.requesterOf>[0]): void {
         let users: { id: string; role: string }[] = [];
 
         try {
@@ -820,7 +905,10 @@ export default function createUsage(host: Host, web: Web) {
         }
 
         const by = host.requesterOf(conversationId);
-        const owner = by === undefined ? users.length === 1 : users.some((user) => user.id === by && user.role === "owner");
+        const owner =
+            by === undefined
+                ? users.length === 1
+                : users.some((user) => user.id === by && user.role === "owner");
 
         if (!owner) {
             throw new Error("Provider usage is private to the owner.");
@@ -830,7 +918,9 @@ export default function createUsage(host: Host, web: Web) {
     // ─── tools ───────────────────────────────────────────────────────────────
 
     const provider = Type.Optional(
-        Type.String({ description: `One of: ${IDS.join(", ")}. Leave out for all enabled accounts.` }),
+        Type.String({
+            description: `One of: ${IDS.join(", ")}. Leave out for all enabled accounts.`,
+        }),
     );
 
     const usageTool = Object.assign(
@@ -851,7 +941,11 @@ export default function createUsage(host: Host, web: Web) {
                     throw new Error(`Unknown provider. Use one of: ${IDS.join(", ")}`);
                 }
 
-                const reports = await all(args.refresh === true, new AbortController().signal, args.provider);
+                const reports = await all(
+                    args.refresh === true,
+                    new AbortController().signal,
+                    args.provider,
+                );
 
                 return {
                     output: [
@@ -887,11 +981,13 @@ export default function createUsage(host: Host, web: Web) {
     /** The local API, as the owner: the one way to read a session's answer and to archive it. */
     function localApi() {
         const argv = process.argv;
+
         const at = (flag: string, fallback: string) => {
             const index = argv.indexOf(flag);
 
             return index >= 0 && argv[index + 1] ? argv[index + 1]! : fallback;
         };
+
         const token = String(
             JSON.parse(readFileSync(join(host.dataDir, "config.json"), "utf8")).ownerToken ?? "",
         );
@@ -918,7 +1014,11 @@ export default function createUsage(host: Host, web: Web) {
     }
 
     function classify(text: string): string {
-        if (/rate.?limit|usage limit|quota|credits|limit reached|too many requests|429|out of/i.test(text)) {
+        if (
+            /rate.?limit|usage limit|quota|credits|limit reached|too many requests|429|out of/i.test(
+                text,
+            )
+        ) {
             return "limit";
         }
 
@@ -926,7 +1026,11 @@ export default function createUsage(host: Host, web: Web) {
             return "auth";
         }
 
-        if (/5\d\d|overloaded|timeout|timed out|network|ECONN|ENOTFOUND|fetch failed|unavailable/i.test(text)) {
+        if (
+            /5\d\d|overloaded|timeout|timed out|network|ECONN|ENOTFOUND|fetch failed|unavailable/i.test(
+                text,
+            )
+        ) {
             return "transient";
         }
 
@@ -939,8 +1043,12 @@ export default function createUsage(host: Host, web: Web) {
             "Fallback when usage cannot be read: starts one throwaway linked session on the account's cheapest model (thinking off) with one tiny request, says if the provider answered, blocked the request, or failed (with the class), then stops and archives it. Costs one small request on that account.",
         parameters: Type.Object({
             provider: Type.String({ description: `One of: ${IDS.join(", ")}` }),
-            model: Type.Optional(Type.String({ description: "provider/modelId; default: the account's cheapest" })),
-            timeoutSeconds: Type.Optional(Type.Number({ description: "Wait at most this long; default 90" })),
+            model: Type.Optional(
+                Type.String({ description: "provider/modelId; default: the account's cheapest" }),
+            ),
+            timeoutSeconds: Type.Optional(
+                Type.Number({ description: "Wait at most this long; default 90" }),
+            ),
         }),
         // A restart cuts it off: do not run it twice.
         execute: async (args, api) => {
@@ -962,7 +1070,8 @@ export default function createUsage(host: Host, web: Web) {
 
             const info = host.modelInfo(spec);
             const levels = info?.thinkingLevels ?? [];
-            const thinking = levels.length === 0 || levels.includes("off" as never) ? "off" : String(levels[0]);
+            const thinking =
+                levels.length === 0 || levels.includes("off" as never) ? "off" : String(levels[0]);
             const started = Date.now();
             const { session } = await host.linkedSessions.start(
                 api.conversationId,
@@ -984,7 +1093,9 @@ export default function createUsage(host: Host, web: Web) {
                 while (Date.now() - started < limit) {
                     await new Promise((resolve) => setTimeout(resolve, 2500));
 
-                    const entries = (await call(`/api/c/${session}/history?before=${Number.MAX_SAFE_INTEGER}`)) as Entry[];
+                    const entries = (await call(
+                        `/api/c/${session}/history?before=${Number.MAX_SAFE_INTEGER}`,
+                    )) as Entry[];
 
                     answer = entries.filter((entry) => entry.kind === "assistant").at(-1);
 
@@ -995,15 +1106,21 @@ export default function createUsage(host: Host, web: Web) {
 
                 if (answer?.stopReason === "stop" || answer?.stopReason === "length") {
                     outcome = "answered";
-                    detail = (answer.blocks ?? []).map((block) => block.text ?? "").join("").slice(0, 80);
+                    detail = (answer.blocks ?? [])
+                        .map((block) => block.text ?? "")
+                        .join("")
+                        .slice(0, 80);
                 } else if (answer?.stopReason === "error" || answer?.stopReason === "aborted") {
                     const kind = classify(answer.error ?? "");
 
                     outcome = kind === "limit" ? "blocked" : "failed";
-                    detail = `class ${kind}: ${String(answer.error ?? "no error text").replace(/\s+/g, " ").slice(0, 240)}`;
+                    detail = `class ${kind}: ${String(answer.error ?? "no error text")
+                        .replace(/\s+/g, " ")
+                        .slice(0, 240)}`;
                 } else {
                     outcome = "blocked";
-                    detail = "no answer in time; the request most likely waits at the limit gate (class limit-wait)";
+                    detail =
+                        "no answer in time; the request most likely waits at the limit gate (class limit-wait)";
                 }
             } finally {
                 // Stop and archive the throwaway session, even when the check failed.
@@ -1044,15 +1161,28 @@ export default function createUsage(host: Host, web: Web) {
         }),
         { access: "owner" },
     );
-    web.route("POST", "refresh", async ({ signal, body }) => {
-        const only = typeof body.provider === "string" && IDS.includes(body.provider) ? body.provider : undefined;
+    web.route(
+        "POST",
+        "refresh",
+        async ({ signal, body }) => {
+            const only =
+                typeof body.provider === "string" && IDS.includes(body.provider)
+                    ? body.provider
+                    : undefined;
 
-        return { zone: ZONE, limitWaitHours: waitHours() ?? null, reports: await all(true, signal, only, true) };
-    }, { access: "owner" });
-    web.client("tt-usage.js", { access: "owner" });
+            return {
+                zone: ZONE,
+                limitWaitHours: waitHours() ?? null,
+                reports: await all(true, signal, only, true),
+            };
+        },
+        { access: "owner" },
+    );
+    web.client("tt-usage", { access: "owner" });
 
     // The timer fetches only what is stale, so it costs one request per account per cache time at most.
     let timer: ReturnType<typeof setInterval> | undefined;
+
     const arm = () => {
         if (timer !== undefined) {
             clearInterval(timer);
@@ -1062,15 +1192,17 @@ export default function createUsage(host: Host, web: Web) {
         const minutes = Number(web.setting("refreshMinutes") ?? 10);
 
         if (minutes > 0) {
-            timer = setInterval(
-                () => {
-                    void all(false, new AbortController().signal).then(
-                        (reports) => web.send("usage", { zone: ZONE, limitWaitHours: waitHours() ?? null, reports }),
-                        () => undefined,
-                    );
-                },
-                minutes * 60_000,
-            );
+            timer = setInterval(() => {
+                void all(false, new AbortController().signal).then(
+                    (reports) =>
+                        web.send("usage", {
+                            zone: ZONE,
+                            limitWaitHours: waitHours() ?? null,
+                            reports,
+                        }),
+                    () => undefined,
+                );
+            }, minutes * 60_000);
             timer.unref();
         }
     };
@@ -1095,5 +1227,9 @@ export default function createUsage(host: Host, web: Web) {
         },
     });
 
-    return defineExtension({ name: "tt-usage", tools: [usageTool, probeTool], hooks: [keepRuntime] });
+    return defineExtension({
+        name: "tt-usage",
+        tools: [usageTool, probeTool],
+        hooks: [keepRuntime],
+    });
 }

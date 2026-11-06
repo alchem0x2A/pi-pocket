@@ -7,4 +7,4 @@ flake.lock
 
 *.png
 *.woff2
-extras/
+src/server/extensions/pi-claude-code/

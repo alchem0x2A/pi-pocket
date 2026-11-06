@@ -13,12 +13,14 @@ const NAMES = {
 };
 
 const left = (window) => (window ? Math.max(0, Math.round(100 - window.percent)) : null);
+
 /** The shortest remaining percent of an account's windows. */
 const least = (report) => {
     const values = [left(report.session), left(report.weekly)].filter((value) => value !== null);
 
     return values.length ? Math.min(...values) : null;
 };
+
 const clock = (window) => (window && window.resetsAtLocal ? window.resetsAtLocal : "");
 
 export default function setup(pocket) {
@@ -44,6 +46,7 @@ export default function setup(pocket) {
         const [data, setData] = useState(latest);
         const [error, setError] = useState(null);
         const [busy, setBusy] = useState(false);
+
         const load = async (force) => {
             setBusy(true);
 

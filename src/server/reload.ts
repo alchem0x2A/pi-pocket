@@ -66,6 +66,9 @@ const ORDER = [
     "updates.ts",
     "restart.ts",
     "design.ts",
+    "ink-board.ts",
+    "tt-providers.ts",
+    "tt-usage.ts",
 ];
 
 /** The built-in modules' names (their files' without `.ts`): a drop-in with one of them is never loaded. */
@@ -76,6 +79,9 @@ export const BUILT_IN_MODULES: ReadonlySet<string> = new Set(
 const REQUIRED = new Set(["prompt.ts", "compaction-review.ts"]);
 /** Built-in modules that stay off until the owner turns them on. Drop-ins all do. */
 const OFF_BY_DEFAULT = new Set([
+    "ink-board.ts",
+    "tt-providers.ts",
+    "tt-usage.ts",
     "guard.ts",
     "agent-teams.ts",
     "anthropic-subscription.ts",

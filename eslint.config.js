@@ -7,7 +7,7 @@ export default [
     {
         ignores: [
             "node_modules/**",
-            "extras/**",
+            "src/server/extensions/pi-claude-code/**",
             "data/**",
             "docs-site/dist/**",
             "docs-site/.astro/**",
