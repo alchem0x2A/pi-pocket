@@ -58,6 +58,8 @@ export type BrowserControl = {
     href?: string;
 };
 
+export type BrowserProfile = "persistent" | "isolated";
+
 export type Saved = { url?: string; viewport?: Viewport };
 
 const MAX_LOGS = 300;
@@ -151,6 +153,7 @@ function evaluated(response: Json): Json {
 /** One conversation's page. Everything it knows comes from the browser's events; nothing here is stored. */
 export class BrowserPage {
     readonly conversationId: number;
+    readonly profile: BrowserProfile;
     readonly #connection: Connection;
     readonly #session: string;
     readonly #target: string;
@@ -193,12 +196,14 @@ export class BrowserPage {
         session: string;
         target: string;
         context: string;
+        profile: BrowserProfile;
         userAgent: string;
         viewport: Viewport;
         changed: () => void;
         saved: (saved: Saved) => void;
     }) {
         this.conversationId = options.conversationId;
+        this.profile = options.profile;
         this.#connection = options.connection;
         this.#session = options.session;
         this.#target = options.target;
@@ -482,16 +487,18 @@ export class BrowserPage {
             return;
         }
 
-        if (info?.type !== "page" || info.browserContextId !== this.#context) {
+        if (
+            info?.type !== "page" ||
+            (this.profile === "isolated" &&
+                String(info.browserContextId ?? "") !== this.#context) ||
+            info.openerId !== this.#target
+        ) {
             return;
         }
 
-        // Pages the browser prerenders on a site's hint are its guesses, not tabs; and only this page's tabs come here.
-        if (
-            (info.subtype ?? "") !== "" ||
-            (info.openerId !== undefined && info.openerId !== this.#target) ||
-            this.#handled.has(id)
-        ) {
+        // Chromium may give the default context a non-empty id, so openerId isolates popups in the shared profile.
+        // Prerendered pages are guesses, not tabs; only this page's popups come here.
+        if ((info.subtype ?? "") !== "" || this.#handled.has(id)) {
             return;
         }
 

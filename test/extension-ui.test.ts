@@ -988,7 +988,7 @@ test(
 
         // A guest has no Pia: a result, not an error.
         const guest = app.config.addUser("Guest", "guest");
-        const other = await browsers.open(2);
+        const other = await browsers.open(2, { profile: "isolated" });
 
         try {
             await other.navigate(`${base}/login?token=${encodeURIComponent(guest.token)}`);

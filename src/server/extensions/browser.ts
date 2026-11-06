@@ -2,13 +2,13 @@
  * Browser: the agent opens, reads, clicks through, and screenshots web pages in a real Chromium on this machine, the same page
  * the people in the conversation watch and use in the Browser panel. Turning it off turns off the panel too.
  *
- * A call is not replayed after a restart (clicking twice is not harmless), and the page itself does not survive one:
- * its address comes back when it opens again, but not what was typed or clicked on it.
+ * A call is not replayed after a restart (clicking twice is not harmless), and a page does not survive one. Its
+ * persistent profile's cookies and storage do survive; `profile: "isolated"` avoids that profile entirely.
  */
 import { awaitWithContext } from "@earendil-works/chord/context";
 import { type ImageContent, type TextContent, Type } from "@earendil-works/pi-ai";
 import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/pi-durable";
-import type { BrowserPage, LogEntry, Target } from "../browser/page.ts";
+import type { BrowserPage, BrowserProfile, LogEntry, Target } from "../browser/page.ts";
 import { displayUrl, normalizeUrl } from "../browser/urls.ts";
 import { presetOf, viewportFrom } from "../browser/viewport.ts";
 import type { PocketHost } from "../host.ts";
@@ -51,8 +51,9 @@ const MAX_TEXT = 20_000;
 const GUIDE = `You have a browser tool: headless Chromium on this machine. The people in this conversation see the same page live in the app's Browser panel and can click and type in it too, so it is how you show and test web work: local dev servers (http://localhost:5173), HTML files on this machine (give their path), or any site.
 - Use this browser for local web work. Do not rely on it for external web search or fetch. Websites may show CAPTCHA or other challenges, including HTTP 429. Do not try to bypass CAPTCHA.
 - A test returned a 429 CAPTCHA for Google search in Pia, but the same query worked in another browser setup. The test does not prove the cause.
+- The default persistent profile is shared by all conversations. Its cookies and storage survive page close, browser stop, and server restart. The owner may keep one Google login there for search.
+- Use \`profile: "isolated"\` when a task must not see or change that profile. This opens a fresh in-memory context. It cannot read persistent cookies or storage, and it loses its own state when closed. Use \`profile: "persistent"\` to switch back.
 - Use the \`vm_browser\` skill, a headed browser with a real profile, for these tasks when available.
-- Cookies last only for the open page. Do not promise persistent sign-in.
 - Start a dev server in the background with bash first, for example \`nohup npm run dev > /tmp/dev.log 2>&1 &\`, then navigate to it.
 - snapshot lists the page's text and its controls with refs like [e12]; click, type, select, and hover take a ref (or a CSS selector, or the visible label). Refs last until the next snapshot.
 - screenshot shows you how the page looks: use it to check layout and styling. viewport switches between mobile, tablet, and desktop sizes.
@@ -70,7 +71,7 @@ function where(page: BrowserPage): string {
     const size = `${presetOf(viewport) ?? "custom"} ${viewport.width}×${viewport.height}`;
     const url = page.url === "about:blank" ? "a blank page" : page.url;
 
-    return `Page: ${page.title === "" ? "" : `"${page.title}" · `}${url} · ${size}`;
+    return `Page: ${page.title === "" ? "" : `"${page.title}" · `}${url} · ${size} · ${page.profile} profile`;
 }
 
 function formatLog(entry: LogEntry): string {
@@ -85,7 +86,7 @@ export default function createBrowser(host: PocketHost) {
     const browser = defineTool({
         name: "browser",
         description:
-            "Use headless Chromium for local web pages, snapshots, clicks, typing, screenshots, and console checks. Do not rely on it for external web search or fetch: websites may show CAPTCHA or other challenges, including HTTP 429. Do not offer CAPTCHA bypasses. A Google search test returned a 429 CAPTCHA in Pia, but the same query worked in another browser setup; the test does not prove the cause. Use the `vm_browser` skill, a headed browser with a real profile, for these tasks when available. Cookies last only for the open page; do not promise persistent sign-in.",
+            "Use headless Chromium for local web pages, snapshots, clicks, typing, screenshots, and console checks. Do not rely on it for external web search or fetch: websites may show CAPTCHA or other challenges, including HTTP 429. Do not offer CAPTCHA bypasses. A Google search test returned a 429 CAPTCHA in Pia, but the same query worked in another browser setup; the test does not prove the cause. The default persistent profile is shared across conversations and keeps cookies on disk. Set profile to isolated to use a fresh in-memory context without access to persistent cookies or storage. Use the `vm_browser` skill, a headed browser with a real profile, for these tasks when available.",
         parameters: Type.Object({
             action: Type.Union(
                 ACTIONS.map((action) => Type.Literal(action)),
@@ -98,6 +99,12 @@ export default function createBrowser(host: PocketHost) {
                 Type.String({
                     description:
                         "navigate: an http(s) URL, host:port such as localhost:5173, or a path to an HTML file on this machine.",
+                }),
+            ),
+            profile: Type.Optional(
+                Type.Union([Type.Literal("persistent"), Type.Literal("isolated")], {
+                    description:
+                        "persistent (default): shared on-disk profile. isolated: a fresh in-memory context with no access to persistent cookies or storage. Choosing a different profile closes and reopens this conversation's page.",
                 }),
             ),
             ref: Type.Optional(
@@ -189,7 +196,12 @@ export default function createBrowser(host: PocketHost) {
             const cwd = agent?.cwd ?? process.cwd();
             // A page opened again comes back at its last address, unless the agent is about to open another.
             const page = await awaitWithContext(
-                host.browsers.open(Number(api.conversationId), { restore: action !== "navigate" }),
+                host.browsers.open(Number(api.conversationId), {
+                    restore: action !== "navigate",
+                    ...(args.profile === undefined
+                        ? {}
+                        : { profile: args.profile as BrowserProfile }),
+                }),
                 context,
             );
             const before = page.logSeq;

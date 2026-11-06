@@ -722,6 +722,7 @@ export function BrowserPanel({ leaving = false }) {
     const send = useSender(conversationId);
     const [address, setAddress] = useState(null);
     const [showConsole, setShowConsole] = useState(false);
+    const [actionsOpen, setActionsOpen] = useState(false);
     const [typing, setTyping] = useState(false);
     const [problem, setProblem] = useState(null);
     const [tries, setTries] = useState(0);
@@ -729,12 +730,42 @@ export function BrowserPanel({ leaving = false }) {
     const wasOpen = useRef(false);
     const stageRef = useRef(null);
     const typeInput = useRef(null);
+    const actionsRef = useRef(null);
     /** The size this tab last fitted the page to: the page follows the panel only while it still has it. */
     const fittedHere = useRef(null);
     const beside = panelsBeside();
 
-    // Over the conversation, back closes the panel.
+    // Over the conversation, back closes the panel. Its action menu is a layer above it.
     useBack(!beside && !leaving, () => setBrowserOpen(false));
+    useBack(actionsOpen && !leaving, () => setActionsOpen(false));
+
+    useEffect(() => {
+        if (!actionsOpen) {
+            return undefined;
+        }
+
+        const outside = (event) => {
+            if (!actionsRef.current?.contains(event.target)) {
+                setActionsOpen(false);
+            }
+        };
+
+        const escape = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setActionsOpen(false);
+            }
+        };
+
+        document.addEventListener("pointerdown", outside);
+        document.addEventListener("keydown", escape);
+
+        return () => {
+            document.removeEventListener("pointerdown", outside);
+            document.removeEventListener("keydown", escape);
+        };
+    }, [actionsOpen]);
 
     if (open) {
         wasOpen.current = true;
@@ -788,7 +819,25 @@ export function BrowserPanel({ leaving = false }) {
     };
 
     const run = (action, body = {}) => attempt(() => browserApi(action, body));
+
     // A size that is no preset is a fitted (or the agent's own) one.
+    const clearProfile = () => {
+        setActionsOpen(false);
+
+        if (
+            !confirm(
+                "Clear the shared browser profile? This signs out every conversation and removes all site cookies and storage.",
+            )
+        ) {
+            return;
+        }
+
+        return attempt(async () => {
+            await browserApi("clear-profile", {});
+            notify("success", "The shared browser profile was cleared.");
+        });
+    };
+
     const preset = PRESETS.find((each) => each.id === (state?.preset ?? "fit"));
     const nextPreset = PRESETS[(PRESETS.indexOf(preset) + 1) % PRESETS.length];
 
@@ -1005,6 +1054,36 @@ export function BrowserPanel({ leaving = false }) {
                     html`<span class="badge err">${state.errors > 99 ? "99+" : state.errors}</span>`
                 }
             </button>
+            ${
+                me?.role === "owner" &&
+                html`<div class="browser-actions" ref=${actionsRef}>
+                    <button
+                        class="icon-button"
+                        aria-label="Browser actions"
+                        aria-haspopup="menu"
+                        aria-expanded=${actionsOpen}
+                        title="Browser actions"
+                        disabled=${!steer}
+                        onClick=${() => setActionsOpen(!actionsOpen)}
+                    >
+                        <${Icon} name="more" size=${18} />
+                    </button>
+                    ${
+                        actionsOpen &&
+                        html`<div class="browser-actions-menu" role="menu">
+                            <button
+                                type="button"
+                                role="menuitem"
+                                disabled=${!steer}
+                                onClick=${clearProfile}
+                            >
+                                Clear shared profile
+                            </button>
+                            <p class="muted small">Removes cookies and site storage for every conversation.</p>
+                        </div>`
+                    }
+                </div>`
+            }
             ${
                 steer &&
                 touch &&

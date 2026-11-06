@@ -110,6 +110,19 @@ export async function browserRoutes(
         return json(response, 200, { servers: await localServers([port]) });
     }
 
+    if (action === "clear-profile" && method === "POST") {
+        await app.requireDriver(id, user);
+
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner can clear the shared browser profile.");
+        }
+
+        await app.conversation(id);
+        await browsers.clearProfile();
+
+        return json(response, 200, { ok: true });
+    }
+
     if (method !== "POST" || action === undefined || !BROWSER_ACTIONS.has(action)) {
         throw new HttpError(404, "Unknown browser route");
     }
