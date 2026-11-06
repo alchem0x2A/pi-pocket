@@ -54,6 +54,9 @@ function claudeLoader() {
       "@earendil-works/pi-ai/providers/all": fileURLToPath(
         import.meta.resolve("@earendil-works/pi-ai/providers/all"),
       ),
+      "@earendil-works/pi-ai/providers/anthropic.models": fileURLToPath(
+        import.meta.resolve("@earendil-works/pi-ai/providers/anthropic.models"),
+      ),
       "@earendil-works/pi-ai": fileURLToPath(
         import.meta.resolve("@earendil-works/pi-ai"),
       ),
