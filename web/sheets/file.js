@@ -2,13 +2,13 @@
 // file sheet alike.
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { browserAvailable, openInBrowser } from "../browser.js";
+import { FileTransfers } from "../file-actions.js";
 import { mentionText } from "../files.js";
 import { highlightLines, langOf } from "../highlight.js";
 import { HtmlPreview } from "../rich.js";
 import { RunFrame } from "../run-frame.js";
 import { actions, canSteer, closeSheet, insertIntoComposer, notify, store } from "../store.js";
 import {
-    APPLE,
     copyText,
     fileUrl,
     formatBytes,
@@ -18,7 +18,6 @@ import {
     Loader,
     Markdown,
     openFile,
-    revealFile,
     Sheet,
 } from "../ui.js";
 
@@ -110,6 +109,7 @@ export function FileView({ path, line, onOpen = openFile, onLoad }) {
             </span>
             <${FileActions}
                 file=${file}
+                path=${path}
                 shown=${shown}
                 previewable=${markdown || page}
                 preview=${preview}
@@ -234,7 +234,7 @@ function FileLines({ lines, colored, all, line }) {
  * The viewer's buttons: Preview or Source for Markdown and pages, Run for a previewed page (`running` is null where it
  * does not apply), Copy, and @ Mention.
  */
-function FileActions({ file, shown, previewable, preview, onPreview, running, onRun }) {
+function FileActions({ file, path, shown, previewable, preview, onPreview, running, onRun }) {
     return html`${
         file?.kind === "text" &&
         running !== null &&
@@ -276,19 +276,10 @@ function FileActions({ file, shown, previewable, preview, onPreview, running, on
         </button>`
     }
     ${
-        // For the owner at the server's machine, with a mouse: show it in that machine's file manager.
-        // Ctrl+click (⌘+click) on a path does the same.
-        file &&
-        store.state.me?.role === "owner" &&
-        matchMedia("(pointer: fine)").matches &&
-        html`<button
-            class="icon-button"
-            title=${`Show in the file manager (${APPLE ? "⌘" : "Ctrl"}+click a path)`}
-            aria-label="Show in the file manager"
-            onClick=${() => revealFile(file.path)}
-        >
-            <${Icon} name="folder" size=${16} />
-        </button>`
+        // Keep Download available even if this file cannot be previewed. The server checks access again.
+        file?.kind !== "folder" &&
+        file?.kind !== "other" &&
+        html`<${FileTransfers} key=${path} path=${file?.path ?? path} />`
     }`;
 }
 

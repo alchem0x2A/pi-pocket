@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useArtifactBridge } from "../artifact-bridge.js";
 import { browserModuleState, openExtPanel } from "../extension-ui.js";
+import { FileTransfers, localImageFile } from "../file-actions.js";
 import { api, attempt, closeSheet, notify, openSheet, store } from "../store.js";
 import { modeNow } from "../theme.js";
 import { copyText, formatBytes, formatWhen, html, Icon, Loader, Sheet, timeAgo } from "../ui.js";
@@ -335,6 +336,8 @@ export function ArtifactShareSheet({ id, version }) {
 
 /** An image full screen. Tap anywhere to close; Open shows it in its own tab to zoom, save, or share. */
 export function ImageViewer({ src, alt }) {
+    const file = localImageFile(src);
+
     useEffect(() => {
         const onKey = (event) => event.key === "Escape" && closeSheet();
 
@@ -353,6 +356,7 @@ export function ImageViewer({ src, alt }) {
         <img src=${src} alt=${alt ?? ""} />
         <div class="lightbox-bar" onClick=${(event) => event.stopPropagation()}>
             <span class="lightbox-title">${alt ?? ""}</span>
+            ${file && html`<${FileTransfers} key=${src} path=${file.path} conversationId=${file.conversationId} />`}
             <a class="button small" href=${src} target="_blank" rel="noopener">Open</a>
             <button class="icon-button" onClick=${closeSheet} aria-label="Close">
                 <${Icon} name="close" />

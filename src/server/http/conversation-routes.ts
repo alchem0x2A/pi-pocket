@@ -1,17 +1,18 @@
 /** `/api/c/:id`: one conversation's routes, for people the API has checked may see it. */
 import { randomUUID } from "node:crypto";
-import { constants, createWriteStream, rmSync } from "node:fs";
+import { constants, createWriteStream, realpathSync, rmSync, statSync } from "node:fs";
 import { type FileHandle, open } from "node:fs/promises";
 import { basename, extname, join, resolve, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { ConversationId } from "@earendil-works/pi-durable";
 import { readState, writeState } from "../artifact-state.ts";
 import type { Attachment, SubmitRequest } from "../commands.ts";
+import { openInEmacs } from "../emacs.ts";
 import { HttpError } from "../errors.ts";
 import type { CommandRequest } from "../extension-commands.ts";
 import { reveal } from "../reveal.ts";
 import { serveImage, TYPES } from "./assets.ts";
-import { type ApiRequest, json, readJson, send } from "./io.ts";
+import { type ApiRequest, json, opened, readJson, send } from "./io.ts";
 
 const MAX_UPLOAD = 50 * 1024 * 1024;
 
@@ -412,7 +413,34 @@ export async function conversationRoutes(
         return serveImage(request, response, app.workspace.conversationFile(user, id, requested));
     }
 
-    // A file of the session's folder as a download (a design's export): whom the file viewer lets read it, as it is.
+    // The owner's existing WeTTY daemon only. Loading a preview never calls this action.
+    if (third === "emacs" && method === "POST") {
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner opens files in the server's Emacs");
+        }
+
+        const body = await readJson<{ path?: unknown }>(request);
+
+        if (typeof body.path !== "string" || body.path.trim() === "" || body.path.includes("\0")) {
+            throw new HttpError(400, "path is required");
+        }
+
+        let file: string;
+
+        try {
+            file = realpathSync(app.workspace.readableFile(user, id, body.path));
+
+            if (!statSync(file).isFile()) {
+                throw new Error("Not a regular file");
+            }
+        } catch {
+            throw new HttpError(404, "File not found");
+        }
+
+        return json(response, 200, await openInEmacs(file));
+    }
+
+    // A file of the session's folder as a download: whom the file viewer lets read it, as it is.
     if (third === "download" && method === "GET") {
         const requested = url.searchParams.get("path") ?? "";
 
@@ -422,9 +450,17 @@ export async function conversationRoutes(
 
         const file = app.workspace.readableFile(user, id, requested);
         let handle: FileHandle;
+        let checked: { file: string; dev: number; ino: number };
 
         try {
-            handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW);
+            const canonical = realpathSync(file);
+
+            app.workspace.readableFile(user, id, canonical);
+            checked = { file: canonical, ...statSync(canonical) };
+            handle = await open(
+                file,
+                constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+            );
         } catch {
             throw new HttpError(404, "File not found");
         }
@@ -432,7 +468,7 @@ export async function conversationRoutes(
         try {
             const stats = await handle.stat();
 
-            if (!stats.isFile()) {
+            if (!stats.isFile() || !opened(handle.fd, checked, stats)) {
                 throw new HttpError(404, "File not found");
             }
 
@@ -443,7 +479,7 @@ export async function conversationRoutes(
             response.writeHead(200, {
                 "content-type": "application/octet-stream",
                 "content-length": stats.size,
-                "content-disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+                "content-disposition": `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name).replace(/['()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}`,
                 "cache-control": "private, no-store",
                 "x-content-type-options": "nosniff",
             });
