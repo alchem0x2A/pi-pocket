@@ -97,8 +97,9 @@ export async function openInEmacs(path: string, options: Options = {}) {
         // The daemon also keeps a headless default frame that is visible but has no terminal, so it
         // would swallow find-file. Target only real tty frames (a non-nil tty parameter, i.e. the pty
         // WeTTY attached), preferring the one the owner is looking at, i.e. the selected frame.
-        // Suppress file-local evaluation in this HTTP action.
-        const form = `(let* ((frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (unless frame (error "Open the WeTTY Emacs terminal first")) (with-selected-frame frame (let ((enable-local-variables nil) (enable-local-eval nil)) (find-file (concat "/:" ${lispString(path)})))) t)`;
+        // A tty frame only redrew itself while it was the selected frame, so force a redisplay in the
+        // frame we just used. Suppress file-local evaluation in this HTTP action.
+        const form = `(let* ((frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (unless frame (error "Open the WeTTY Emacs terminal first")) (with-selected-frame frame (let ((enable-local-variables nil) (enable-local-eval nil)) (find-file (concat "/:" ${lispString(path)})) (redisplay t))) t)`;
 
         await (options.run ?? runClient)([
             "--socket-name",
