@@ -1192,6 +1192,10 @@ export function Marked({ text, hits }) {
 /** One of the app's icons by `name`, or any 24×24 stroked path as `path` (extensions' own icons). */
 export function Icon({ name, path, size = 20, class: className = "", stroke = 2, part }) {
     if (name === "pia" && path === undefined) {
+        // The export uses board units. Match the other icons' 24-unit stroke scale,
+        // rather than shrinking the board's contour into a subpixel hairline.
+        const width = (874.7325 / 24) * stroke;
+
         return html`<svg
             class=${`icon ${className}`}
             data-part=${part}
@@ -1204,7 +1208,13 @@ export function Icon({ name, path, size = 20, class: className = "", stroke = 2,
             stroke-linejoin="round"
             aria-hidden="true"
         >
-            ${PIA_MARK.paths.map((p) => html`<path transform=${p.transform} d=${p.d} stroke-width=${p.width} />`)}
+            ${PIA_MARK.paths.map(
+                (p, index) => html`<path
+                transform=${p.transform}
+                d=${p.d}
+                stroke-width=${width * (index === 6 ? 0.8 : p.width / 24.75)}
+            />`,
+            )}
         </svg>`;
     }
 

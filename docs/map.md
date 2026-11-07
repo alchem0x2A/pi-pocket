@@ -253,6 +253,8 @@ The menu in `sheets/menu.js` keeps `Sheet`'s focus, Escape, drag-to-close, and t
 
 ### Icons
 
+The inline Pia contour in `web/ui.js` keeps the approved ribbon geometry, but scales its strokes to the same 24-unit convention as the other UI icons. Do not reuse the exported board stroke widths directly: they shrink to subpixel hairlines at sidebar sizes. `test/mobile-ui.test.ts` checks the outer contour, folds, and knot at 20, 21, and 44 px.
+
 [`web/icon.svg`](../web/icon.svg) supplies the tab, manifest, and notification icon, and is the source for the PNG icons beside it. With `rsvg-convert` installed, regenerate the PNGs from the repository root:
 
 ```sh
