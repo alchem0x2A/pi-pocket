@@ -152,10 +152,12 @@ test(
         await waitFor('[aria-label="Download original file"]');
         await waitFor('[aria-label="Open in Emacs"]');
         await screenshot("desktop-linked-text");
-        // The GNU Emacs glyph from Simple Icons is a filled path in Emacs purple, at a thumb-sized target.
+        // The GNU Emacs glyph from Simple Icons is a filled path in the theme accent, thickened by a stroke, at a thumb-sized target.
         const glyph = await inPage<{
             fill: string;
             stroke: string;
+            strokeWidth: string;
+            accent: string;
             box: number[];
             size: number[];
             d: string;
@@ -167,12 +169,15 @@ test(
             const size = { width: svg.width.baseVal.value, height: svg.height.baseVal.value };
             return JSON.stringify({ fill: getComputedStyle(svg.querySelector('path')).fill,
                 stroke: getComputedStyle(svg.querySelector('path')).stroke,
+                strokeWidth: getComputedStyle(svg.querySelector('path')).strokeWidth,
+                accent: (() => { const probe = document.createElement('i'); probe.style.color = 'var(--accent)'; document.body.append(probe); const c = getComputedStyle(probe).color; probe.remove(); return c; })(),
                 box: [box.width, box.height], size: [size.width, size.height],
                 d: svg.querySelector('path').getAttribute('d') });
         `);
 
-        assert.equal(glyph.fill, "rgb(127, 90, 182)");
-        assert.equal(glyph.stroke, "none");
+        assert.equal(glyph.fill, glyph.accent);
+        assert.equal(glyph.stroke, glyph.accent);
+        assert.equal(glyph.strokeWidth, "0.7px");
         assert.deepEqual(glyph.box, [40, 40]);
         assert.deepEqual(glyph.size, [20, 20]);
         assert.equal(glyph.d.length, 1299);
