@@ -34,7 +34,11 @@ test("Emacs uses the existing socket with literal Lisp data, no shell, daemon st
         assert.match(calls[0]![4]!, /enable-local-variables nil/);
         assert.match(calls[0]![4]!, /enable-local-eval nil/);
         assert.match(calls[0]![4]!, /concat "\/:"/);
-        assert.match(calls[0]![4]!, /visible-frame-list/);
+        // The daemon's headless default frame is visible but has no terminal, so the form must
+        // filter to tty frames (a non-nil tty parameter) and prefer the selected one.
+        assert.match(calls[0]![4]!, /frame-parameter f 'tty/);
+        assert.match(calls[0]![4]!, /selected-frame/);
+        assert.doesNotMatch(calls[0]![4]!, /visible-frame-list/);
         assert.doesNotMatch(calls[0]!.join(" "), /--create-frame|--daemon/);
         assert.equal(lispString('a"b\\c'), '"a\\"b\\\\c"');
     } finally {
