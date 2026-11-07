@@ -6,8 +6,8 @@
 }
 body {
     margin: 0;
-    background: light-dark(#faf7f5, #191724);
-    color: light-dark(#292539, #e0def4);
+    background: light-dark(#fbf8fe, #1b1725);
+    color: light-dark(#35243f, #e7dff1);
 }
 main {
     box-sizing: border-box;

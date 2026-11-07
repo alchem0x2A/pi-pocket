@@ -228,6 +228,44 @@ test("the served SVG icon decodes as an image", real, async () => {
     assert.ok(width > 0 && height > 0, "the icon has image dimensions");
 });
 
+test("the Pia contour keeps readable UI-scale strokes at sidebar sizes", real, async () => {
+    const measurements = await inPage<
+        { size: number; outer: number; fold: number; knot: number }[]
+    >(`
+        const { render, h } = await import("preact");
+        const { Icon } = await import("/ui.js");
+        const host = document.createElement("div");
+
+        document.body.append(host);
+
+        const measurements = [20, 21, 44].map((size) => {
+            render(h(Icon, { name: "pia", size }), host);
+
+            const svg = host.querySelector("svg");
+            const paths = svg.querySelectorAll("path");
+            const scale = size / svg.viewBox.baseVal.width;
+            const width = (index) => Number(paths[index].getAttribute("stroke-width")) * scale;
+
+            return { size, outer: width(0), fold: width(4), knot: width(6) };
+        });
+
+        render(null, host);
+        host.remove();
+
+        return JSON.stringify(measurements);
+    `);
+
+    for (const mark of measurements) {
+        assert.ok(mark.outer >= 1.5, `the ${mark.size}px outer contour is not a hairline`);
+        assert.ok(mark.fold >= 1, `the ${mark.size}px folds remain visible`);
+        assert.ok(mark.knot < mark.outer, "the knot keeps a lighter stroke and an open center");
+        assert.ok(
+            Math.abs(mark.outer - mark.size / 12) < 0.01,
+            "the mark follows the UI stroke scale",
+        );
+    }
+});
+
 test("back closes the open file, then the Files tile, then leaves the session", real, async () => {
     await fresh();
     await tap(row(first));

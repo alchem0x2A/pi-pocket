@@ -61,7 +61,7 @@ test("worker caches only the fixed shell and falls back only for app navigation"
         },
     });
     await pending;
-    const store = stores.get("pocket-offline-shell-v5")!;
+    const store = stores.get("pocket-offline-shell-v6")!;
 
     assert.deepEqual(
         [...store.keys()],

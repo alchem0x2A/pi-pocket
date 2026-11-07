@@ -1,5 +1,5 @@
 /*
- * Pia's look: soft tiles over one palette, after Rosé Pine, in a light and a dark half (the --o-* variables
+ * Pia's look: soft tiles over one violet palette, in a light and a dark half (the --o-* variables
  * below; theme.js picks the half). Everything else mixes from it the way omarchy-shell does: the foreground over the
  * background at a few percent for fills and hairlines. Windows still tile like Hyprland's, with rounded corners, 1px
  * hairlines, and a soft accent ring on the one in focus. Geist sets the words; JetBrains Mono only code, paths,
@@ -77,21 +77,21 @@
 
 :root {
     /*
-     * The palette: one, after Rosé Pine (rosepinetheme.com), with contrast set the way Modus Vivendi and Operandi set
-     * theirs: body text at 7:1 or more on the ground (WCAG AAA), and every color used as text at 4.5:1 or more. This is
-     * the dark half, Rosé Pine's own (main), with Love as the accent, lifted to 7:1. The light half, after Rosé Pine
-     * Dawn, is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
+     * One violet palette, with semantic colors derived from Rosé Pine (rosepinetheme.com).
+     * Contrast follows Modus Vivendi and Operandi: body text at 7:1 or more on the ground (WCAG AAA),
+     * and every color used as text at 4.5:1 or more. The dark half uses deep violet surfaces and lavender accents.
+     * The light half is under :root[data-mode="light"]; theme.js picks the half (Appearance → Auto dark mode).
      */
-    --o-bg: #191724;
-    --o-bg-dark: #1f1d2e;
-    --o-bg-darker: #12101d;
-    --o-bg-light: #26233a;
-    --o-fg: #e0def4;
-    --o-fg-dim: #908caa;
-    --o-fg-light: #e7e5f8;
-    --o-fg-bright: #edecfb;
-    --o-accent: #f97c9e;
-    --o-selection: #403d52;
+    --o-bg: #1b1725;
+    --o-bg-dark: #231d30;
+    --o-bg-darker: #14101d;
+    --o-bg-light: #2d243c;
+    --o-fg: #e7dff1;
+    --o-fg-dim: #a396b5;
+    --o-fg-light: #efe8f7;
+    --o-fg-bright: #f6effc;
+    --o-accent: #c983da;
+    --o-selection: #453450;
     --o-red: #fd7e7d;
     --o-yellow: #f6c177;
     --o-orange: #e8c0aa;
@@ -261,28 +261,27 @@
     --leading: 1.4;
 }
 
-/* Light mode, after Rosé Pine Dawn: its warm paper ground, its Text darkened to 7:1 for the body, and its colors darkened
-   to 4.5:1 each, as Modus Operandi does. Quieter text and the status colors darken toward the foreground, so they stay
-   readable on light grounds. */
+/* Light mode: near-white lilac surfaces and plum accents. The body keeps 7:1 contrast, and semantic colors
+   keep 4.5:1, as Modus Operandi does. Quieter text and status colors darken toward the foreground. */
 :root[data-mode="light"] {
     color-scheme: light;
-    --o-bg: #faf4ed;
-    --o-bg-dark: #f2e9e1;
-    --o-bg-darker: #e8dfd7;
-    --o-bg-light: #fffaf3;
-    --o-fg: #534e75;
-    --o-fg-dim: #706c8a;
-    --o-fg-light: #474267;
-    --o-fg-bright: #3c375c;
-    --o-accent: #a7576e;
-    --o-selection: #f0d8dd;
+    --o-bg: #fbf8fe;
+    --o-bg-dark: #f4eef9;
+    --o-bg-darker: #ede5f3;
+    --o-bg-light: #fefcff;
+    --o-fg: #493952;
+    --o-fg-dim: #786585;
+    --o-fg-light: #403047;
+    --o-fg-bright: #35243f;
+    --o-accent: #a24eb5;
+    --o-selection: #e5d4ef;
     --o-red: #a0504b;
     --o-yellow: #9d6305;
     --o-orange: #a45f35;
     --o-green: #52795a;
     --o-cyan: #3b7984;
     --o-blue: #3d648b;
-    --o-magenta: #7d6795;
+    --o-magenta: #8953a3;
     --sh: rgba(40, 40, 70, 0.14);
     --accent-ink: #fff;
     --scrim: color-mix(in srgb, var(--desk) 55%, transparent);
@@ -15023,8 +15022,8 @@ textarea.notes {
 }
 
 .quick-notes-button .rail-count {
-    background: var(--warn);
-    color: var(--bg);
+    background: var(--accent-fill);
+    color: var(--accent-ink);
 }
 
 .quick-notes-panel {
