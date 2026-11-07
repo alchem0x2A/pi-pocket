@@ -39,6 +39,8 @@ test("Emacs uses the existing socket with literal Lisp data, no shell, daemon st
         assert.match(calls[0]![4]!, /frame-parameter f 'tty/);
         assert.match(calls[0]![4]!, /selected-frame/);
         assert.doesNotMatch(calls[0]![4]!, /visible-frame-list/);
+        // A tty frame only redrew itself while selected, so the form forces a redisplay in it.
+        assert.match(calls[0]![4]!, /redisplay t/);
         assert.doesNotMatch(calls[0]!.join(" "), /--create-frame|--daemon/);
         assert.equal(lispString('a"b\\c'), '"a\\"b\\\\c"');
     } finally {
