@@ -307,6 +307,26 @@ export default function createInkBoard(
         }),
         execute: (args, api, context) => call("ink_open", args, api, context),
     });
+    const region = Type.Object(
+        {
+            x: Type.Number(),
+            y: Type.Number(),
+            w: Type.Number({ exclusiveMinimum: 0 }),
+            h: Type.Number({ exclusiveMinimum: 0 }),
+        },
+        { additionalProperties: false },
+    );
+    const render = Type.Object(
+        {
+            pageId: Type.Optional(Type.String()),
+            frameId: Type.Optional(Type.String()),
+            shapeIds: Type.Optional(Type.Array(Type.String(), { minItems: 1, maxItems: 1000 })),
+            region: Type.Optional(region),
+            padding: Type.Optional(Type.Number({ minimum: 0, maximum: 500 })),
+        },
+        { additionalProperties: false },
+    );
+    const properties = Type.Record(Type.String(), Type.Unknown());
     const read = defineTool({
         name: "ink_read",
         description:
@@ -329,9 +349,85 @@ export default function createInkBoard(
                         "A cropped close-up of each pen group, default false; request it only when the handwriting is unreadable in the page images",
                 }),
             ),
+            scene: Type.Optional(
+                Type.Boolean({
+                    description: "Include saved scene geometry, hierarchy and revision",
+                }),
+            ),
+            render: Type.Optional(render),
         }),
         replay: "safe",
         execute: (args, api, context) => call("ink_read", args, api, context),
+    });
+    const edit = defineTool({
+        name: "ink_edit",
+        description:
+            "Atomically edit unlocked board shapes at an expected revision. Re-read on conflict. Open tabs must reload before further edits.",
+        parameters: Type.Object(
+            {
+                board: Type.String(),
+                expectedRevision: Type.Integer({ minimum: 0 }),
+                operations: Type.Array(
+                    Type.Union([
+                        Type.Object(
+                            {
+                                op: Type.Literal("create"),
+                                shape: Type.Object(
+                                    {
+                                        type: Type.Union([
+                                            Type.Literal("geo"),
+                                            Type.Literal("draw"),
+                                            Type.Literal("frame"),
+                                            Type.Literal("ink-vector"),
+                                        ]),
+                                        parentId: Type.String(),
+                                        x: Type.Number(),
+                                        y: Type.Number(),
+                                        rotation: Type.Optional(Type.Number()),
+                                        props: Type.Optional(properties),
+                                    },
+                                    { additionalProperties: false },
+                                ),
+                            },
+                            { additionalProperties: false },
+                        ),
+                        Type.Object(
+                            {
+                                op: Type.Literal("update"),
+                                id: Type.String(),
+                                x: Type.Optional(Type.Number()),
+                                y: Type.Optional(Type.Number()),
+                                rotation: Type.Optional(Type.Number()),
+                                props: Type.Optional(properties),
+                            },
+                            { additionalProperties: false },
+                        ),
+                        Type.Object(
+                            { op: Type.Literal("delete"), id: Type.String() },
+                            { additionalProperties: false },
+                        ),
+                    ]),
+                    { minItems: 1, maxItems: 100 },
+                ),
+            },
+            { additionalProperties: false },
+        ),
+        execute: (args, api, context) => call("ink_edit", args, api, context),
+    });
+    const exportTool = defineTool({
+        name: "ink_export",
+        description: "Export a frame or selected shapes to SVG with the tldraw renderer.",
+        parameters: Type.Object(
+            {
+                board: Type.String(),
+                frameId: Type.Optional(Type.String()),
+                shapeIds: Type.Optional(Type.Array(Type.String(), { minItems: 1, maxItems: 1000 })),
+                padding: Type.Optional(Type.Number({ minimum: 0, maximum: 500 })),
+            },
+            { additionalProperties: false },
+        ),
+        replay: "safe",
+        execute: (args, api, context) => call("ink_export", args, api, context),
     });
     const comment = defineTool({
         name: "ink_comment",
@@ -369,6 +465,7 @@ export default function createInkBoard(
     const prompt = section(
         "ink_board",
         () =>
+            "The owner and agent can edit the same unlocked shapes on an ink board. For drawing work, call `ink_read` with `scene: true`, then render the frame, selection, or region and inspect the image. Use `ink_edit` with the saved revision to edit the same objects. On a conflict, re-read before trying again. Open browser tabs must save any local work and reload after an agent edit. Export the approved frame or shape IDs with `ink_export`. `ink-vector` uses path props `w`, `h`, `viewW`, `viewH`, `d`, `fill`, `stroke`, and `strokeWidth`; its colors accept hex and `none`. Native `geo` and `draw` use the tldraw palette, not hex. Read the Ink Board README for the protocol and limitations. Handwriting and typed comments are optional ways to communicate. Resolve public board links through port/service discovery, not a hardcoded hostname. " +
             "The owner can mark up visual output (PDF, SVG, images, web pages) with a pen on an ink board. " +
             "When the owner wants to review or mark up such output, offer `ink_open` and give the link. " +
             "When the owner says the marks are done, call `ink_read`, look at the page images (each marked page, split into parts when large), act on all groups in one pass, then call `ink_resolve` for each with a short reply; request per-group crops only when the handwriting is unreadable in the page images. " +
@@ -380,7 +477,7 @@ export default function createInkBoard(
 
     return defineExtension({
         name: "ink-board",
-        tools: [open, read, comment, resolveTool, closeTool],
+        tools: [open, read, edit, exportTool, comment, resolveTool, closeTool],
         sections: [prompt],
     });
 }

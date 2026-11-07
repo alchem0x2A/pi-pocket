@@ -157,6 +157,13 @@ export const BUILT_IN_TOOLS: ReadonlySet<string> = new Set([
     "design_preview",
     "design_export",
     "design_system",
+    "ink_open",
+    "ink_read",
+    "ink_edit",
+    "ink_export",
+    "ink_comment",
+    "ink_resolve",
+    "ink_close",
 ]);
 
 /** Pia's own modules, or the owner's from the drop-in folder. */
