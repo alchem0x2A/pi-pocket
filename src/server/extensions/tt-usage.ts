@@ -8,11 +8,12 @@
  */
 import { Type } from "@earendil-works/pi-ai";
 import { defineExtension, defineTool, GenerationTask, hook } from "@earendil-works/pi-durable";
-import { execFile, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionWeb as Web, PocketHost as Host } from "../host.ts";
+import { localZoneTime, usageResets, type UsageReset } from "./tt-usage-helpers.ts";
 
 export const pocketApi = 2;
 
@@ -202,6 +203,7 @@ type Report = {
     detail?: string;
     session?: Window;
     weekly?: Window;
+    resets?: UsageReset[];
     plan?: string;
     extras?: Record<string, unknown>;
     /** The limit gate's open gate for this provider, from `provider-limits.json`. */
@@ -251,16 +253,7 @@ function toMs(value: unknown): number | undefined {
 }
 
 function local(ms: number): string {
-    // The system's time data is newer than Node's bundled copy (Alberta changed its rules in 2026), so ask `date`.
-    try {
-        return execFileSync("date", ["-d", `@${Math.floor(ms / 1000)}`, "+%b %-d, %H:%M %Z"], {
-            env: { ...process.env, TZ: ZONE },
-            encoding: "utf8",
-            timeout: 2000,
-        }).trim();
-    } catch {
-        return `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
-    }
+    return localZoneTime(ms, ZONE);
 }
 
 function span(ms: number): string {
@@ -282,10 +275,11 @@ function windowOf(percent: unknown, reset: unknown, now: number): Window | undef
         return undefined;
     }
 
-    const at = toMs(reset);
+    const rounded = Math.round(number * 10) / 10;
+    const at = rounded > 0 ? toMs(reset) : undefined;
 
     return {
-        percent: Math.round(number * 10) / 10,
+        percent: rounded,
         ...(at === undefined
             ? {}
             : { resetsAt: at, resetsAtLocal: local(at), resetsIn: span(at - now) }),
@@ -651,6 +645,8 @@ export default function createUsage(host: Host, web: Web) {
             state = "blocked";
         }
 
+        const resets = usageResets(session, weekly);
+
         return {
             ...base,
             verdict,
@@ -659,6 +655,7 @@ export default function createUsage(host: Host, web: Web) {
             detail: reason,
             ...(session ? { session } : {}),
             ...(weekly ? { weekly } : {}),
+            ...(resets.length > 0 ? { resets } : {}),
             ...(typeof plan === "string" && plan !== "" ? { plan } : {}),
             ...(Object.keys(extras).length > 0 ? { extras } : {}),
             ...(gate ? { gate } : {}),
@@ -861,17 +858,22 @@ export default function createUsage(host: Host, web: Web) {
     function describe(reports: Report[]): string {
         const lines = reports.map((report) => {
             const parts = [`${report.label}: ${report.reason}`];
+            const resets = new Map((report.resets ?? []).map((reset) => [reset.label, reset]));
+
+            const resetText = (label: "5h" | "wk") => {
+                const reset = resets.get(label);
+
+                return reset === undefined
+                    ? ""
+                    : `, resets ${reset.resetsAtLocal}${reset.resetsIn ? ` (in ${reset.resetsIn})` : ""}`;
+            };
 
             if (report.session) {
-                parts.push(
-                    `  5-hour window: ${report.session.percent}%${report.session.resetsAtLocal ? `, resets ${report.session.resetsAtLocal} (in ${report.session.resetsIn})` : ""}`,
-                );
+                parts.push(`  5-hour window: ${report.session.percent}% used${resetText("5h")}`);
             }
 
             if (report.weekly) {
-                parts.push(
-                    `  weekly window: ${report.weekly.percent}%${report.weekly.resetsAtLocal ? `, resets ${report.weekly.resetsAtLocal} (in ${report.weekly.resetsIn})` : ""}`,
-                );
+                parts.push(`  weekly window: ${report.weekly.percent}% used${resetText("wk")}`);
             }
 
             if (report.plan) {
@@ -927,7 +929,7 @@ export default function createUsage(host: Host, web: Web) {
         defineTool({
             name: "provider_usage",
             description:
-                "Remaining usage of each provider account (Codex, OpenAI, Claude org, Claude personal): the 5-hour and weekly percent, reset times in America/Edmonton, and a verdict (ok, near-limit, blocked, unknown). Read only; uses a cache.",
+                "Remaining usage of each provider account (Codex, OpenAI, Claude org, Claude personal): the 5-hour and weekly percent used, with labeled reset times for used windows only, and a verdict (ok, near-limit, blocked, unknown). Read only; uses a cache.",
             parameters: Type.Object({
                 provider,
                 refresh: Type.Optional(Type.Boolean({ description: "Skip the cache" })),
@@ -958,6 +960,7 @@ export default function createUsage(host: Host, web: Web) {
                                     verdict: r.verdict,
                                     session: r.session,
                                     weekly: r.weekly,
+                                    resets: r.resets,
                                 })),
                             ),
                         },

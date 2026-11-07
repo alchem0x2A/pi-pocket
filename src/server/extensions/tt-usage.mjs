@@ -21,8 +21,6 @@ const least = (report) => {
     return values.length ? Math.min(...values) : null;
 };
 
-const clock = (window) => (window && window.resetsAtLocal ? window.resetsAtLocal : "");
-
 export default function setup(pocket) {
     const { html, useEffect, useState, Loader } = pocket;
     let latest = null;
@@ -109,6 +107,9 @@ export default function setup(pocket) {
         return html`<div class="tt-usage-peek" style="padding:8px">
             ${data.reports.map((report) => {
                 const remaining = least(report);
+                const resets = (report.resets ?? [])
+                    .map((reset) => `${reset.label} resets ${reset.resetsAtLocal}`)
+                    .join(" · ");
 
                 return html`<div class="setting" style="display:block">
                     <div>
@@ -131,9 +132,7 @@ export default function setup(pocket) {
                                       ${remaining}%
                                       left${report.session ? ` · 5h ${left(report.session)}%` : ""}${report.weekly ? ` · wk ${left(report.weekly)}%` : ""}
                                   </div>
-                                  <div class="small muted">
-                                      resets ${clock(report.session) || clock(report.weekly)}
-                                  </div>`
+                                  ${resets ? html`<div class="small muted">${resets}</div>` : ""}`
                     }
                     ${
                         report.gate
