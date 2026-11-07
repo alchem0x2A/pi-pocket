@@ -454,7 +454,7 @@ test(
             "the other mode",
         );
         await see(
-            `return JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--o-accent").trim() === (document.documentElement.dataset.mode === "light" ? "#a7576e" : "#f97c9e"))`,
+            `return JSON.stringify(getComputedStyle(document.documentElement).getPropertyValue("--o-accent").trim() === (document.documentElement.dataset.mode === "light" ? "#8754a0" : "#d3b1f0"))`,
             "the Rosé Pine accent of the mode",
         );
         await page.evaluate(`
