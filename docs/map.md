@@ -261,10 +261,10 @@ The inline Pia contour in `web/ui.js` keeps the approved ribbon geometry, but sc
 rsvg-convert -w 180 -h 180 web/icon.svg -o web/apple-touch-icon.png
 rsvg-convert -w 192 -h 192 web/icon.svg -o web/icon-192.png
 rsvg-convert -w 512 -h 512 web/icon.svg -o web/icon-512.png
-rsvg-convert -w 352 -h 352 --page-width 512 --page-height 512 --left 80 --top 80 -b "#13141c" web/icon.svg -o web/icon-maskable-512.png
+rsvg-convert -w 352 -h 352 --page-width 512 --page-height 512 --left 80 --top 80 -b "#1b1725" web/icon.svg -o web/icon-maskable-512.png
 ```
 
-The maskable icon places the 352 × 352 artwork on a 512 × 512 page with 80-pixel margins and a `#13141c` background. Keep these commands outside the SVG: XML comments cannot contain `--`. The icon test in `test/mobile-ui.test.ts` checks that the served SVG decodes as an image.
+The maskable icon places the 352 × 352 artwork on a 512 × 512 page with 80-pixel margins and a `#1b1725` background. Keep these commands outside the SVG: XML comments cannot contain `--`. The icon test in `test/mobile-ui.test.ts` checks that the served SVG decodes as an image.
 
 ## How a message travels
 
