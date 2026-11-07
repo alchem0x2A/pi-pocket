@@ -5631,8 +5631,6 @@ button.session-chip {
     place-items: center;
     border-radius: 24px;
     color: var(--brand);
-    background: color-mix(in srgb, var(--accent) 9%, var(--bg));
-    box-shadow: 0 14px 36px color-mix(in srgb, var(--accent) 18%, transparent);
     user-select: none;
     animation: popin 0.6s var(--ease-out) backwards;
 }
@@ -5679,25 +5677,6 @@ button.session-chip {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.fetch-colors {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
-}
-
-.fetch-colors span {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--r-tag);
-    transition: transform var(--t-in) var(--ease-out);
-}
-
-@media (hover: hover) {
-    .fetch-colors span:hover {
-        transform: translateY(-3px);
-    }
 }
 
 /* New session, the launcher, and Appearance: 38px buttons, set in full here. */

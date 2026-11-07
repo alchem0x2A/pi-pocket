@@ -160,8 +160,6 @@ export const PARTS = [
     "home-facts",
     "home-title",
     "home-fact",
-    "home-colors",
-    "home-color",
     "home-actions",
     "home-heading",
     "home-recent",

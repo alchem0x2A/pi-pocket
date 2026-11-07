@@ -73,16 +73,6 @@ export function Splash() {
         ],
         ["you", `${me?.name ?? "?"} (${me?.role ?? "?"})`],
     ];
-    const colors = [
-        "--o-red",
-        "--o-yellow",
-        "--o-green",
-        "--o-cyan",
-        "--o-blue",
-        "--o-magenta",
-        "--o-accent",
-        "--o-fg",
-    ];
     const canStart = canSteer() && !scoped();
     let line = 0;
 
@@ -105,12 +95,6 @@ export function Splash() {
                         <dd>${value}</dd>
                     </dl>`,
                 )}
-                <div class="fetch-colors" data-part="home-colors" style=${`--i:${line++}`}>
-                    ${colors.map(
-                        (name) =>
-                            html`<span data-part="home-color" style=${`background:var(${name})`}></span>`,
-                    )}
-                </div>
             </div>
         </div>
         <div class="splash-actions" data-part="home-actions">
