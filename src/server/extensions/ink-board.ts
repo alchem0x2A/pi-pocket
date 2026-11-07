@@ -329,6 +329,11 @@ export default function createInkBoard(
                         "A cropped close-up of each pen group, default false; request it only when the handwriting is unreadable in the page images",
                 }),
             ),
+            scene: Type.Optional(
+                Type.Boolean({
+                    description: "Include the saved tldraw scene records and revision",
+                }),
+            ),
         }),
         replay: "safe",
         execute: (args, api, context) => call("ink_read", args, api, context),
