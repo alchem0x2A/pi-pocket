@@ -1,7 +1,7 @@
 // Pia's service worker. It shows push notifications (the agent finished, an approval, a chat message), answers an
 // approval from its notification, opens the right session when one is tapped, and hands things shared to Pia
 // from other apps to the page. Only the fixed offline capture shell is cached.
-const OFFLINE_CACHE = "pocket-offline-shell-v5";
+const OFFLINE_CACHE = "pocket-offline-shell-v6";
 const OFFLINE_ASSETS = ["/offline.html", "/offline.js", "/offline.css", "/quick-notes.js"];
 
 self.addEventListener("install", (event) => {
