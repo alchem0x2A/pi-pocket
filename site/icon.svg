@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
     <style>
-        .background { fill: #191724; }
-        .body { fill: #e085f4; }
-        .fold { fill: #ae3ec9; }
+        .background { fill: #1b1725; }
+        .body { fill: #c47dd6; }
+        .fold { fill: #8a3b9e; }
         @media (prefers-color-scheme: light) {
-            .background { fill: #faf4ed; }
-            .body { fill: #a847c0; }
-            .fold { fill: #7a2d8f; }
+            .background { fill: #fbf8fe; }
+            .body { fill: #a24eb5; }
+            .fold { fill: #6f2f80; }
         }
     </style>
     <rect class="background" width="512" height="512" rx="112" />
