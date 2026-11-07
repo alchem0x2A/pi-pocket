@@ -11800,8 +11800,54 @@ textarea.notes {
 }
 
 .file-tools .icon-button {
-    width: 32px;
-    height: 32px;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.file-tools,
+.lightbox-bar {
+    flex-wrap: wrap;
+}
+
+.file-tools .file-path {
+    flex-basis: 140px;
+}
+
+.lightbox-bar .file-transfer {
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.file-action-error {
+    flex: 1 0 100%;
+    color: var(--err);
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.file-transfer:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+/* Phones: the path gets its own row, and the actions stay on one row at the right, inside the screen. */
+@media (max-width: 600px) {
+    .file-tools .file-path {
+        flex-basis: 100%;
+    }
+    .file-tools .file-path + * {
+        margin-left: auto;
+    }
+    .file-tools {
+        row-gap: 0.25rem;
+    }
+}
+
+.file-tools,
+.lightbox-bar {
+    max-width: 100%;
+    min-width: 0;
 }
 
 /* ─── Browser ──────────────────────────────────────────────── */

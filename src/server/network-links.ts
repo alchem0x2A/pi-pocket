@@ -267,6 +267,13 @@ async function tailscaleServices(
     return found;
 }
 
+/** Resolve an existing HTTPS Serve route by its local backend port. Never change Tailscale settings. */
+export async function tailnetServiceUrl(backendPort: number): Promise<string | undefined> {
+    return (await tailscaleServices([])).find(
+        (service) => service.backendPort === backendPort && service.link.secure,
+    )?.link.url;
+}
+
 /** Find Tailscale Serve links first, then other reachable local-network and tailnet HTTP pages. */
 export async function networkServices(exclude: readonly number[] = [], options: Options = {}) {
     const hosts = options.hosts ?? linkHosts();
