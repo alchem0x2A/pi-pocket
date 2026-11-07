@@ -60,10 +60,8 @@ export const PIA_EXTENSION = "pocket-pip";
 export const PIA_NAME = "Pia";
 /** How reports from followed sessions start, so Pia knows what they are. */
 export const REPORT_HEAD = "[report] ";
-/** Sessions Pia may start in an hour, so a confused loop cannot fill the list. */
-const STARTS_PER_HOUR = 20;
 /**
- * Messages, follows, and schedules Pia may make in an hour. Reports start Pia's runs with nobody watching: this keeps
+ * Session starts, messages, follows, and schedules Pia may make in an hour. Reports start Pia's runs with nobody watching: this keeps
  * a loop (follow, report, follow; or Pia and a session messaging each other) from spending without end.
  */
 const ACTIONS_PER_HOUR = 60;
@@ -444,16 +442,14 @@ export class Pia {
     }
 
     /** Count one more of Pia's actions of a kind, or refuse when it made `max` in the last hour. */
-    #count(user: User, kind: "start" | "act", max: number): void {
+    #count(user: User, kind: "act", max: number): void {
         const key = `${user.id}:${kind}`;
         const now = Date.now();
         const recent = (this.#recent.get(key) ?? []).filter((at) => now - at < 3_600_000);
 
         if (recent.length >= max) {
             throw new Error(
-                kind === "start"
-                    ? `You started ${String(max)} sessions in the last hour; wait, or ask the person to start more themselves.`
-                    : `You made ${String(max)} messages, follows, schedules, and watches in the last hour; wait before making more.`,
+                `You made ${String(max)} session starts, messages, follows, schedules, and watches in the last hour; wait before making more.`,
             );
         }
 
@@ -856,7 +852,7 @@ export class Pia {
             throw new Error("Give a folder or a repository, not both.");
         }
 
-        this.#count(user, "start", STARTS_PER_HOUR);
+        this.#count(user, "act", ACTIONS_PER_HOUR);
         const folder =
             request.repo === undefined ? request.folder : await this.checkout(piaId, request.repo);
         const { id } = await app.commands.createSession(
