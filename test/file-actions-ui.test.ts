@@ -152,6 +152,32 @@ test(
         await waitFor('[aria-label="Download original file"]');
         await waitFor('[aria-label="Open in Emacs"]');
         await screenshot("desktop-linked-text");
+        // The GNU Emacs glyph from Simple Icons is a filled path in Emacs purple, at a thumb-sized target.
+        const glyph = await inPage<{
+            fill: string;
+            stroke: string;
+            box: number[];
+            size: number[];
+            d: string;
+        }>(`
+            const button = document.querySelector('[aria-label="Open in Emacs"]');
+            const svg = button.querySelector('svg.emacs-glyph');
+            // Layout sizes, not transformed boxes: a sheet scales a little while it opens.
+            const box = { width: button.offsetWidth, height: button.offsetHeight };
+            const size = { width: svg.width.baseVal.value, height: svg.height.baseVal.value };
+            return JSON.stringify({ fill: getComputedStyle(svg.querySelector('path')).fill,
+                stroke: getComputedStyle(svg.querySelector('path')).stroke,
+                box: [box.width, box.height], size: [size.width, size.height],
+                d: svg.querySelector('path').getAttribute('d') });
+        `);
+
+        assert.equal(glyph.fill, "rgb(127, 90, 182)");
+        assert.equal(glyph.stroke, "none");
+        assert.deepEqual(glyph.box, [40, 40]);
+        assert.deepEqual(glyph.size, [20, 20]);
+        assert.equal(glyph.d.length, 1299);
+        assert.ok(glyph.d.startsWith("M12,24C5.448,24,0.118,18.617,0.118,12S5.448,0,12,0"));
+        assert.ok(glyph.d.endsWith("C11.448,19.438,8.047,20.193,8.03,20.197z"));
         assert.equal(
             await inPage<number>(
                 "return JSON.stringify(fileActionRequests.filter(url => /download|emacs/.test(url)).length);",
