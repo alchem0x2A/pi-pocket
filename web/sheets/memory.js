@@ -278,7 +278,6 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opene
         });
     const approving = data.owner && (lesson.pending || lesson.proposal);
     const withdrawing = !data.owner && lesson.proposal?.mine;
-    const canPin = !pendingOnly && data.canWrite && !lesson.pending;
 
     if (draft !== null) {
         const save = () =>
@@ -318,7 +317,6 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opene
             onClick=${() => setOpen(!open)}
         >
             <span class="note-title">${noteTitle(lesson)}</span>
-            ${lesson.pinned && html`<span class="note-tag">pinned here</span>`}
             ${lesson.purpose && html`<span class="note-tag">model choice</span>`}
             <${Icon} name="chevron" size=${16} class=${`note-chevron ${open ? "open" : ""}`} />
         </button>
@@ -358,7 +356,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opene
         <div class="lesson-foot">
             <${Source} lesson=${lesson} />
             ${
-                (lesson.mine || approving || withdrawing || canPin) &&
+                (lesson.mine || approving || withdrawing) &&
                 html`<div class="row lesson-actions">
                     ${
                         approving &&
@@ -378,23 +376,6 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opene
                         (approving || withdrawing) &&
                         html`<button class="button small ghost" onClick=${() => act("/discard")}>
                             ${approving ? "Discard" : "Withdraw"}
-                        </button>`
-                    }
-                    ${
-                        canPin &&
-                        html`<button
-                            class="button small ghost"
-                            title=${lesson.pinned ? "Stop sending it with every request here" : "Send it with every request in this session"}
-                            onClick=${() =>
-                                act(
-                                    lesson.pinned ? "/unpin" : "/pin",
-                                    {},
-                                    lesson.pinned
-                                        ? "Unpinned from this session."
-                                        : "Pinned: every request in this session has it.",
-                                )}
-                        >
-                            ${lesson.pinned ? "Unpin" : "Pin here"}
                         </button>`
                     }
                     ${
@@ -606,7 +587,7 @@ export function MemorySheet({
             html`<p class="muted small">Memory is off in Extensions. You can still edit its saved notes here.</p>`
         }
         <p class="muted small">
-            Notes the agent can search and read across sessions: facts about this machine, how to build and test, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> can be found in every session in it, worktrees too; the rest everywhere.` : `${assistantName()} finds notes for everywhere.`} No note is in the agent's prompt unless a session pins it. The agent proposes notes, and the owner approves them; yours count at once.
+            Notes the agent can search and read across sessions: facts about this machine, how to build and test, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> can be found in every session in it, worktrees too; the rest everywhere.` : `${assistantName()} finds notes for everywhere.`} No note is in the agent's prompt: it searches and reads them, and keeps the ones it read through a compaction. The agent proposes notes, and the owner approves them; yours count at once.
         </p>
         <div class="note-tools">
             <label class="search note-search">

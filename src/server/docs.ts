@@ -669,7 +669,7 @@ export type Lesson = {
 
 /**
  * Memory: the notes (once called lessons) people and the agent keep across sessions, by id, for one project or everywhere.
- * The agent searches and reads those that apply (`extensions/memory.ts`); only the ones a session pinned are in its prompt.
+ * The agent searches and reads those that apply (`extensions/memory.ts`); no note is in its prompt.
  */
 export const MemoryDoc = defineDoc<{ items: Record<string, Lesson> }>({
     kind: "pocket.memory",
@@ -679,14 +679,13 @@ export const MemoryDoc = defineDoc<{ items: Record<string, Lesson> }>({
     initial: () => ({ items: {} }),
 });
 
-/** A note a conversation keeps in its prompt: who pinned it, when, and why. */
-export type NotePin = { at: number; byPi: boolean; by?: string; reason?: string };
-
 /**
- * The notes a conversation pinned, by note id (`memory.ts`). Each request gets the latest approved text of each, so a pin
- * lasts through compaction, a restart, and a model change. A branch keeps the pins it had.
+ * Retired: the notes a conversation pinned into its prompt, by note id, from before pins were removed. Keep the stored kind
+ * defined for existing records; current code does not read or write this document, and old pins are ignored.
  */
-export const NotePinsDoc = defineDoc<{ items: Record<string, NotePin> }>({
+export const NotePinsDoc = defineDoc<{
+    items: Record<string, { at: number; byPi: boolean; by?: string; reason?: string }>;
+}>({
     kind: "pocket.note-pins",
     version: 1,
     ...rebased,

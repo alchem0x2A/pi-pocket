@@ -499,10 +499,11 @@ export interface PocketHost {
     readonly repoWatches: Pick<RepoWatches, "task">;
     /**
      * Notes the agent keeps across sessions (`memory.ts`): the memory tool proposes them, `note_search` and `note_load`
-     * find and read them, and the section lists only the pinned ones. A server started before notes has only the first five.
+     * find and read them, and the notes a session read before a compaction come back after it. A server started before notes
+     * has only the first five.
      */
     readonly memory: Pick<Memory, "project" | "applying" | "inForce" | "add" | "change"> &
-        Partial<Pick<Memory, "search" | "read" | "pinned" | "pin" | "findable">>;
+        Partial<Pick<Memory, "search" | "read" | "readBeforeCompaction" | "findable">>;
     /**
      * Text from elsewhere made safe for the agent to read (`fence.ts`): `quoted` gives one line, cut to `max`, without
      * invisible characters or any tag, in quotes it cannot close; `defang` keeps the lines, but no closing tag survives,

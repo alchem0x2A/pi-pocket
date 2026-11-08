@@ -2,9 +2,9 @@
  * Memory: notes (once called lessons) that people and the agent keep across sessions, each for one project or for
  * everywhere, and linked to the session it came from. A note has an optional title and a Markdown body. A project is a
  * git repository with all its worktrees (they share one git folder), or a folder outside any repository. The agent
- * proposes notes with its memory tool, searches and reads them with `note_search` and `note_load`, and pins the ones a
- * session needs: only pinned notes are in its system prompt (`extensions/memory.ts`). People see, add, change, search,
- * and remove them in the Memory sheet.
+ * proposes notes with its memory tool, and searches and reads them with `note_search` and `note_load`: no note is in its
+ * system prompt. The notes a session read before a compaction come back with the summary (`extensions/memory.ts`).
+ * People see, add, change, search, and remove them in the Memory sheet.
  *
  * A note added or changed for someone who is not the owner waits for the owner's approval before the agent can find it: a
  * guest could otherwise write instructions into every later session.
@@ -14,11 +14,16 @@ import { realpath } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { ConversationId, Tx } from "@earendil-works/pi-durable";
+import {
+    CompactionEntry,
+    type ConversationId,
+    ResetEntry,
+    type Tx,
+} from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import { addActivity } from "./collab.ts";
 import type { User } from "./config.ts";
-import { assistantOwner, ChatDoc, type Lesson, MemoryDoc, NotePinsDoc } from "./docs.ts";
+import { assistantOwner, ChatDoc, type Lesson, MemoryDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
 import { defang, INVISIBLE_CLASS } from "./fence.ts";
 import { git } from "./git.ts";
@@ -35,9 +40,6 @@ export const MAX_TITLE = 120;
 /** Notes a project keeps, and notes for everywhere, approved ones: pending ones do not take their room. */
 export const MAX_PROJECT_LESSONS = 200;
 export const MAX_EVERYWHERE_LESSONS = 200;
-/** Notes one conversation may pin, and their total size: a pin goes into every request. */
-export const MAX_PINS = 10;
-export const MAX_PINNED = 16_000;
 /** Results `note_search` gives by default, and at most. */
 export const SEARCH_RESULTS = 8;
 export const MAX_SEARCH_RESULTS = 20;
@@ -78,8 +80,6 @@ export type LessonView = {
     /** Set when Pia reads it before it picks a model, with the owner's thinking rule. */
     purpose?: typeof MODEL_CHOICE;
     modelRule?: ModelRule;
-    /** Pinned in the conversation the view is for. */
-    pinned: boolean;
     scope: LessonScope;
     /** The lesson's project label in the owner's all-project pending queue. */
     projectName?: string;
@@ -730,7 +730,7 @@ export class Memory {
         }, context);
     }
 
-    // ─── Search, read, and pins ────────────────────────────────────────────
+    // ─── Search and read ──────────────────────────────────────────────
 
     /** The approved notes a conversation may find: its project's and everywhere's (Pia: everywhere's). */
     async findable(conversationId: ConversationId, cwd: string | undefined): Promise<Lesson[]> {
@@ -848,141 +848,65 @@ export class Memory {
         return { found, missing };
     }
 
-    async #pins(conversationId: ConversationId) {
-        return (
-            (await this.#app.harness.snapshot(NotePinsDoc, conversationId, context))?.items ?? {}
-        );
-    }
-
     /**
-     * The notes a conversation pinned that it may still find, in the order it pinned them, with their latest approved text.
-     * A note forgotten, waiting again, or out of the project drops out; its pin stays, and comes back with it.
+     * The notes a conversation read with `note_load` before its context's latest compaction, by id, oldest read first: from
+     * the tool results that the summary replaced, back to the start of the context (a reset). `summary` is the summary
+     * message's text; both are empty when the context starts with no compaction.
      */
-    async pinned(conversationId: ConversationId, cwd: string | undefined): Promise<Lesson[]> {
-        const pins = await this.#pins(conversationId);
-        const ids = Object.keys(pins).sort(
-            (a, b) => pins[a]!.at - pins[b]!.at || a.localeCompare(b),
-        );
+    async readBeforeCompaction(
+        conversationId: ConversationId,
+    ): Promise<{ summary: string; ids: string[] }> {
+        const conversation = await this.#app.conversation(conversationId);
+        const head = (await conversation.context(context)).head;
 
-        if (ids.length === 0) {
-            return [];
+        if (head?.kind !== CompactionEntry.kind || head.head === undefined) {
+            return { summary: "", ids: [] };
         }
 
-        return (await this.read(conversationId, cwd, ids)).found;
-    }
+        const summary = (head.model ?? [])
+            .flatMap((message) =>
+                message.role === "user" && typeof message.content !== "string"
+                    ? message.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
+                    : message.role === "user"
+                      ? [message.content]
+                      : [],
+            )
+            .join("");
+        const newestFirst: string[] = [];
+        let cursor: Parameters<typeof conversation.entries>[2];
 
-    /**
-     * Pin notes for a conversation, or unpin them. A pin keeps a note's latest approved text in every request, through
-     * compaction, a restart, and a model change. Refused, with nothing pinned, when the pins would pass `MAX_PINS` notes,
-     * `MAX_PINNED` characters, or a tenth of the model's context (`window`, in tokens, at about 4 characters each).
-     */
-    async pin(
-        conversationId: ConversationId,
-        cwd: string | undefined,
-        writer: Writer,
-        ids: string[],
-        pin: boolean,
-        options: { reason?: string; window?: number } = {},
-    ): Promise<{ changed: Lesson[]; missing: string[]; pinned: Lesson[] }> {
-        const app = this.#app;
+        scan: do {
+            const page = await conversation.entries(
+                { maxEntryId: (head.head - 1) as typeof head.head, order: "descending" },
+                200,
+                cursor,
+                context,
+            );
 
-        if (!pin) {
-            const keys = ids.map((id) => id.trim().replace(/^\[|\]$/g, ""));
-            const changed: Lesson[] = [];
+            for (const entry of page.items) {
+                if (entry.kind === ResetEntry.kind) {
+                    break scan;
+                }
 
-            await app.harness.commit(async (tx) => {
-                const doc = await tx.doc(NotePinsDoc, conversationId);
+                for (const message of entry.model ?? []) {
+                    if (message.role !== "toolResult" || message.toolName !== "note_load") {
+                        continue;
+                    }
 
-                for (const key of keys) {
-                    if (Object.hasOwn(doc.items, key)) {
-                        delete doc.items[key];
+                    const text = message.content
+                        .flatMap((part) => (part.type === "text" ? [part.text] : []))
+                        .join("\n");
+
+                    for (const found of [...text.matchAll(/<note id="([^"]+)"/g)].reverse()) {
+                        newestFirst.push(found[1]!);
                     }
                 }
-            }, context);
-
-            for (const note of (await this.read(conversationId, cwd, keys)).found) {
-                changed.push(copy(note));
             }
 
-            return {
-                changed,
-                missing: [],
-                pinned: (await this.pinned(conversationId, cwd)).map(copy),
-            };
-        }
+            cursor = page.next;
+        } while (cursor !== undefined);
 
-        const { found, missing } = await this.read(conversationId, cwd, ids);
-
-        if (found.length === 0) {
-            return {
-                changed: [],
-                missing,
-                pinned: (await this.pinned(conversationId, cwd)).map(copy),
-            };
-        }
-
-        const before = await this.pinned(conversationId, cwd);
-        const after = [...before, ...found.filter((note) => !before.some((b) => b.id === note.id))];
-        const size = after.reduce((sum, note) => sum + note.text.length, 0);
-        const budget = Math.min(
-            MAX_PINNED,
-            options.window === undefined ? MAX_PINNED : Math.floor((options.window * 4) / 10),
-        );
-
-        if (after.length > MAX_PINS) {
-            throw new HttpError(
-                409,
-                `A session pins ${String(MAX_PINS)} notes at most: unpin one first (pinned now: ${before.map((note) => note.id).join(", ")}).`,
-            );
-        }
-
-        if (size > budget) {
-            throw new HttpError(
-                413,
-                `These pins would be ${String(size)} characters; this session's budget is ${String(budget)}. Nothing was pinned: unpin a note, or read this one without pinning it.`,
-            );
-        }
-
-        const reason = options.reason === undefined ? undefined : cutTo(flat(options.reason), 200);
-
-        await app.harness.commit(async (tx) => {
-            const doc = await tx.doc(NotePinsDoc, conversationId);
-
-            // Pinned together, kept in the order asked: each a millisecond after the one before.
-            let at = Math.max(app.now(), ...Object.values(doc.items).map((each) => each.at + 1));
-
-            for (const note of found) {
-                if (!Object.hasOwn(doc.items, note.id)) {
-                    doc.items[note.id] = {
-                        at: at++,
-                        byPi: writer.byPi,
-                        ...(writer.userId === undefined ? {} : { by: writer.userId }),
-                        ...(reason === undefined || reason === "" ? {} : { reason }),
-                    };
-                }
-            }
-        }, context);
-
-        return {
-            changed: found.map(copy),
-            missing,
-            pinned: (await this.pinned(conversationId, cwd)).map(copy),
-        };
-    }
-
-    /** A person pins or unpins a note in a session from the sheet. */
-    async pinFor(id: ConversationId, user: User, lessonId: string, pin: boolean): Promise<void> {
-        const app = this.#app;
-
-        app.requireSee(user, id);
-        app.requireSteer(user);
-        const { missing } = await this.pin(id, app.cwdOf(id), this.#person(user), [lessonId], pin);
-
-        if (missing.length > 0) {
-            throw new HttpError(404, `There is no note ${lessonId} here.`);
-        }
-
-        this.committed();
+        return { summary, ids: [...new Set(newestFirst)].reverse() };
     }
 
     // ─── Model choice ──────────────────────────────────────────────────────
@@ -1093,7 +1017,6 @@ export class Memory {
         app.requireSee(user, id);
         const owner = user.role === "owner";
         const project = pendingOnly ? undefined : await this.project(id, app.cwdOf(id));
-        const pins = pendingOnly ? {} : await this.#pins(id);
         const applying = pendingOnly
             ? ordered(
                   (await this.#all()).filter(
@@ -1120,7 +1043,6 @@ export class Memory {
                     ...(lesson.modelRule === undefined
                         ? {}
                         : { modelRule: structuredClone(lesson.modelRule) }),
-                    pinned: Object.hasOwn(pins, lesson.id),
                     scope: lesson.project === undefined ? "everywhere" : "project",
                     ...(pendingOnly && lesson.projectName !== undefined
                         ? { projectName: lesson.projectName }

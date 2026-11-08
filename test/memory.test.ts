@@ -1,5 +1,5 @@
 // Memory: notes (lessons) the agent saves with its tool can be found by later sessions of the same project (its worktrees
-// too) with note_search, and everywhere's by every session and Pia; none is in the prompt unless a session pins it; a
+// too) with note_search, and everywhere's by every session and Pia; none is in the prompt; a
 // guest's wait for the owner; a call run again saves once; caps; and who may change what through the routes.
 import {
     type App,
@@ -60,10 +60,9 @@ const route: FauxResponseStep = (request) => {
                 stopReason: "toolUse",
             });
         case "load":
-            return fauxAssistantMessage(
-                [fauxToolCall("note_load", { ids: [rest[1] ?? ""], mode: rest[0] ?? "read" })],
-                { stopReason: "toolUse" },
-            );
+            return fauxAssistantMessage([fauxToolCall("note_load", { ids: [rest[0] ?? ""] })], {
+                stopReason: "toolUse",
+            });
 
         case "check": {
             const { messages, systemPrompt } = request as {
@@ -127,13 +126,13 @@ async function answer(id: ConversationId): Promise<string> {
 }
 
 /**
- * Whether a new session in `cwd` finds `word` with note_search. Never in its system prompt: only pinned notes are.
+ * Whether a new session in `cwd` finds `word` with note_search. Never in its system prompt: no note is.
  */
 async function given(cwd: string, word: string): Promise<boolean> {
     const id = await newSession(app, cwd);
 
     await say(app, id, `check ${word}`);
-    assert.equal(await answer(id), `has ${word}: false`, "no note is in the prompt unpinned");
+    assert.equal(await answer(id), `has ${word}: false`, "no note is in the prompt");
     await say(app, id, `find ${word}`);
 
     const found = await answer(id);
@@ -187,16 +186,13 @@ test("the agent saves a lesson only when asked, or when sure it helps many later
         return (await answer(where)) === "has: true";
     };
 
-    assert.ok(await has("only in two cases: a person asks you to save or remember something"));
-    assert.ok(await has("you are sure it will clearly help in many later sessions here"));
-    assert.ok(
-        await has("On your own, never save a one-off fact, a niche detail, a result of this task"),
-    );
-    assert.ok(await has("When unsure, do not save"));
-    // The safety rules stay.
-    assert.ok(await has("Never save secrets"));
-    assert.ok(await has("Use scope everywhere only for a person's general preferences"));
+    assert.ok(await has("Save with the memory tool only when a person asks"));
+    assert.ok(await has("or when a note clearly helps many later sessions"));
+    assert.ok(await has("the owner approves each saved note"));
+    assert.ok(await has("Search them with note_search at the start of a task"));
+    assert.ok(await has("it can be out of date"));
     assert.ok(!(await has("when you learn something that will help later sessions")));
+    assert.ok(!(await has("mode session")), "nothing about pins");
     const id = await newSession(app, elsewhere);
     const memory = (await (await app.conversation(id)).agent(context)).tools.find(
         (each) => each.name === "memory",
@@ -214,7 +210,7 @@ test("the agent saves a lesson only when asked, or when sure it helps many later
         model: { provider: "faux", modelId: "faux-1" },
         thinkingLevel: "off",
     });
-    assert.ok(await has("only in two cases: a person asks you to save or remember something", pia));
+    assert.ok(await has("Save with the memory tool only when a person asks", pia));
 });
 
 test("a lesson the agent saves reaches later sessions in the repository and its worktrees, not other folders", async () => {
@@ -692,6 +688,16 @@ test("the routes: viewers read, guests add (pending) and cannot remove the owner
             [[lesson.id, false]],
         );
         assert.equal((await call(viewer.token, `c/${id}/memory`, { text: "nope" })).status, 403);
+
+        // Pins are gone: the old routes do nothing.
+        for (const gone of ["pin", "unpin"]) {
+            assert.equal(
+                (await call(ownerToken, `c/${id}/memory/${lesson.id}/${gone}`, {})).status,
+                404,
+                `${gone} is not a route`,
+            );
+        }
+
         assert.equal(
             (await call(viewer.token, `c/${id}/memory/${lesson.id}/remove`, {})).status,
             403,
