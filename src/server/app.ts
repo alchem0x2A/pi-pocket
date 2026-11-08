@@ -830,9 +830,13 @@ export class PocketApp {
             thinkingLevels: THINKING_LEVELS,
         };
 
-        // Keep local tool exposure policy separate from the loader and upstream execution environment.
-        const localRegistry = localToolRegistry(registry, await hasRipgrep(), (cwd) =>
-            this.skills(cwd),
+        // Keep local tool exposure policy separate from the loader and upstream execution environment. The view
+        // knows which conversation is the one long-running Pia chat by its stored identity, the same check the prompt
+        // uses; it never decides that from the tools a conversation has.
+        const localRegistry = localToolRegistry(
+            registry,
+            await hasRipgrep(),
+            (conversationId) => this.pia.ownerOf(conversationId) !== undefined,
         );
 
         this.#registry = localRegistry;

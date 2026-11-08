@@ -10,6 +10,7 @@ import {
     defineExtension,
     defineTool,
     section,
+    type ConversationId,
     type Extension,
     type RegistryReader,
     type RegistrySnapshot,
@@ -18,7 +19,6 @@ import {
     type Wrap,
 } from "@earendil-works/pi-durable";
 import { getOrThrow } from "@earendil-works/pi-durable/env";
-import type { Skill } from "@earendil-works/pi-coding-agent";
 import {
     createToolSearchTool,
     type ToolSearchToolDetails,
@@ -68,8 +68,12 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
 };
 const UNKNOWN_DESCRIPTION = "Search for tool details";
 
-/** The lean start prompt (`extensions/prompt.ts`): short schemas for the base tools, every guide on demand. */
-export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT !== "off";
+/**
+ * The lean start prompt (`extensions/prompt.ts`): short schemas for the base tools, every guide on demand. Opt-in:
+ * `PI_POCKET_LEAN_PROMPT=on`; the full prompt is the default. With `PI_POCKET_TOOL_DISCOVERY=off` this whole view is
+ * bypassed, so no combination of the two switches leaves a session without its sections or its search route.
+ */
+export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT === "on";
 /** The lean prompt names no file rules, so edit comes from the start too. */
 const inBase = (name: string) => BASE.has(name) || (isLean() && name === "edit");
 
@@ -108,7 +112,7 @@ const LEAN_DECLARATIONS: Readonly<Record<string, { description: string; paramete
         }),
     },
     tool_search: {
-        description: "Find tools and skills by task or name. Loads nothing.",
+        description: "Find optional tools by task or name. Loads nothing.",
         parameters: Type.Object({ query: Type.String(), limit: Type.Optional(Type.Number()) }),
     },
     tool_load: {
@@ -143,8 +147,7 @@ const LEAN_DECLARATIONS: Readonly<Record<string, { description: string; paramete
 /**
  * The lean model-facing declaration of a base tool. The harness validates a call against the offered declaration,
  * and the original execute still gets the same arguments.
- */
-function leanDeclaration(tool: ToolRegistration): ToolRegistration {
+ */ function leanDeclaration(tool: ToolRegistration): ToolRegistration {
     const lean = LEAN_DECLARATIONS[tool.name];
 
     return lean === undefined
@@ -173,29 +176,31 @@ function shortDescription(tool: CatalogTool): string {
         : UNKNOWN_DESCRIPTION;
 }
 
-/** A Pia chat: it has the session tools, and keeps its full prompt. */
-function isPia(agent: {
-    tools: readonly ToolRegistration[];
-    deferred: readonly ToolRegistration[];
-}) {
-    return [...agent.tools, ...agent.deferred].some((tool) => tool.name === "session_start");
-}
+/**
+ * Whether a conversation is the one long-running Pia chat. It is decided by the stored identity of the conversation
+ * (who its assistant is), never by the tools it happens to have: a tool name is not an identity, and an excluded or
+ * renamed tool must not change the prompt. `prompt.ts` uses the same check.
+ */
+export type PiaIdentity = (conversationId: ConversationId) => boolean;
 
-function availableTools(): PromptSection {
-    return section("available_tools", ({ agent }) => {
-        if (isLean() && !isPia(agent)) {
-            // Names only, of the tools not offered yet: the offered ones carry their own schemas.
-            const offered = new Set(agent.tools.map((tool) => tool.name));
-            const names = [...new Set(agent.deferred.map((tool) => tool.name))]
+function availableTools(isPiaChat: PiaIdentity): PromptSection {
+    return section("available_tools", (input) => {
+        if (isLean() && !isPiaChat(input.conversationId)) {
+            // Names only, of the tools not offered yet: the offered ones carry their own schemas. Skills are not
+            // tools: the prompt's skill index lists them, and tool_search finds no skills.
+            const offered = new Set(input.agent.tools.map((tool) => tool.name));
+            const names = [...new Set(input.agent.deferred.map((tool) => tool.name))]
                 .filter((name) => !offered.has(name))
                 .sort((a, b) => a.localeCompare(b));
 
             return names.length === 0
                 ? undefined
-                : `Load with tool_load when needed: ${names.join(", ")}. tool_search also finds skills.`;
+                : `Load with tool_load when needed: ${names.join(", ")}.`;
         }
 
-        const tools = new Map([...agent.tools, ...agent.deferred].map((tool) => [tool.name, tool]));
+        const tools = new Map(
+            [...input.agent.tools, ...input.agent.deferred].map((tool) => [tool.name, tool]),
+        );
 
         return [...tools.values()]
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -358,37 +363,7 @@ function ripgrepTool(): ToolRegistration {
     );
 }
 
-/** Where tool_search finds skills: the agent's skills for a folder (`PocketHost.skills`). */
-export type SkillSource = (cwd: string) => readonly Skill[];
-
-/** Skills that match every word of a query in their name or description, best first: the name counts more. */
-export function matchSkills(skills: readonly Skill[], query: string, limit: number): Skill[] {
-    const words = query
-        .toLowerCase()
-        .split(/[^a-z0-9]+/)
-        .filter((word) => word.length > 1);
-
-    if (words.length === 0) {
-        return [];
-    }
-
-    const scored = skills
-        .filter((skill) => !skill.disableModelInvocation)
-        .map((skill) => {
-            const name = skill.name.toLowerCase();
-            const text = `${name} ${skill.description.toLowerCase()}`;
-            const hits = words.filter((word) => text.includes(word)).length;
-            const named = words.filter((word) => name.includes(word)).length;
-
-            return { skill, score: hits === 0 ? 0 : hits * 2 + named + (name === query ? 10 : 0) };
-        })
-        .filter((entry) => entry.score > 0)
-        .sort((a, b) => b.score - a.score || a.skill.name.localeCompare(b.skill.name));
-
-    return scored.slice(0, limit).map((entry) => entry.skill);
-}
-
-function discoveryTool(skills: SkillSource | undefined): ToolRegistration {
+function discoveryTool(): ToolRegistration {
     const search = createToolSearchTool();
 
     return Object.assign(
@@ -441,21 +416,8 @@ function discoveryTool(skills: SkillSource | undefined): ToolRegistration {
                         loaded: agent.tools.some((tool) => tool.name === name),
                     };
                 });
-                let found: Skill[] = [];
 
-                if (skills !== undefined) {
-                    try {
-                        found = matchSkills(
-                            skills(agent.cwd ?? api.env?.cwd ?? process.cwd()),
-                            query,
-                            limit,
-                        );
-                    } catch {
-                        // Unreadable skills: tools only.
-                    }
-                }
-
-                const toolText =
+                const text =
                     matches.length === 0
                         ? "No matching tools found."
                         : "Matches (nothing loaded). Use tool_load for selected names:\n" +
@@ -465,24 +427,10 @@ function discoveryTool(skills: SkillSource | undefined): ToolRegistration {
                                       `- ${match.name}${match.loaded ? " (already available)" : ""}: ${match.description}`,
                               )
                               .join("\n");
-                const skillText =
-                    found.length === 0
-                        ? ""
-                        : "\nSkills (read the file when the task matches; resolve its relative paths against its folder):\n" +
-                          found
-                              .map(
-                                  (skill) =>
-                                      `- ${skill.name}: ${skill.description} (${skill.filePath})`,
-                              )
-                              .join("\n");
-                const text =
-                    matches.length === 0 && found.length > 0
-                        ? skillText.slice(1)
-                        : toolText + skillText;
 
                 return {
                     output: [{ type: "text", text }],
-                    details: { matches, skills: found.map((skill) => skill.name) },
+                    details: { matches },
                 };
             },
         }),
@@ -554,7 +502,11 @@ const TASK_FOCUS =
     "Focus on the request this session was given, and finish it; do not start unrelated work.";
 
 /** A synthetic extension exposes local tool discovery. */
-function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[]): Extension {
+function policy(
+    snapshot: RegistrySnapshot,
+    extras: readonly ToolRegistration[],
+    isPiaChat: PiaIdentity,
+): Extension {
     const wraps: Wrap[] = [];
 
     for (const { extension, tool } of snapshot.tools()) {
@@ -588,7 +540,7 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
                 wrap: (original: PromptSection) => ({
                     ...original,
                     render: (...[input, context]: Parameters<PromptSection["render"]>) =>
-                        (leanOnly && isPia(input.agent)) ||
+                        (leanOnly && isPiaChat(input.conversationId)) ||
                         triggers.some((name) =>
                             input.agent.tools.some((tool) => tool.name === name),
                         )
@@ -617,22 +569,16 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
         tools: own,
         wraps,
         sections: [
-            availableTools(),
-            section("tool_discovery", ({ agent }) =>
-                isLean() && !isPia(agent)
+            availableTools(isPiaChat),
+            section("tool_discovery", (input) =>
+                isLean() && !isPiaChat(input.conversationId)
                     ? undefined
                     : "The available_tools catalog lists enabled tools, not loaded schemas. If a tool's purpose is clear, use tool_load with its exact name; already-offered tools need no loading. If unsure, use tool_search with an exact name or keywords for descriptions, then load only the tools needed for this session. Search loads nothing. tool_load supplies authoritative schemas and guides on the next request; they persist in this conversation. Disabled tools cannot be loaded.",
             ),
-            // Task sessions only: the Pia chat, which has the session tools, gets its own prompt from Pia's extension.
-            section("task_focus", (input) => {
-                const all = [...input.agent.tools, ...input.agent.deferred];
-
-                if (all.some((tool) => tool.name === "session_start")) {
-                    return undefined;
-                }
-
-                return TASK_FOCUS;
-            }),
+            // Task sessions only: the Pia chat, known by its stored identity, gets its own prompt from Pia's extension.
+            section("task_focus", (input) =>
+                isPiaChat(input.conversationId) ? undefined : TASK_FOCUS,
+            ),
         ],
     });
 }
@@ -640,11 +586,13 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
 /**
  * A cached read-only view follows loader publications without mutating installed extensions or stored agent choices.
  * `PI_POCKET_TOOL_DISCOVERY=off` turns it off for rollback and tests.
+ * `isPiaChat` says which conversation is the one long-running Pia chat, by its stored identity: the same check
+ * `extensions/prompt.ts` uses.
  */
 export function localToolRegistry(
     registry: RegistryReader,
     ripgrep: boolean,
-    skills?: SkillSource,
+    isPiaChat: PiaIdentity = () => false,
 ): RegistryReader & { changed(): void } {
     // A local rollback switch also lets legacy scripted-model tests keep their fixed, eager tool manifests.
     if (process.env.PI_POCKET_TOOL_DISCOVERY === "off") {
@@ -658,7 +606,7 @@ export function localToolRegistry(
     const extras = [
         directoryTool(),
         ...(ripgrep ? [ripgrepTool()] : []),
-        discoveryTool(skills),
+        discoveryTool(),
         loadTool(),
     ];
     let previous: RegistrySnapshot | undefined;
@@ -688,7 +636,7 @@ export function localToolRegistry(
             const snapshot = registry.snapshot();
 
             if (snapshot !== previous) {
-                const local = policy(snapshot, extras);
+                const local = policy(snapshot, extras, isPiaChat);
 
                 current = {
                     tasks: () => snapshot.tasks(),

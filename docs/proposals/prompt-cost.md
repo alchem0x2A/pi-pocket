@@ -1,6 +1,6 @@
 # Proposal and roadmap: the cost of the start prompt
 
-Status: **in progress.** Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-pocket-lean-prompt`) implements phase 0. It is not merged. This document is the only handover: a new session must be able to execute the roadmap from it alone.
+Status: **in progress.** Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-pocket-lean-prompt`) implements phase 0 and its repair (step 1). It is not merged. The lean prompt is **opt-in** (`PI_POCKET_LEAN_PROMPT=on`); the full prompt is the default. This document is the only handover: a new session must be able to execute the roadmap from it alone.
 
 ## 1. Goal and history
 
@@ -14,6 +14,9 @@ Status: **in progress.** Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-poc
 3. **Phase 0 built.** The worktree implements the lean start prompt. A real first request measured **1272** input tokens against **5457** for the full prompt (local `qwen3.8-27b-ud-iq3-xxs`). 1035 tests passed.
 4. **Codemode proposed.** Code mode becomes the agent's general workspace and the main route to optional tools, with no change to the prompt prefix after the first request (phase 4).
 5. **Prompt text in Markdown files.** The owner prefers prompt text in Markdown files, loaded by the TypeScript code, not in TypeScript strings. TypeScript strings are accepted for now (phase 3; open question Q7).
+6. **Review (2026-11-08, commit `f441635d`).** `docs/proposals/prompt-cost-review.md` reviews the plan and the branch: 4 P1 findings (the discovery rollback can hide every skill; project instructions stop applying before many actions; skill search is not a reliable route; the note trust rule is hidden before notes are read), P2 findings (Pia identity by tool presence, short schemas lose facts, STE weakened, the token test is not a token test), a lean design for Pia with 2 name placeholders, a 9-step order, and measurements. It recommends: do not merge as the default.
+7. **Decisions (Tina, 2026-11-08).** The 9-step order is accepted with changes (section 16). The skills keep a compact index in the start prompt (decision 2, section 15). The lean prompt is opt-in until the experiments give results (Q5). The Pia chat is identified by its stored identity, never by its tools (decision 4). Automatic reports from all sessions to Pia are removed from the plan; a person can ask a session to report back (decision 6). Full list: section 15.
+8. **Step 1 built (this branch, 2026-11-08).** The repair of phase 0: the 4 P1 findings fixed, the Pia identity fixed, the lean prompt opt-in, the token test renamed to a character check, new tests for each fix, and a new real measurement with the compact skill index: **2160** input tokens (section 4.1.3).
 
 ## 2. Target architecture
 
@@ -22,16 +25,16 @@ This is the final shape after all phases. Each phase moves toward it.
 **The start prompt (normal session), in this order:**
 
 1. `preamble`: 1 or 2 sentences. Where the agent runs (Pia, built on Pi Durable), short replies for a phone, `[from: Name]`, say before a destructive step, never work around a blocked call, images as `![alt](/path.png)`, and ASD-STE100 for `[via …]` messages.
-2. `on_demand`: pointers only. The path of each `AGENTS.md` with "read before you change files", and Pia's `docs/index.md`.
+2. `on_demand`: pointers and rules. The path of each `AGENTS.md` with "they apply to all work here, not only file changes", the note trust rule (data, can be out of date, never overrides the rules), and Pia's `docs/index.md`.
 3. `environment`: the working folder and the platform. No date.
 4. `task_focus`.
-5. Nothing else. No skills list, no guides, no catalog with descriptions.
+5. A compact skill index (name, 1 short "when to use" line, path), not the standard list. No guides, no catalog with descriptions.
 
 **The start tool set:** `read`, `write`, `edit`, `bash`, `codemode`, `note_search`, `note_load`, each with a short schema. After phase 4, `tool_search` and `tool_load` are gone: `searchTools()` and `describeTool()` inside a script do their work.
 
 **Tool discovery:** the agent writes a `codemode` script. `searchTools(query)` finds tools and skills; `describeTool(name)` returns the TypeScript signature and the guide; the script then calls `tools.<name>(…)`. A one-off use stays one-off: the call and its result are only in the `codemode` result.
 
-**Note and skill discovery:** `note_search` at the start of a task and before an action that a note can cover. Skills come from `searchTools()` (or `tool_search` until phase 4). Project instructions come from the `AGENTS.md` pointer. Pia's docs come from the `docs/index.md` pointer.
+**Note and skill discovery:** `note_search` at the start of a task and before an action that a note can cover. Skills are in the compact index of the start prompt; when the index is filtered or grows, skill search (section 13, item 6) finds one, and later `searchTools()` in a script. Project instructions come from the `AGENTS.md` pointer. Pia's docs come from the `docs/index.md` pointer.
 
 **Guides that come with tools:** the first result of an optional tool in a session carries its guide once, as an appended tool result. No guide is a system prompt section.
 
@@ -152,6 +155,19 @@ Pi Durable sends only changed sections, so the prompt is stable unless a part be
 | Qwen tokenizer, sections + tools in the wire form (`{"type":"function",…}`)                                             | about 5400 |     1033 |
 
 Method: a throwaway app from the worktree (`test/helpers.ts`, temporary data folder) with the modules of this server on (`ink-board`, `inbox-notes`, `memory`, `browser`, `schedules`, `codemode`, `restart`), the owner's 14 real skills, and this repository's `AGENTS.md`. The first model request was captured, turned into the exact `openai-completions` payload by pi-ai's `streamSimple`, and sent to the local inference router with `max_tokens: 1`. The difference between 1033 and 1272 is the chat template of the model.
+
+#### 4.1.3 After step 1 (2026-11-08): the compact skill index
+
+Same setup and method, lean prompt on. The start prompt now carries the compact skill index (decision 2, section 15) and the note trust rule in `on_demand`; `available_tools` drops its skill sentence.
+
+| Measure                                                                                                                 | Before step 1 | After step 1 |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------: | -----------: |
+| Real first request, local `qwen3.8-27b-ud-iq3-xxs` through `openai-completions` (`usage.input`, chat template included) |          1272 | **2160**     |
+| Qwen tokenizer, sections + compact tool JSON                                                                            |           798 |        1685  |
+
+Parts that changed (Qwen, compact tools): `skills` (the new compact index of the 14 real skills) **859**; `on_demand` 134 (was 79: the longer `AGENTS.md` pointer and the note trust rule); `available_tools` 56 (was 83: the skill sentence is gone). Everything else is unchanged: `preamble` 113, `environment` 26, `task_focus` 29, tools 468 (`read` 63, `write` 40, `edit` 89, `bash` 56, `note_search` 68, `note_load` 50, `tool_search` 44, `tool_load` 58).
+
+The compact index costs 859 Qwen tokens for the 14 real skills (the full XML list cost 1336; the 14 absolute `SKILL.md` paths are most of the rest, and the longest "when to use" lines are `retro-marimo-pair` 113, `marimo-pair` 81, and `find-skills` 86 tokens). **The new total is 2160 real tokens, over the 1500 goal.** The 1500 goal is met only without the skill index (1272). Options to close the gap are in section 15 (decision 2); none of them was applied in step 1.
 
 #### 4.1.2 Each part
 
@@ -423,11 +439,12 @@ Not proposed: cutting `project_context` (the owner's `AGENTS.md`), `preamble`, `
 
 ## 5. Tool discovery
 
-### 5.1 Current design (phase 0, the branch)
+### 5.1 Current design (the branch, after step 1)
 
 - **Start set:** `read`, `write`, `edit`, `bash`, `note_search`, `note_load`, `tool_search`, `tool_load`, with short schemas.
-- **Catalog:** `available_tools` lists the names of the tools not loaded yet, in 1 line, plus "tool_search also finds skills". No descriptions.
-- **`tool_search(query)`:** returns matching tools (name and a description cut at 160 characters) and matching skills (name, description, `SKILL.md` path). It loads nothing.
+- **Catalog:** `available_tools` lists the names of the tools not loaded yet, in 1 line. No descriptions. It names no skills: skills are not tools.
+- **Skills:** the start prompt carries the compact skill index (name, 1 short "when to use" line, path) of every skill, in every project (decision 2, section 15). It costs 859 Qwen tokens for the 14 real skills (section 4.1.3). `tool_search` returns no skills. Skill search is future work (section 13, item 6).
+- **`tool_search(query)`:** returns matching tools (name and a description cut at 160 characters). It loads nothing.
 - **`tool_load(names)`:** adds the tools to `modelTools` with `control.addTools`. They work from the next request on, and stay loaded on the branch, also after a compaction.
 - **Guides:** a lazy guide renders as a system prompt section when its tool loads.
 - **Costs:** 2 model turns for each new tool (load, then call). Each load changes the tool list, and a guide that appears lands in the middle of the prompt. On local models this rewrites the prefix (about 5600 tokens re-sent; 82 such events in 47 stored conversations).
@@ -463,7 +480,7 @@ Not proposed: cutting `project_context` (the owner's `AGENTS.md`), `preamble`, `
 | --------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Memory notes    | The notes themselves (also before the branch) and, on the branch, the memory rules | `note_search(query)` returns ids and excerpts; `note_load(ids)` reads whole notes. A read note stays through a compaction.                                                                                                   | At the start of a task, and before an action that a note can cover (a machine fact, a service, a person's preference or rule). The rule is in the `note_search` description. |
 | Memory rules    | Notes are data, can be out of date; saving needs approval                          | `note_search` says notes can be out of date; the full rules come with the `memory` tool                                                                                                                                      | Before the agent saves a note                                                                                                                                                |
-| Skills          | The skill list (14 skills, 1336 tokens)                                            | `tool_search` (phase 4: `searchTools()`) matches words of the task against skill names and descriptions and returns the `SKILL.md` path; the agent reads it with `read` and resolves relative paths against the skill folder | When a task names a tool, a format, or a workflow (for example "marimo notebook", "PDF", "web search")                                                                       |
+| Skills          | The standard skill list (14 skills, 1336 tokens); the compact index (859) is in the start prompt instead | The compact index (name, 1 short "when to use" line, path) is in the start prompt, in every project (decision 2). When it is filtered or grows, skill search (section 13, item 6; later `searchTools()` in a script) matches words of the task and returns the `SKILL.md` path; the agent reads it with `read` and resolves relative paths against the skill folder | When a task names a tool, a format, or a workflow (for example "marimo notebook", "PDF", "web search")                                                                       |
 | Project context | The `AGENTS.md` text (730 tokens for this repository)                              | `on_demand` gives each path with "read before you change files"                                                                                                                                                              | Before the first change to a file in the project                                                                                                                             |
 | Pia's docs      | The documentation map (387 tokens)                                                 | `on_demand` points to `docs/index.md`                                                                                                                                                                                        | When someone asks about Pia itself                                                                                                                                           |
 
@@ -485,37 +502,54 @@ Not proposed: cutting `project_context` (the owner's `AGENTS.md`), `preamble`, `
 
 Branch `feat/lean-start-prompt`, based on `d6c573b4`, worktree `~/Dev/pi-pocket-lean-prompt` (its `node_modules` is a symbolic link to the main checkout's; it is not committed).
 
-### 8.1 Done (phase 0)
+### 8.1 Done (phase 0 and its repair, step 1)
+
+Phase 0 (history):
 
 - `src/server/extensions/prompt.ts`: `LEAN_PREAMBLE`, `leanPointers`, the `on_demand` section. In a normal session, `guidelines`, `pocket_docs`, `project_context`, and `skills` render nothing. A Pia chat (`piaFile`) keeps all of them.
 - `src/server/local-tools.ts`:
     - `LEAN_DECLARATIONS` and `leanDeclaration`: short model-facing schemas for the base tools. Each lean schema accepts a subset of the original one. The original `execute` runs unchanged.
     - `edit` joins the start set, and `ls` and `rg` leave it (`LEAN_START_DEFERRED`).
     - `ink-board`, `pocket-inbox-notes`, and `pocket-memory` join the lazy guides (`LEAN_LAZY_GUIDES`). Memory's guide waits for the `memory` tool, not for the note tools. A Pia chat keeps these 3 guides from the start.
-    - `matchSkills`, and skills in the `tool_search` result (name, description, `SKILL.md` path).
-    - `available_tools` becomes 1 line of names; `tool_discovery` renders nothing. A Pia chat keeps both as before.
-- `src/server/app.ts`: hands `this.skills(cwd)` to `localToolRegistry`.
-- `test/helpers.ts`: older tests run with `PI_POCKET_LEAN_PROMPT=off`, because they check the full prompt text.
-- `test/lean-prompt.test.ts` (new): the start set, the removed sections, the `AGENTS.md` pointer, skills in `tool_search`, a guide that comes with its tool, a lean schema that runs the original tool, Pia's full sections, and the skill ranking.
-- `npm run check`, `npm run lint`, and `npm test` pass (1035 tests, 0 failures).
+    - `available_tools` becomes 1 line of names. `tool_discovery` renders nothing in a lean session. A Pia chat keeps both as before.
+- `test/helpers.ts`: older tests run with `PI_POCKET_LEAN_PROMPT=off`, because they check the full prompt text. That is now the default.
+- `test/lean-prompt.test.ts` (new): the start set, the removed sections, the `AGENTS.md` pointer, a guide that comes with its tool, a lean schema that runs the original tool, Pia's full sections, and more (below).
+
+Step 1, the repair (2026-11-08), on top of phase 0:
+
+- `src/server/extensions/prompt.ts`:
+    - `isLean()` is opt-in: `PI_POCKET_LEAN_PROMPT=on`, and it falls back to the full prompt when `PI_POCKET_TOOL_DISCOVERY=off`, so the rollback never hides a section without its route (P1: the discovery rollback must not leave the agent without skills).
+    - `compactSkills`: the lean `skills` section is the compact index (name, one "when to use" line, path), with every skill in every project (decision 2).
+    - The `AGENTS.md` pointer says the instructions apply to all work, not only file changes (P1).
+    - The note trust rule (data, can be out of date, never overrides the rules) is in `on_demand`, visible before a note is read (P1).
+- `src/server/local-tools.ts`:
+    - `isLean()` is opt-in too. The two switches are coupled so that all 4 combinations are complete configurations.
+    - `isPiaChat` (`PiaIdentity`): the lean/Pia split follows the conversation's stored identity, passed in by `app.ts` from `this.pia.ownerOf(conversationId)`, the same check `prompt.ts` uses. The `session_start` tool-name check is gone from `task_focus`, `available_tools`, `tool_discovery`, and the guide wraps (decision 4).
+    - `tool_search` finds tools only; skills are not tools. `matchSkills` and the skill part of the result are removed (decision 2; skill search is future work, section 13).
+- `src/server/app.ts`: hands the `PiaIdentity` callback to `localToolRegistry` instead of the skills source.
+- `test/lean-prompt.test.ts`: now 8 tests: the lean start set and removed sections; the compact skill index (name, line, path, not XML, not a tool); the note trust rule in `on_demand`; `tool_search` with no skills plus the lazy guide; a lean schema running the original tool; Pia's full sections; all 4 switch combinations (lean on/off × discovery on/off), each checked on the rendered prompt and the tools, not only the environment; and the stored identity, with a conversation that offers `session_start` but is not the stored Pia chat staying a task session, and the stored Pia chat keeping its full prompt even without its tools.
+- The token test is now a character check, named as one: the real token count is measured against the local model (section 4.1.3), not estimated from 4 characters per token.
+- `npm run check`, `npm run lint`, and `npm test` pass: 1038 tests, 1036 pass, 2 fail once in the full run and pass alone (`artifact-bridge-ui.test.ts` "its saved state comes back when it opens again", `design-bridge-ui.test.ts` "a deck shows one slide at a time"): browser timing tests, the same class of flake as the earlier `mobile-ui` one below.
 
 ### 8.2 Not done
 
-- Phases 1 to 6 of the roadmap.
-- No task run with a real model: the lean prompt is measured for size only, not for behavior.
+- Phases of section 16, except step 1.
+- No task run with a real model: the lean prompt is measured for size only, not for behavior (section 16, step 2).
 - The prompt text is still in TypeScript strings.
 
 ### 8.3 Known side effects
 
-- **Pia gets the short base tool schemas too.** The tool declarations come from 1 registry view for every conversation. Pia's sections do not change. Pia's real first request goes from 9731 to 9380 tokens.
-- `edit` is in the start set (89 tokens); `ls` and `rg` are deferred.
-- Older tests run with `PI_POCKET_LEAN_PROMPT=off` (`test/helpers.ts`). Only `test/lean-prompt.test.ts` tests the lean prompt.
-- `PI_POCKET_LEAN_PROMPT` is read on each call, so tests can switch it; the server reads it from its environment.
-- The lean prompt is the default on the branch (`PI_POCKET_LEAN_PROMPT` unset). See Q5.
-- The change is in `src/server/local-tools.ts` and `src/server/app.ts`: the real server must restart after a merge.
+- **The short base tool schemas are shared.** When the lean prompt is on, the tool declarations come from 1 registry view for every conversation, so Pia gets the short base schemas too. With the lean prompt off (the default), every conversation has the full prompt and the full base schemas.
+- `edit` is in the start set (89 tokens) of a lean session; `ls` and `rg` are deferred.
+- Older tests run with `PI_POCKET_LEAN_PROMPT=off` (`test/helpers.ts`), which is now the default. Only `test/lean-prompt.test.ts` tests the lean prompt, and it turns it on explicitly.
+- `PI_POCKET_LEAN_PROMPT` is read on each call, so tests can switch it; the server reads it from its environment. The switch is opt-in: unset or `off` is the full prompt (Q5, answered).
+- The change is in `src/server/local-tools.ts` and `src/server/app.ts`: the real server must restart after a merge. With the lean prompt off (the default), the restart changes nothing visible.
 - In 1 full test run, `test/mobile-ui.test.ts` ("on a phone, an invite lasts as long as chosen, and the one it replaces ends") failed once. It passed 3 times of 3 alone on the branch, and 2 times of 2 on the base commit. It is a UI timing test, not related to the prompt.
+- In the step 1 test run, `test/artifact-bridge-ui.test.ts` ("its saved state comes back when it opens again") and `test/design-bridge-ui.test.ts` ("a deck shows one slide at a time, scaled to fit, with keys, swipes, and goto") failed once in the full run and passed alone. They are browser timing tests, not related to the prompt.
 
-## 9. Execution plan
+## 9. Execution plan (superseded for order)
+
+**The phase order is superseded by section 16 (accepted 2026-11-08).** The phase detail below stays as the work description where it still applies; step 1 of section 16 is this branch after its repair commit.
 
 Each phase is 1 mergeable step, on its own branch from the previous phase. Each phase must pass `npm run check`, `npm run lint`, and `npm test`. Token budgets are Qwen tokens; "real" means `usage.input` of the first request on local `qwen3.8-27b-ud-iq3-xxs`, measured as in section 3. A phase must not change the main checkout until it is reviewed.
 
@@ -625,11 +659,13 @@ The order differs from the order in the request in 1 point: the controlled exper
 - **Rollback:** the switch, or a setting.
 - **Restart:** yes.
 
-## 10. Roadmap
+## 10. Roadmap (order superseded by section 16)
+
+**Section 16 is the accepted order (2026-11-08).** This table is the phase index from the original plan; its "Depends on" column predates the accepted order.
 
 | Phase                            | Depends on  | Size            | Risk                                                | Status                                       |
 | -------------------------------- | ----------- | --------------- | --------------------------------------------------- | -------------------------------------------- |
-| 0. Lean start prompt             | —           | Medium          | Medium (behavior not tested)                        | Done on `feat/lean-start-prompt`, not merged |
+| 0. Lean start prompt + repair    | —           | Medium          | Medium (behavior not tested)                        | Step 1 done on `feat/lean-start-prompt`, not merged |
 | 1. Fixed prompt prefix (cut 3)   | 0           | Small           | Low                                                 | Not started                                  |
 | 2. Pia cuts 1, 2, 6, 11          | 0 (1 helps) | Medium          | Medium (Pia must load rare tools; STE text quality) | Not started                                  |
 | 3. Prompt text in Markdown files | 0           | Medium          | Low (same texts)                                    | Not started; design question Q7              |
@@ -641,10 +677,10 @@ The order differs from the order in the request in 1 point: the controlled exper
 ## 11. Open risks
 
 1. The agent can skip the `AGENTS.md` pointer and change files without the project rules.
-2. The agent can miss a skill, because no list is in the prompt. It must search to find one.
+2. The compact skill index costs 859 Qwen tokens for the 14 real skills, so a lean first request is 2160 real tokens against the 1500 goal (section 4.1.3). The agent can still miss a skill it cannot read off the index; skill search is the planned route (section 13). Closing the token gap is a decision for Tina (section 15, decision 2).
 3. The agent can miss an optional tool, because `available_tools` gives names only. Names such as `codemode` and `artifact_inline` do not say when to use them.
 4. Until phase 1, a lazy guide enters the middle of the prompt when its tool loads. On local models this re-sends about 5600 tokens. Phase 0 adds 3 more lazy guides (`ink_board`, `inbox-notes`, `memory`), so this happens more often until phase 1.
-5. Pia also gets the short base schemas (9731 to 9380 real tokens). Pia's sections do not change.
+5. When the lean prompt is on, Pia also gets the short base schemas (9731 to 9380 real tokens). Pia's sections do not change. With the default (full prompt) on, none of this applies.
 6. A short schema leaves out details (spill file paths, edit merge rules). The agent learns them from tool results and errors.
 7. A `[scheduled]` message or a subagent report can arrive while its guide is not loaded. This gap was on `main` too.
 8. Small local models may not use code mode, or may write invalid scripts (phase 4).
@@ -656,22 +692,67 @@ The order differs from the order in the request in 1 point: the controlled exper
 | --- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Q1  | Must a small `AGENTS.md` stay inline, with a pointer only for larger files?                | Yes. Inline when the files together are under 300 tokens; else the pointer. Most projects have a short file, and the pointer is the largest behavior risk. Phase 5a must measure the pointer.                                    |
 | Q2  | Is moving `edit` into the start set (89 tokens) and `ls` and `rg` out of it correct?       | Yes. `edit` is used in most coding tasks; without it the agent rewrites whole files or uses `sed`. `bash` covers `ls` and `rg`.                                                                                                  |
-| Q3  | Must Pia keep the full base schemas, and the skills list?                                  | Keep the short base schemas in Pia too: the meaning is the same, and a schema wrap for each conversation needs new registry work. Move Pia's skills list to search as well (1336 tokens), because Pia rarely runs skills itself. |
-| Q4  | Is `PI_POCKET_LEAN_PROMPT=off` enough as the rollback, or must it be a setting in the app? | The switch is enough until phase 6. At phase 6, add a setting in the app only if the experiment shows that a model family needs the full prompt.                                                                                 |
-| Q5  | Must the lean prompt be the default before the experiment gives results?                   | No. Merge phase 0 with the switch default "off" (full prompt), and turn it on per server for tests. Phase 6 makes it the default. On the branch it is "on" only to make measurement easy.                                        |
+| Q3  | Must Pia keep the full base schemas, and the skills list?                                  | Keep the short base schemas in Pia too: the meaning is the same, and a schema wrap for each conversation needs new registry work. Move Pia's skills list to search as well (1336 tokens), because Pia rarely runs skills itself. **Answered (2026-11-08, step 4 of section 16):** Pia follows the common lean design with the compact skill index and the short base schemas; the 13 session tools stay offered from the start. |
+| Q4  | Is `PI_POCKET_LEAN_PROMPT=off` enough as the rollback, or must it be a setting in the app? | The switch is enough until phase 6. At phase 6, add a setting in the app only if the experiment shows that a model family needs the full prompt. **Updated (2026-11-08):** the switch is opt-in (`=on`); all 4 combinations with `PI_POCKET_TOOL_DISCOVERY` are complete configurations and are tested. |
+| Q5  | Must the lean prompt be the default before the experiment gives results?                   | No. Merge phase 0 with the switch default "off" (full prompt), and turn it on per server for tests. Phase 6 makes it the default. **Done (2026-11-08, step 1):** the branch now defaults to the full prompt; `PI_POCKET_LEAN_PROMPT=on` turns the lean prompt on. |
 | Q6  | Is 1 model (`qwen3.8-27b-ud-iq3-xxs`) enough for the measurement?                          | For size, yes: Qwen and o200k counts differ by about 2 to 3%. For behavior, no: phase 5 must include 1 strong model (Claude or GPT) and 1 small local model.                                                                     |
 | Q7  | Must prompt text live in Markdown files, and can the owner override them?                  | Yes for the files (phase 3), in `src/server/prompts/`. Owner overrides from `~/.pi-pocket/prompts/` are useful but are a later step: an override that breaks a rule (for example the guard text) needs a review path.            |
 | Q8  | Must code mode replace `tool_search` and `tool_load` fully?                                | Yes, after phase 5b confirms it. Keep `tool_load` as a script-only tool for a rare native promotion at compaction.                                                                                                               |
 
 ## 13. Future work
 
-1. **Phases 1 to 6** (section 9). The code mode plan is phase 4; the Markdown prompt files are phase 3.
+1. **The phases of section 16.** The Markdown prompt files are step 3; the code mode plan is step 7; skill search and task-fitting start sets (items 6 and 8) come after step 9.
 2. **Trim old tool output** in long sessions: omit or replace old large tool results in batches (Pi Durable `omit` and `replace` edits), only when the output is large and many turns remain (section 3.2).
 3. **Shorten the `artifacts` guide** (1222 tokens; cut 10).
-4. **Compact skill descriptions:** the owner can set `disable-model-invocation` on skills that are never matched (12 marimo skills, about 1046 tokens in a full prompt).
+4. **Compact skill descriptions:** the owner can set `disable-model-invocation` on skills that are never matched (12 marimo skills, about 1046 tokens in a full prompt). The owner uses the marimo skills often, so this was not applied; it stays available for a skill that is truly retired.
 5. **Measure the `claude-code` providers**, which add Claude Code's own system text and send tools through MCP (not measured here).
+6. **Skill search** (decision 2, 2026-11-08). The start prompt keeps the compact index of every skill; a search route finds a skill by the words of a task when the index is filtered (task-fitting start sets, item 8) or grows too large. Design: a `skill_search` tool (script-only in code mode, `callers: ["tools"]`) that ranks skills by name and description and returns the `SKILL.md` path, with a safe fallback when nothing matches. The `matchSkills` ranking that step 1 removed from `tool_search` (name hits count more) is a starting point. Place it before task-fitting start sets: a filtered index needs the search route to keep every skill in reach.
+7. **Report back on request** (decision 6, 2026-11-08). Today only sessions that Pia starts or follows report to Pia. The missing feature: a person starts a session and tells it to report back to Pia, and the session has no direct way to do this. Design as a later phase (step 5 of section 16): a session flag set by a person, and a `report_to_pia` tool that posts the run's result through the existing follow and report paths in `src/server/pip.ts` (fencing, attribution, spend limits, idempotency, restart recovery, and rate limits already live there). The automatic reports from all sessions that the review's step 5 described are not built (decision 5): only what a person or Pia asked for reports.
+8. **Task-fitting start sets** (design idea, 2026-11-08; recorded per the owner, not implemented in step 1). A session starts with a tool and skill set that fits its task. Pia starts most sessions and can choose the start set (for example a review set for a review task); a session a person starts uses the default set. **The set is a start, not a limit:** the agent can always search for and load more tools and skills, so the compact skill index (decision 2) and skill search (item 6) keep every skill in reach in every session (for example a review session starts without marimo, and later loads the marimo skill itself when asked for a marimo demo).
+    1. **How `session_start` takes the set.** A new optional `startSet` argument of `session_start` (and of a person's session start in the app): either a named profile ("review", "marimo-demo", …) stored in the data folder and editable by the owner, or an explicit list of tool names and skill names. The set is stored on the conversation, so a restart, a compaction, and Start fresh keep it.
+    2. **How the set affects the start prompt and the budget.** For that conversation the set replaces the default base tool set and the full skill index: the listed tools are offered from the start (their schemas are counted), and the skill index lists only the listed skills. Budget: 2160 real tokens today (14 skills) minus the omitted skills plus the added tools. A "review" set (no marimo, 12 skills out) returns to about 1300 to 1500 real; a "marimo-demo" set stays near today's number. Every profile's real first request is measured and recorded here before the profile ships.
+    3. **How the agent finds a tool or a skill outside the set.** Tools: `tool_search` and `tool_load` until step 7 (code mode as the workspace), then `searchTools()` and `describeTool()` in a script. Skills: skill search (item 6), because the index is filtered. This is why the phase comes after skill search.
+    4. **The tests.** The stored set survives a restart, a compaction, and Start fresh. A session started with the "review" set finds and loads the marimo skill itself when asked for a marimo demo (real-model task). An unknown or disabled name in the set is rejected with a clear error at start. A person-started session without a set is unchanged. The budget is measured per profile (section 3 method) and recorded in this document.
+    Place: after the Pia role split (step 4 of section 16) and after skill search (item 6). The role split decides what the default start is for Pia's sessions, and skill search is the route out of a filtered index; neither exists before that place.
 
 ## 14. Out of scope
 
 - The `claude-code` providers (Pia's model here) add Claude Code's own system text and send the tools through MCP. This report does not measure that part.
 - The cache keeper (`src/server/cache-keeper.ts`) keeps a prompt warm for 5 minutes. It does not change these sizes.
+
+## 15. Decisions on the review (Tina, 2026-11-08)
+
+The review is `docs/proposals/prompt-cost-review.md` (commit `f441635d`). These decisions change it:
+
+1. **The 9-step order** of the review (its section 7) is accepted, with the changes below. The accepted order is section 16.
+2. **Skills.**
+    - Skills are not tools. They are not in the tool list, and `tool_search` does not return them as the main route (step 1 removed them from `tool_search`).
+    - The start prompt keeps a **compact skill index**. Each entry gives only what the agent needs to decide to load the skill: the name, 1 short "when to use" line, and the path. Step 1 built it (`compactSkills` in `extensions/prompt.ts`).
+    - No skill is hidden or excluded per project: a session in any project can need any skill (the owner uses the marimo skills in many projects). The index lists every skill in every project.
+    - **Skill search is future work** (section 13, item 6). It is recorded in the roadmap, not built in step 1.
+    - **Measured cost** (section 4.1.3): the compact index costs 859 Qwen tokens for the owner's 14 real skills; the new real first request is **2160** tokens against the **1500** goal. The goal is met only without the index (1272). Options to close the gap, none applied in step 1: shorten each "when to use" line; relative paths under `~`; task-fitting start sets (section 13, item 8) so a session carries only the skills its task needs; or accept 2160 as the new goal for this skill set. **This is a decision for Tina.**
+3. **Short tool descriptions are accepted.** The review's finding that the short schemas lose operational facts is dropped: the agent reads the details only when it needs them (from tool results and errors). The short schemas keep the limits that prevent incomplete reads and wrong edits.
+4. **Pia identity.** The code must not decide that a chat is Pia from the presence of a tool. There is exactly 1 long-running Pia conversation. It is identified by its stored identity (`assistantOwner` of the conversation's session meta, through `Pia.ownerOf`), and both the prompt and the local tool policy use that same check (step 1). Later features can attach to the conversation through the same identity.
+5. **Automatic reports from all sessions to Pia are removed from the plan.** The role section must not claim reports that the code does not send.
+6. **A missing feature goes into the roadmap** (section 13, item 7; step 5 of section 16): a person starts a session and tells it to report back to Pia. Today the session has no direct way to do this; only sessions that Pia starts or follows report to Pia. It is designed as a later phase, not implemented in step 1.
+7. **The Pia role section uses placeholders:** `{owner_name}` (now "Tina") and `{helper_name}` (now "Pia"). They are values, not hardcoded role text (step 4 of section 16 builds them).
+
+## 16. Phase order (accepted 2026-11-08)
+
+The 9 steps of the review, with the changes of section 15. Section 9 keeps the work detail of each step where it still applies. Each step is 1 mergeable step behind a switch or a revert, on its own branch from the previous step. Every step passes `npm run check`, `npm run lint`, and `npm test`. "Real" tokens are measured as in section 3.
+
+| Step | What | Where the detail is |
+| --- | --- | --- |
+| 1. Repair phase 0 (done) | The 4 P1 findings, the Pia identity, opt-in, the renamed token test, and the new tests. The full prompt is the default. | Section 8.1 (step 1 part), section 4.1.3. |
+| 2. Baseline experiment (5a) | Arms A (full prompt) and B (lean prompt, `PI_POCKET_LEAN_PROMPT=on`) in isolated throwaway apps, on the real small local model and 1 strong model. It shows the behavior risks (the `AGENTS.md` pointer, the skill index, the note trust rule) before more work builds on them. | Section 9, phase 5 (5a part), with the extra model of Q6. |
+| 3. Prompt text in Markdown (no behavior change) | The common texts first, as separately reviewable moves: 1 text per file under `src/server/prompts/`, loaded by `promptText(name, vars)`. The helper texts and the individual guides follow as equivalent moves. No owner overrides in the same step (Q7). | Section 9, phase 3, split as the review says. |
+| 4. Lean helper split (replaces the old phase 2) | Pia becomes a normal lean session with the common sections, the compact skill index, and the 13 session tools offered from the start. A short role section with `{owner_name}` and `{helper_name}` (decision 7). The stored identity of step 1 is the only test of "is this Pia" (decision 4). The owner's protections that code does not enforce stay, in the common prompt or the role section. The real first request is measured and recorded here. | Review section 5 (target design and budget), section 15. The old phase 2 cuts (drop once-loaded tools, defer rare tools) move to step 6 and later, behind the measurement. |
+| 5. Report back on request (decision 6) | A person starts a session and tells it to report back to Pia. The session flag and `report_to_pia` route through the existing follow and report paths. No automatic reports from all sessions (decision 5). | Section 13, item 7. |
+| 6. Cache behavior in small steps | The old phase 1 (lazy guides last, fixed section texts), plus the old phase 2 cuts that change the prefix (drop once-loaded tools in Pia at compaction and Start fresh; defer rare Pia tools), each measured. Correctness and owner instructions take priority over the cache: a change that cannot wait waits for a compaction, an expired cache, or a reset. | Section 9, phases 1 and 2 (cut 1, cut 2); the measurement method of the review section 2 (actual provider usage, not section edits). |
+| 7. Code mode as the workspace, behind a switch | The old phase 4, split: expose deferred tools to scripts; `searchTools()` and `describeTool()`; the guide with the first call; teaching errors; promotion without a cache miss. The direct `tool_search` and `tool_load` stay until step 8 says otherwise (the review's Q8 answer). | Section 9, phase 4, with the review's code-mode blockers as the test list. |
+| 8. Full experiment (5b) | Arms A (full), B (lean), and C (code mode), including helper tasks and the safety cases of the review (hostile notes and session text, unsolicited stop and archive, no approval gained). | Section 9, phase 5 (5b part), with the protocol of the review section 8.5. |
+| 9. The default decision | Decide if the lean prompt is the default for all normal sessions, and make the switch a setting in the app if step 8 shows a model family needs the other. Document and release-note it. Verify the rollback on an existing session and a new one. | Section 9, phase 6. |
+
+After step 9: **skill search** (section 13, item 6) and **task-fitting start sets** (section 13, item 8), in that order: a filtered index needs the search route, and the sets build on both the helper split (step 4) and skill search.
+
+The old phase 0 "restart: yes, after the merge" note changes with opt-in: with the default (full prompt) on, the merge changes the default behavior only if the server environment turns the lean prompt on.
