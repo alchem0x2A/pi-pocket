@@ -7,7 +7,7 @@ import { pipeline } from "node:stream/promises";
 import type { ConversationId } from "@earendil-works/pi-durable";
 import { readState, writeState } from "../artifact-state.ts";
 import type { Attachment, SubmitRequest } from "../commands.ts";
-import { emacsQueue, openInEmacs, removeFromEmacsQueue } from "../emacs.ts";
+import { openInEmacs } from "../emacs.ts";
 import { HttpError } from "../errors.ts";
 import type { CommandRequest } from "../extension-commands.ts";
 import { reveal } from "../reveal.ts";
@@ -437,24 +437,6 @@ export async function conversationRoutes(
         }
 
         return serveImage(request, response, app.workspace.conversationFile(user, id, requested));
-    }
-
-    if (third === "emacs-queue" && (method === "GET" || method === "DELETE")) {
-        if (user.role !== "owner") {
-            throw new HttpError(403, "Only the owner can manage the Emacs queue");
-        }
-
-        if (method === "GET") {
-            return json(response, 200, { files: await emacsQueue() });
-        }
-
-        const body = await readJson<{ path?: unknown }>(request);
-
-        if (typeof body.path !== "string" || body.path.includes("\0")) {
-            throw new HttpError(400, "path is required");
-        }
-
-        return json(response, 200, { files: await removeFromEmacsQueue(body.path) });
     }
 
     // The owner's existing WeTTY daemon only. Loading a preview never calls this action.

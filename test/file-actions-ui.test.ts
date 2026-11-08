@@ -185,7 +185,7 @@ test(
         assert.ok(glyph.d.endsWith("C11.448,19.438,8.047,20.193,8.03,20.197z"));
         assert.equal(
             await inPage<number>(
-                "return JSON.stringify(fileActionRequests.filter(url => /download|\\/emacs$/.test(url)).length);",
+                "return JSON.stringify(fileActionRequests.filter(url => /download|emacs/.test(url)).length);",
             ),
             0,
             "preview loads cause no action",
@@ -270,7 +270,6 @@ test(
             sizes.every((r) => r.width >= 40 && r.height >= 40 && r.right <= 390),
             JSON.stringify(sizes),
         );
-        await until(async () => (await overflow()).length === 0, "mobile file slide finished");
         assert.deepEqual(await overflow(), [], "mobile-binary stays inside the screen");
         await screenshot("mobile-binary");
         await tap('.ft-view [aria-label="Download original file"]');
@@ -429,7 +428,7 @@ test(
         await until(
             async () =>
                 inPage<boolean>(
-                    'return JSON.stringify((await import("/store.js")).store.state.notices.some(notice => notice.message.includes("Added to the Emacs queue")));',
+                    'return JSON.stringify((await import("/store.js")).store.state.notices.some(notice => notice.message.includes("Opened in Emacs")));',
                 ),
             "the Emacs success notice",
         );

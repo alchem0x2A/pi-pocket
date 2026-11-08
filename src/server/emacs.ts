@@ -1,55 +1,12 @@
 /** Open a text file in the existing WeTTY Emacs daemon. Never start a daemon or a terminal here. */
 import { execFile } from "node:child_process";
-import { constants, readFileSync } from "node:fs";
+import { constants } from "node:fs";
 import { open } from "node:fs/promises";
 import { promisify } from "node:util";
 import { HttpError } from "./errors.ts";
 import { tailnetServiceUrl } from "./network-links.ts";
 
 const execFileAsync = promisify(execFile);
-const queueLisp = readFileSync(new URL("./emacs-queue.el", import.meta.url), "utf8");
-
-async function queueEval(form: string): Promise<string> {
-    const socket = emacsSocket();
-
-    if (!socket) {
-        throw new HttpError(503, "The Emacs socket is not configured.");
-    }
-
-    try {
-        const { stdout } = await execFileAsync(
-            "emacsclient",
-            ["--socket-name", socket, "--alternate-editor=false", "--eval", form],
-            { timeout: 8000, maxBuffer: 256 * 1024 },
-        );
-
-        return stdout.trim();
-    } catch {
-        throw new HttpError(503, "The Emacs queue is unavailable.");
-    }
-}
-
-/** Read the queue without opening or visiting any files. */
-export async function emacsQueue(): Promise<string[]> {
-    const result = await queueEval(
-        `(progn (require 'json) (if (fboundp 'pia-web-prune) (pia-web-prune)) (base64-encode-string (encode-coding-string (json-encode (vconcat (mapcar (lambda (b) (file-name-unquote (buffer-file-name b))) (and (boundp 'pia-web-queue) pia-web-queue)))) 'utf-8) t))`,
-    );
-
-    try {
-        return JSON.parse(Buffer.from(JSON.parse(result), "base64").toString("utf8")) as string[];
-    } catch {
-        throw new HttpError(503, "The Emacs queue could not be read.");
-    }
-}
-
-/** Remove one queued file without killing its buffer. */
-export async function removeFromEmacsQueue(path: string): Promise<string[]> {
-    await queueEval(
-        `(when (boundp 'pia-web-queue) (setq pia-web-queue (seq-remove (lambda (b) (and (buffer-live-p b) (equal (file-name-unquote (buffer-file-name b)) ${lispString(path)}))) pia-web-queue)))`,
-    );
-
-    return emacsQueue();
-}
 
 const runClient = async (args: string[]) => {
     await execFileAsync("emacsclient", args, { timeout: 8000, maxBuffer: 64 * 1024 });
@@ -136,8 +93,15 @@ export async function openInEmacs(path: string, options: Options = {}) {
     }
 
     try {
-        // Load only our fixed Lisp, then pass the authorized path as a quoted string. No shell.
-        const form = `(progn (eval (read ${lispString(`(progn ${queueLisp})`)})) (pia-web-enqueue ${lispString(path)}) (let* ((frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (when frame (with-selected-frame frame (switch-to-buffer (car pia-web-queue)) (redisplay t))) (if frame t 'queued)))`;
+        // The same CLI protocol as pi-emacs and tt-pi-extensions. No shell and no user-supplied Lisp.
+        // The daemon also keeps a headless default frame that is visible but has no terminal, so it
+        // would swallow find-file. Target only real tty frames (a non-nil tty parameter, i.e. the pty
+        // WeTTY attached), preferring the selected one, and force a redisplay there: a tty frame only
+        // redraws while selected. WeTTY makes a new frame on every connection, and those start on
+        // *scratch*; a phone browser reconnects whenever the tab comes back. So remember the buffer
+        // and show it in each new tty frame (server-after-make-frame-hook), and with no terminal
+        // open, still visit the file so the next connection shows it. Suppress file-local evaluation.
+        const form = `(let* ((buffer (let ((enable-local-variables nil) (enable-local-eval nil)) (find-file-noselect (concat "/:" ${lispString(path)})))) (frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (defvar pia-web-last-buffer nil) (setq pia-web-last-buffer buffer) (unless (fboundp 'pia-web-show-last) (defalias 'pia-web-show-last (lambda () (when (and (buffer-live-p pia-web-last-buffer) (frame-parameter nil 'tty)) (switch-to-buffer pia-web-last-buffer))))) (add-hook 'server-after-make-frame-hook 'pia-web-show-last) (when frame (with-selected-frame frame (switch-to-buffer buffer) (redisplay t))) (if frame t 'queued))`;
 
         await (options.run ?? runClient)([
             "--socket-name",
