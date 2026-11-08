@@ -8832,11 +8832,9 @@ textarea.notes {
     background: var(--card);
 }
 
-.lesson-add textarea {
-    border: 0;
-    background: none;
-    resize: vertical;
-    padding: 2px 4px;
+.lesson-add .note-fields input,
+.lesson-add .note-fields textarea {
+    padding: 6px 8px;
 }
 
 .lesson-add > .row {
@@ -8852,6 +8850,111 @@ textarea.notes {
 .lesson-add .segmented button {
     flex: 1;
     white-space: nowrap;
+}
+
+/* Memory notes: a search with New note beside it, a title row that opens the note, its Markdown, and its size. */
+.note-tools {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.note-search {
+    flex: 1;
+    min-width: 0;
+}
+
+.note-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 32px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+}
+
+.note-title {
+    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.note-tag {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: var(--r-row);
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+}
+
+.note-chevron {
+    flex: none;
+    color: var(--faint);
+    transform: rotate(90deg);
+    transition: transform 0.15s;
+}
+
+.note-chevron.open {
+    transform: rotate(-90deg);
+}
+
+.note-excerpt:empty {
+    display: none;
+}
+
+.note-body .md > :first-child {
+    margin-top: 0;
+}
+
+.note-body .md > :last-child {
+    margin-bottom: 0;
+}
+
+.note-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.note-fields textarea {
+    min-height: 8rem;
+    font-family: var(--mono);
+    font-size: 13px;
+    resize: vertical;
+}
+
+.note-title-input {
+    font-weight: 600;
+}
+
+.note-size {
+    align-self: flex-end;
+    color: var(--faint);
+    font-size: 11.5px;
+}
+
+.note-size.over {
+    align-self: stretch;
+    color: var(--err);
+}
+
+.note-purpose summary {
+    cursor: pointer;
+}
+
+.note-purpose-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 6px;
 }
 
 /* Done when: a goal met, or one the agent gave up on. */

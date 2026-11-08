@@ -39,7 +39,7 @@ ${person} reaches you from a small panel over whatever they are doing, often on 
 - Check before you act: before you message, stop, archive, follow, redo, or reschedule anything in a session, read it as it is now (session_read) and do only what it needs.
 - When something that matters is unclear (which session, which folder), ask one short question instead of guessing.
 - Say only what your tools showed you just now, and plainly what you did not check.
-- Models: you may pick one for a new session (session_start model) or switch a session's (session_model), also on your own judgement when a run hit a limit (check provider_usage first, and keep the same tier on the other provider). Treat the window with the least percent left as the limiting window. Ignore resets for windows with 0% used. If both windows have usage, read each labeled reset. A loose name is enough ("luna max", "codex sol"): infer the model, and ask only when nothing fits. ${person} can always say no.
+- Models: you may pick one for a new session (session_start model) or switch a session's (session_model), also on your own judgement when a run hit a limit (check provider_usage first, and keep the same tier on the other provider). Treat the window with the least percent left as the limiting window. Ignore resets for windows with 0% used. If both windows have usage, read each labeled reset. A loose name is enough ("luna max", "codex sol"): infer the model, and ask only when nothing fits. ${person} can always say no. When ${person} marked a note as the guide for model choices, session_start and session_model first answer with that note and a guidance code, and do nothing: read the note, decide again (leaving the model out is a choice too), and call again with the code. Each code is for one choice.
 - Before you run something destructive or irreversible, say what it will do. A guard may ask a person to approve risky commands; if a call is blocked, do not try to get around the block.
 
 Your workspace: ${workspace}. Every chat with you starts there and shares its files, and its AGENTS.md holds your standing instructions. It is a default, not a limit: work in any folder the task needs. Put temporary files in /tmp, not in the workspace. Start fresh clears your context, not the workspace or its AGENTS.md. The panel does not draw artifact_inline cards; they show when the chat is opened as a conversation.`;
@@ -270,6 +270,13 @@ export default function createPia(host: PocketHost) {
     const github =
         typeof host.pia.watchPr === "function" && typeof host.pia.addRepoWatch === "function";
 
+    const guidance = Type.Optional(
+        Type.String({
+            description:
+                "The code from the owner's model guidance, when a first call answered with it: you read the note and chose again",
+        }),
+    );
+
     const start = defineTool({
         name: "session_start",
         description:
@@ -306,6 +313,7 @@ export default function createPia(host: PocketHost) {
                         'A model, as provider/model or a loose name such as "luna max" or "codex sol" (inferred, best effort; a thinking level in the name is applied). Leave it out for the default model.',
                 }),
             ),
+            guidance,
             report,
         }),
         // Safe to run again: the session it made is kept with the call, and its message and follow are the call's.
@@ -399,12 +407,28 @@ export default function createPia(host: PocketHost) {
             model: Type.String({
                 description: "provider/model or a loose name; a thinking level may be in it",
             }),
+            guidance,
         }),
+        // Safe to run again: a switch that was made is kept with the call, and its answer comes back as it was.
         replay: "safe",
-        execute: async (args, api) =>
-            reply(
-                `/s/${String(args.session)} now uses ${await host.pia.setModel(api.conversationId, args.session, args.model)}.${await now(api, args.session)}`,
-            ),
+        execute: async (args, api, context) => {
+            let done = await api.memo<string>("pip.model", context);
+
+            if (done === undefined) {
+                const used = await host.pia.setModel(
+                    api.conversationId,
+                    args.session,
+                    args.model,
+                    args.guidance,
+                );
+
+                done = await api.memo("pip.model", used, context);
+            }
+
+            return reply(
+                `/s/${String(args.session)} now uses ${done}.${await now(api, args.session)}`,
+            );
+        },
     });
 
     const follow = defineTool({

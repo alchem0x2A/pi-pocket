@@ -683,7 +683,7 @@ The host has more members, for Pia's built-in modules only. They are not in the 
 - `background`: commands the agent runs in the background, for the background tool: `start`, `read`, `stop`, `list`, and `limits` (`running`, which the background module copies from the owner's setting). A server from before 0.24.0 has none.
 - `goals`: Done when, for the goals module.
 - `browsers`: the built-in browser, for the browser tool.
-- `memory`: the lessons that the agent keeps across sessions, for the memory tool.
+- `memory`: the notes that the agent keeps across sessions, for the memory, `note_search`, and `note_load` tools. A server started before notes has only `project`, `applying`, `inForce`, `add`, and `change`.
 - `watches`: the pull request watches of sessions, for the `watch_pr` tool.
 - `repoWatches`: the task of repository watches, for the triggers module.
 - `pia`: what the tools of Pia, the owner's assistant, do.

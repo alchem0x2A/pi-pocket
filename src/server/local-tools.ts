@@ -24,7 +24,18 @@ import {
 } from "@earendil-works/pi-durable/tool-search";
 
 const POLICY = "pocket-local-tools";
-const BASE = new Set(["read", "write", "bash", "ls", "rg", "tool_search", "tool_load"]);
+/** Offered from the start. The note tools too: the prompt tells the agent to search notes before it acts. */
+const BASE = new Set([
+    "read",
+    "write",
+    "bash",
+    "ls",
+    "rg",
+    "tool_search",
+    "tool_load",
+    "note_search",
+    "note_load",
+]);
 
 /** Local catalog metadata, not an upstream ToolRegistration or MCP field. */
 export type CatalogTool = ToolRegistration & { readonly shortDescription?: string };
@@ -46,7 +57,7 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
     team: "Manage linked agent sessions",
     schedule: "Schedule future agent messages",
     background: "Manage background shell commands",
-    memory: "Propose and manage saved lessons",
+    memory: "Propose notes for approval",
     watch_pr: "Monitor pull requests on GitHub",
     request_restart: "Request Pia server restart",
     design_preview: "Preview designs at screen sizes",
