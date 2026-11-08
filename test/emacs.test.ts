@@ -41,6 +41,8 @@ test("Emacs uses the existing socket with literal Lisp data, no shell, daemon st
         assert.doesNotMatch(calls[0]![4]!, /visible-frame-list/);
         // A tty frame only redrew itself while selected, so the form forces a redisplay in it.
         assert.match(calls[0]![4]!, /redisplay t/);
+        // WeTTY makes a new frame (on *scratch*) on every reconnect, so new tty frames show the file.
+        assert.match(calls[0]![4]!, /server-after-make-frame-hook/);
         assert.doesNotMatch(calls[0]!.join(" "), /--create-frame|--daemon/);
         assert.equal(lispString('a"b\\c'), '"a\\"b\\\\c"');
     } finally {

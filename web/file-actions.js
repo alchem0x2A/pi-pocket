@@ -106,11 +106,8 @@ export function FileTransfers({ path, conversationId = store.state.conversationI
             if (!result.opened) {
                 setFailure(result.error);
             } else {
-                // A new WeTTY connection creates a new scratch frame, not the frame we just selected.
-                notify(
-                    "info",
-                    "Opened in your existing Emacs terminal. Switch to that terminal tab.",
-                );
+                // The server also makes each new WeTTY frame (a reconnect) show this file.
+                notify("info", "Opened in Emacs. Switch to or open the Emacs terminal.");
             }
         } catch (error) {
             setFailure(error.message || "Could not open the file in Emacs.");
