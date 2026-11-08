@@ -139,6 +139,7 @@ import {
     type ProjectTrust,
     readProjectTrust,
     saveProjectTrust,
+    skillPlaces,
     type SkillSources,
     type TrustChoice,
 } from "./skills.ts";
@@ -770,6 +771,7 @@ export class PocketApp {
                 }
             },
             skills: (cwd) => this.skills(cwd),
+            skillPlaces: (cwd) => skillPlaces(cwd, this.#skillSources()),
             resolveModel: (spec) => resolveModel(this.models, spec, this.signInNeeded),
             subagentModels: () => this.config.subagentModels,
             modelProblem: (ref, fresh) => this.providers.problem(ref, fresh),

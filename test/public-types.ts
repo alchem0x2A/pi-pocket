@@ -76,7 +76,8 @@ type Internal =
     | "goals"
     | "browsers"
     | "memory"
-    | "inboxNotes";
+    | "inboxNotes"
+    | "skillPlaces";
 
 type PublicHost = Pick<PocketHost, keyof Host>;
 

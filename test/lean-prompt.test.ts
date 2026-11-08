@@ -1,7 +1,8 @@
-// The lean start prompt of a normal session, opt-in with `PI_POCKET_LEAN_PROMPT=on`: a short preamble, a compact skill
-// index, pointers that keep the project rules and the note trust rule visible, and short schemas for the base tools.
-// Pia keeps its full prompt. The size check here counts characters (about 4 per token); the real token count is
-// measured against the local model and recorded in docs/proposals/prompt-cost.md, section 4.1.
+// The lean start prompt of a normal session, opt-in with `PI_POCKET_LEAN_PROMPT=on`: a short preamble, the project's
+// AGENTS.md files inlined (the same section as the full prompt), a pointer to the skill directories and to the note
+// trust rule, and short schemas for the base tools. Skills are not listed. Pia keeps its full prompt. The size check
+// here counts characters (about 4 per token); the real token count is measured against the local model and recorded
+// in docs/proposals/prompt-cost.md, section 4.1.
 import { context, newSession, openApp, owner, root, say, scriptedModel } from "./helpers.ts";
 import { localToolRegistry } from "../src/server/local-tools.ts";
 import assert from "node:assert/strict";
@@ -149,40 +150,32 @@ test("a normal session starts with a short prompt and short base tools", async (
         "write",
     ]);
 
-    for (const gone of ["guidelines", "pocket_docs", "project_context", "memory"]) {
+    for (const gone of ["guidelines", "pocket_docs", "skills", "memory"]) {
         assert.equal(sections.has(gone), false, gone);
     }
 
-    // The project's instructions are a pointer, and it says they apply to all work, not only file changes.
-    assert.match(
-        prompt,
-        new RegExp(
-            `apply to all work here, not only file changes\\. Read before you act: ${join(folder, "AGENTS.md")}`,
-        ),
-    );
-    assert.doesNotMatch(prompt, /LEAN_PROJECT_RULE/);
+    // Decision A: the project's instructions are inlined, the same section as the full prompt. No pointer.
+    assert.ok(sections.has("project_context"));
+    assert.match(sections.get("project_context")!, /LEAN_PROJECT_RULE/);
+    assert.doesNotMatch(prompt, /Instructions for this project/);
     assert.match(prompt, /ASD-STE100/);
     // Character bound (about 4 per token): real tokens are measured in docs/proposals/prompt-cost.md, section 4.1.
-    assert.ok(prompt.length + schemas.length < 5000, `${prompt.length} + ${schemas.length}`);
+    assert.ok(prompt.length + schemas.length < 5500, `${prompt.length} + ${schemas.length}`);
 });
 
-test("the lean prompt keeps a compact skill index, with every skill in reach", async () => {
+test("the lean prompt lists no skills; the pointer names the skill directories", async () => {
     const { sections } = await firstRequest(app, folder);
-    const skills = sections.get("skills")!;
 
-    // One short line per skill: name, when to use, and the path. Not the standard XML list, and not a tool.
-    assert.match(skills, /- chart-maker: Draw a bar chart from a CSV file\. \(/);
-    assert.match(
-        skills,
-        new RegExp(
-            join(root, "home", ".agents", "skills", "chart-maker", "SKILL.md").replace(
-                /[.*+?^${}()|[\]\\]/g,
-                "\\$&",
-            ),
-        ),
-    );
-    assert.doesNotMatch(skills, /<available_skills>/);
-    assert.match(skills, /Skills: read one with read when the task matches/);
+    assert.equal(sections.has("skills"), false);
+    const pointer = sections.get("on_demand")!;
+
+    // The directory the test skill loads from, from the same loader configuration as the full prompt.
+    assert.match(pointer, /\.agents\/skills/);
+    assert.match(pointer, /each skill is a SKILL\.md file/);
+    assert.match(pointer, /Look there when a task can need a skill/);
+    assert.match(pointer, /Read the whole SKILL\.md before you use it/);
+    // No skill is named: the list stays out of the prompt.
+    assert.doesNotMatch(pointer, /chart-maker/);
 });
 
 test("the note trust rule is visible before a note is read", async () => {
@@ -201,7 +194,7 @@ test("tool_search finds tools only; a loaded tool brings its guide", async () =>
         .messages;
     const result = results.findLast((message) => message.role === "toolResult");
 
-    // Skills are not tools: the search route gives no skills. The skill index in the prompt is the route.
+    // Skills are not tools: the search route gives no skills. The skill directories in the pointer are the route.
     assert.doesNotMatch(JSON.stringify(result?.content), /chart-maker/);
 
     await say(app, id, 'call tool_load {"names":["schedule"]}');
