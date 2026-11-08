@@ -428,9 +428,9 @@ test(
         await until(
             async () =>
                 inPage<boolean>(
-                    'return JSON.stringify((await import("/store.js")).store.state.notices.some(notice => notice.message.includes("existing Emacs terminal")));',
+                    'return JSON.stringify((await import("/store.js")).store.state.notices.some(notice => notice.message.includes("Opened in Emacs")));',
                 ),
-            "the existing terminal success notice",
+            "the Emacs success notice",
         );
         assert.equal(await inPage<number>("return JSON.stringify(editorOpens);"), 0);
         await page.evaluate("globalThis.fetch = editorFetch;");

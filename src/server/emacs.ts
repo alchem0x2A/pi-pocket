@@ -96,10 +96,12 @@ export async function openInEmacs(path: string, options: Options = {}) {
         // The same CLI protocol as pi-emacs and tt-pi-extensions. No shell and no user-supplied Lisp.
         // The daemon also keeps a headless default frame that is visible but has no terminal, so it
         // would swallow find-file. Target only real tty frames (a non-nil tty parameter, i.e. the pty
-        // WeTTY attached), preferring the one the owner is looking at, i.e. the selected frame.
-        // A tty frame only redrew itself while it was the selected frame, so force a redisplay in the
-        // frame we just used. Suppress file-local evaluation in this HTTP action.
-        const form = `(let* ((frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (unless frame (error "Open the WeTTY Emacs terminal first")) (with-selected-frame frame (let ((enable-local-variables nil) (enable-local-eval nil)) (find-file (concat "/:" ${lispString(path)})) (redisplay t))) t)`;
+        // WeTTY attached), preferring the selected one, and force a redisplay there: a tty frame only
+        // redraws while selected. WeTTY makes a new frame on every connection, and those start on
+        // *scratch*; a phone browser reconnects whenever the tab comes back. So remember the buffer
+        // and show it in each new tty frame (server-after-make-frame-hook), and with no terminal
+        // open, still visit the file so the next connection shows it. Suppress file-local evaluation.
+        const form = `(let* ((buffer (let ((enable-local-variables nil) (enable-local-eval nil)) (find-file-noselect (concat "/:" ${lispString(path)})))) (frames (seq-filter (lambda (f) (frame-parameter f 'tty)) (frame-list))) (frame (or (car (seq-filter (lambda (f) (eq f (selected-frame))) frames)) (car frames)))) (defvar pia-web-last-buffer nil) (setq pia-web-last-buffer buffer) (unless (fboundp 'pia-web-show-last) (defalias 'pia-web-show-last (lambda () (when (and (buffer-live-p pia-web-last-buffer) (frame-parameter nil 'tty)) (switch-to-buffer pia-web-last-buffer))))) (add-hook 'server-after-make-frame-hook 'pia-web-show-last) (when frame (with-selected-frame frame (switch-to-buffer buffer) (redisplay t))) (if frame t 'queued))`;
 
         await (options.run ?? runClient)([
             "--socket-name",
