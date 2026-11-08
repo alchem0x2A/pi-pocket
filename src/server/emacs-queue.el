@@ -36,15 +36,3 @@
 
 (remove-hook 'server-after-make-frame-hook 'pia-web-show-last)
 (add-hook 'server-after-make-frame-hook 'pia-web-show-first)
-
-(defun pia-edit-next ()
-  "Show the next file in Pia's edit queue (M-x pia-edit-next). It cycles; it removes nothing."
-  (interactive)
-  (pia-web-prune)
-  (if (null pia-web-queue)
-      (message "Pia edit queue is empty")
-    (let* ((tail (cdr (memq (current-buffer) pia-web-queue)))
-           (buffer (or (car tail) (car pia-web-queue))))
-      (switch-to-buffer buffer)
-      (message "Pia edit queue: %d of %d"
-               (1+ (seq-position pia-web-queue buffer)) (length pia-web-queue)))))
