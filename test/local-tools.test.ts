@@ -113,6 +113,9 @@ test("sessions and Pia use local tool discovery", async () => {
     assert.deepEqual(offered.filter((name) => name !== "rg").sort(), [
         "bash",
         "ls",
+        // The prompt tells the agent to search notes before it acts: their tools need no loading.
+        "note_load",
+        "note_search",
         "read",
         "tool_load",
         "tool_search",

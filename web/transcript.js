@@ -558,10 +558,17 @@ function StepMark({ status, kind }) {
 
 /** What the agent did with its memory tool, as a step's label. */
 const MEMORY_WORDS = {
-    add: "saved a lesson",
-    update: "changed a lesson",
-    remove: "forgot a lesson",
-    list: "read its lessons",
+    add: "proposed a note",
+    update: "changed a note",
+    remove: "forgot a note",
+    list: "listed its notes",
+};
+/** What the agent did with note_load, as a step's label. */
+const NOTE_WORDS = {
+    read: "read notes",
+    session: "pinned notes",
+    unpin: "unpinned notes",
+    list: "listed its pins",
 };
 
 /** A call's line: its label (the tool, or a subagent's name) and what it acts on. */
@@ -589,6 +596,13 @@ function stepWords(call) {
             return {
                 label: MEMORY_WORDS[args.action] ?? "memory",
                 subject: args.text ? short(args.text) : (args.id ?? ""),
+            };
+        case "note_search":
+            return { label: "searched notes", subject: args.query ?? "" };
+        case "note_load":
+            return {
+                label: NOTE_WORDS[args.mode ?? "read"] ?? "notes",
+                subject: (args.ids ?? []).join(" "),
             };
         case "watch_pr":
             return { label: "watch PR", subject: [args.action, args.pr].filter(Boolean).join(" ") };

@@ -497,8 +497,12 @@ export interface PocketHost {
     readonly watches: Pick<Watches, "task" | "start" | "stop" | "get">;
     /** Repository watches: the triggers extension runs their task; Pia's repo_watch tool sets them up. */
     readonly repoWatches: Pick<RepoWatches, "task">;
-    /** Lessons the agent keeps across sessions (`memory.ts`): the memory tool saves them, and its section lists them. */
-    readonly memory: Pick<Memory, "project" | "applying" | "inForce" | "add" | "change">;
+    /**
+     * Notes the agent keeps across sessions (`memory.ts`): the memory tool proposes them, `note_search` and `note_load`
+     * find and read them, and the section lists only the pinned ones. A server started before notes has only the first five.
+     */
+    readonly memory: Pick<Memory, "project" | "applying" | "inForce" | "add" | "change"> &
+        Partial<Pick<Memory, "search" | "read" | "pinned" | "pin" | "findable">>;
     /**
      * Text from elsewhere made safe for the agent to read (`fence.ts`): `quoted` gives one line, cut to `max`, without
      * invisible characters or any tag, in quotes it cannot close; `defang` keeps the lines, but no closing tag survives,

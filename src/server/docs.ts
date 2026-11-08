@@ -627,7 +627,16 @@ export const SpendDoc = defineDoc<{
 export type Lesson = {
     /** Short and stable: what the agent and people use to change or remove it. */
     id: string;
+    /** The note's body, Markdown. A lesson saved before notes had one line of at most 300 characters; it is kept as is. */
     text: string;
+    /** A short title for search and lists; absent (every lesson saved before notes): the body's first line stands in. */
+    title?: string;
+    /** Counts approved changes to the title or body, from 1; absent: 1. A session pin always follows the latest. */
+    revision?: number;
+    /** Set by the owner only: the note Pia must read before it chooses a model (`pip.ts`). One note at most has it. */
+    purpose?: "model-choice";
+    /** With `purpose`: models (words of their ids, such as `luna`) that need at least a thinking level when Pia picks them. */
+    modelRule?: { models: string[]; minThinking: string };
     /** The project it is for (`memory.ts`: the repository's shared git folder, or the folder); absent: everywhere. */
     project?: string;
     /** The project's folder name, for people to read. */
@@ -645,20 +654,45 @@ export type Lesson = {
      * A change to it in force that waits for the owner, as the agent or a guest proposed it: new text, or forgetting it. The
      * lesson stays as it is until then.
      */
-    proposal?: { text?: string; forget?: boolean; by: string; byPi: boolean; at: number };
+    proposal?: {
+        text?: string;
+        /** The title the proposal sets with its text; absent: the title stays. */
+        title?: string;
+        forget?: boolean;
+        by: string;
+        byPi: boolean;
+        at: number;
+    };
     /** The tool call that made it, `taskId:callId`: the call run again finds it instead of saving another. */
     key?: string;
 };
 
 /**
- * Memory: short lessons the agent keeps across sessions, by id, for one project or everywhere. The agent gets those that apply in
- * its system prompt (`extensions/memory.ts`).
+ * Memory: the notes (once called lessons) people and the agent keep across sessions, by id, for one project or everywhere.
+ * The agent searches and reads those that apply (`extensions/memory.ts`); only the ones a session pinned are in its prompt.
  */
 export const MemoryDoc = defineDoc<{ items: Record<string, Lesson> }>({
     kind: "pocket.memory",
     version: 1,
     ...rebased,
     scope: "session",
+    initial: () => ({ items: {} }),
+});
+
+/** A note a conversation keeps in its prompt: who pinned it, when, and why. */
+export type NotePin = { at: number; byPi: boolean; by?: string; reason?: string };
+
+/**
+ * The notes a conversation pinned, by note id (`memory.ts`). Each request gets the latest approved text of each, so a pin
+ * lasts through compaction, a restart, and a model change. A branch keeps the pins it had.
+ */
+export const NotePinsDoc = defineDoc<{ items: Record<string, NotePin> }>({
+    kind: "pocket.note-pins",
+    version: 1,
+    ...rebased,
+    scope: "conversation",
+    history: "latest",
+    fork: "current",
     initial: () => ({ items: {} }),
 });
 

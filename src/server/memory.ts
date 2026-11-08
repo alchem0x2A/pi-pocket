@@ -1,11 +1,13 @@
 /**
- * Memory: short lessons the agent keeps across sessions, each for one project or for everywhere, and linked to the session it
- * came from. A project is a git repository with all its worktrees (they share one git folder), or a folder outside
- * any repository. The agent saves lessons with its memory tool and gets those that apply in its system prompt
- * (`extensions/memory.ts`); people see, add, change, and remove them in the Memory sheet.
+ * Memory: notes (once called lessons) that people and the agent keep across sessions, each for one project or for
+ * everywhere, and linked to the session it came from. A note has an optional title and a Markdown body. A project is a
+ * git repository with all its worktrees (they share one git folder), or a folder outside any repository. The agent
+ * proposes notes with its memory tool, searches and reads them with `note_search` and `note_load`, and pins the ones a
+ * session needs: only pinned notes are in its system prompt (`extensions/memory.ts`). People see, add, change, search,
+ * and remove them in the Memory sheet.
  *
- * A lesson added or changed for someone who is not the owner waits for the owner's approval before the agent uses it: a guest
- * could otherwise write instructions into every later session.
+ * A note added or changed for someone who is not the owner waits for the owner's approval before the agent can find it: a
+ * guest could otherwise write instructions into every later session.
  */
 import { randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
@@ -16,9 +18,9 @@ import type { ConversationId, Tx } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import { addActivity } from "./collab.ts";
 import type { User } from "./config.ts";
-import { assistantOwner, ChatDoc, type Lesson, MemoryDoc } from "./docs.ts";
+import { assistantOwner, ChatDoc, type Lesson, MemoryDoc, NotePinsDoc } from "./docs.ts";
 import { HttpError } from "./errors.ts";
-import { INVISIBLE_CLASS } from "./fence.ts";
+import { defang, INVISIBLE_CLASS } from "./fence.ts";
 import { git } from "./git.ts";
 import { snippet } from "./projection.ts";
 
@@ -26,11 +28,19 @@ const context: Context = BACKGROUND_CONTEXT;
 
 /** Memory's extension: the tool and the prompt section. */
 export const MEMORY_EXTENSION = "pocket-memory";
-/** How long a lesson may be. */
-export const MAX_LESSON = 300;
-/** Lessons a project keeps, and lessons for everywhere, approved ones: pending ones do not take their room. */
-export const MAX_PROJECT_LESSONS = 40;
-export const MAX_EVERYWHERE_LESSONS = 30;
+/** How long a note's body may be, in characters. Saving a longer one fails: nothing is cut. */
+export const MAX_LESSON = 4000;
+/** How long a note's title may be. */
+export const MAX_TITLE = 120;
+/** Notes a project keeps, and notes for everywhere, approved ones: pending ones do not take their room. */
+export const MAX_PROJECT_LESSONS = 200;
+export const MAX_EVERYWHERE_LESSONS = 200;
+/** Notes one conversation may pin, and their total size: a pin goes into every request. */
+export const MAX_PINS = 10;
+export const MAX_PINNED = 16_000;
+/** Results `note_search` gives by default, and at most. */
+export const SEARCH_RESULTS = 8;
+export const MAX_SEARCH_RESULTS = 20;
 /** Lessons waiting for approval that one person (or the agent for them) may have, so nobody fills the owner's list. */
 export const MAX_PENDING = 20;
 /** How long a folder's project is kept before git is asked again (a folder can become a repository). */
@@ -42,10 +52,34 @@ export type LessonScope = "project" | "everywhere";
 /** Who writes: a person, or the agent working for one (`userId` undefined when nobody is known). */
 export type Writer = { userId: string | undefined; byPi: boolean; name: string };
 
+/** The one purpose a note can have: Pia reads it before it chooses a model (`pip.ts`). */
+export const MODEL_CHOICE = "model-choice";
+/** What the owner allows for the model-choice note: which models need a minimum thinking level. */
+export type ModelRule = { models: string[]; minThinking: string };
+
+/** A search hit, as `note_search` and its callers see it. */
+export type NoteHit = {
+    id: string;
+    title: string;
+    revision: number;
+    scope: LessonScope;
+    byPi: boolean;
+    size: number;
+    excerpt: string;
+};
+
 /** A lesson as a person's Memory sheet shows it. */
 export type LessonView = {
     id: string;
     text: string;
+    /** The title a person gave it; absent for one without (the sheet shows the body's first line). */
+    title?: string;
+    revision: number;
+    /** Set when Pia reads it before it picks a model, with the owner's thinking rule. */
+    purpose?: typeof MODEL_CHOICE;
+    modelRule?: ModelRule;
+    /** Pinned in the conversation the view is for. */
+    pinned: boolean;
     scope: LessonScope;
     /** The lesson's project label in the owner's all-project pending queue. */
     projectName?: string;
@@ -60,7 +94,14 @@ export type LessonView = {
     /** Whether this person may change or remove it. */
     mine: boolean;
     /** A change that waits for the owner, for the owner and whoever proposed it to see. */
-    proposal?: { text?: string; forget?: boolean; byPi: boolean; byName: string; mine: boolean };
+    proposal?: {
+        text?: string;
+        title?: string;
+        forget?: boolean;
+        byPi: boolean;
+        byName: string;
+        mine: boolean;
+    };
 };
 
 export type MemoryView = {
@@ -71,7 +112,7 @@ export type MemoryView = {
     lessons: LessonView[];
     owner: boolean;
     canWrite: boolean;
-    limits: { project: number; everywhere: number; text: number };
+    limits: { project: number; everywhere: number; text: number; title: number };
 };
 
 /** A plain copy of a lesson out of a commit's document. */
@@ -86,10 +127,86 @@ const INVISIBLE = new RegExp("[" + INVISIBLE_CLASS + "]", "gu");
 /** Text on one line with nothing hidden: whitespace first, so a newline becomes a space before controls go. */
 export const flat = (text: string) =>
     text.replace(/\s+/g, " ").replace(INVISIBLE, "").replace(/ {2,}/g, " ").trim();
+/**
+ * A note's Markdown body with nothing hidden: its lines kept (line breaks made `\n`, tabs four spaces), each line without
+ * invisible characters or trailing space. A one-line lesson saved before notes comes out as it was.
+ */
+export const clean = (text: string) =>
+    text
+        .replace(/\r\n?|[\u2028\u2029\v\f]/g, "\n")
+        .replace(/\t/g, "    ")
+        .split("\n")
+        .map((line) => line.replace(INVISIBLE, "").trimEnd())
+        .join("\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/^\n+/, "")
+        .trimEnd();
+/** The title a note shows: its own, or its body's first line, cut to 80 characters. */
+export const titleOf = (lesson: Pick<Lesson, "title" | "text">) =>
+    lesson.title ??
+    cutTo(
+        flat(
+            lesson.text
+                .split("\n")
+                .find((line) => line.trim() !== "")
+                ?.replace(/^#+\s*/, "") ?? "",
+        ),
+        80,
+    );
+
+const cutTo = (text: string, max: number) => {
+    const points = Array.from(text);
+
+    return points.length > max ? `${points.slice(0, max - 1).join("")}…` : text;
+};
+
+/** Words of a query or a note, lowercased: letters, digits, and the characters of paths and names. */
+const words = (text: string) =>
+    text
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}_./:@-]+/u)
+        .map((word) => word.replace(/^[./:@-]+|[./:@-]+$/g, ""))
+        .filter((word) => word !== "");
+
+/** Thinking levels, lowest first, as the model-choice rule compares them. */
+export const LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+
+/** A note's body on one line around the first word asked, about 240 characters. */
+function excerptOf(text: string, asked: string[]): string {
+    const line = flat(text);
+    const lower = line.toLowerCase();
+    const at = asked
+        .map((word) => lower.search(new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRe(word)}`, "u")))
+        .filter((index) => index >= 0)
+        .sort((a, b) => a - b)[0];
+    const start = at === undefined || at < 80 ? 0 : at - 60;
+    const cut = line.slice(start, start + 240);
+
+    return `${start > 0 ? "…" : ""}${cut}${start + 240 < line.length ? "…" : ""}`;
+}
+
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** A note's text for a prompt or a tool's result: no closing tag can end what holds it. */
+export const safeBody = (text: string) => defang(text);
 /** A folder's name as the agent's prompt and the sheet show it. */
 // Cut by code points, so an emoji at the 80th is kept whole, not halved into a lone surrogate.
 const cut = (text: string) => Array.from(text).slice(0, 80).join("");
 const named = (name: string, key: string) => cut(flat(name)) || cut(flat(key));
+
+/** Set a note's title: a string sets it, "" removes it, undefined leaves it. */
+function setTitle(lesson: Lesson, title: string | undefined): void {
+    if (title === undefined) {
+        return;
+    }
+
+    if (title === "") {
+        delete lesson.title;
+    } else {
+        lesson.title = title;
+    }
+}
+
 const ordered = (lessons: Lesson[]) =>
     lessons.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
 
@@ -262,16 +379,38 @@ export class Memory {
             throw new HttpError(400, "Say what to remember.");
         }
 
-        const lesson = flat(text);
+        const lesson = clean(text);
 
         if (lesson.length > MAX_LESSON) {
             throw new HttpError(
                 413,
-                `A lesson is ${String(MAX_LESSON)} characters at most (this one is ${String(lesson.length)}): make it shorter.`,
+                `A note is ${String(MAX_LESSON)} characters at most (this one is ${String(lesson.length)}): make it shorter, or split it into two notes.`,
             );
         }
 
         return lesson;
+    }
+
+    /** A title on one line, or undefined for none; too long is an error, not a cut. */
+    #title(title: unknown): string | undefined {
+        if (title === undefined || title === null) {
+            return undefined;
+        }
+
+        if (typeof title !== "string") {
+            throw new HttpError(400, "A title is text.");
+        }
+
+        const line = flat(title);
+
+        if (line.length > MAX_TITLE) {
+            throw new HttpError(
+                413,
+                `A title is ${String(MAX_TITLE)} characters at most (this one is ${String(line.length)}).`,
+            );
+        }
+
+        return line === "" ? undefined : line;
     }
 
     /**
@@ -282,10 +421,11 @@ export class Memory {
         conversationId: ConversationId,
         cwd: string | undefined,
         writer: Writer,
-        request: { text: unknown; scope: LessonScope; key?: string },
+        request: { text: unknown; title?: unknown; scope: LessonScope; key?: string },
     ): Promise<Lesson> {
         const app = this.#app;
         const text = this.#text(request.text);
+        const title = this.#title(request.title);
         const project =
             request.scope === "project" ? await this.project(conversationId, cwd) : undefined;
         const root = app.rootOf(conversationId);
@@ -333,6 +473,7 @@ export class Memory {
             const lesson: Lesson = {
                 id,
                 text,
+                ...(title === undefined ? {} : { title }),
                 ...(project === undefined
                     ? {}
                     : { project: project.key, projectName: project.name }),
@@ -351,7 +492,7 @@ export class Memory {
                 tx,
                 conversationId,
                 writer,
-                `saved a lesson for ${project === undefined ? "everywhere" : project.name}: “${snippet(text, 80)}”${pending ? ", for the owner to approve" : ""}`,
+                `saved a note for ${project === undefined ? "everywhere" : project.name}: “${snippet(title ?? text, 80)}”${pending ? ", for the owner to approve" : ""}`,
             );
 
             return copy(lesson);
@@ -372,8 +513,8 @@ export class Memory {
         cwd: string | undefined,
         writer: Writer,
         id: string,
-        change: { text: unknown } | "remove" | "approve" | "discard",
-        expected?: { text?: string; forget?: boolean },
+        change: { text: unknown; title?: unknown } | "remove" | "approve" | "discard",
+        expected?: { text?: string; title?: string; forget?: boolean },
         pendingOnly = false,
     ): Promise<Lesson> {
         const app = this.#app;
@@ -388,6 +529,9 @@ export class Memory {
         }
 
         const text = typeof change === "object" ? this.#text(change.text) : undefined;
+        // A title left out stays as it is; an empty one goes.
+        const titled = typeof change === "object" && change.title !== undefined;
+        const newTitle = titled ? this.#title(change.title) : undefined;
         const project = pendingOnly ? undefined : await this.project(conversationId, cwd);
         const said = (tx: Tx, line: string) => this.#activity(tx, conversationId, writer, line);
 
@@ -415,20 +559,25 @@ export class Memory {
                 }
 
                 // What approving makes true; with nothing waiting, the text in force, so a second tap does nothing.
+                const proposed = lesson.pending !== true ? lesson.proposal : undefined;
                 const waiting =
-                    lesson.pending !== true && lesson.proposal?.forget === true
+                    proposed?.forget === true
                         ? { forget: true }
                         : {
-                              text:
-                                  lesson.pending !== true && lesson.proposal?.text !== undefined
-                                      ? lesson.proposal.text
-                                      : lesson.text,
+                              text: proposed?.text ?? lesson.text,
+                              title:
+                                  proposed?.title === undefined
+                                      ? lesson.title
+                                      : proposed.title || undefined,
                           };
 
                 if (
                     expected === undefined ||
                     (expected.forget === true) !== (waiting.forget === true) ||
-                    (waiting.forget !== true && expected.text !== waiting.text)
+                    (waiting.forget !== true &&
+                        (expected.text !== waiting.text ||
+                            // An older tab sends no title: it saw none only when none waits.
+                            (expected.title || undefined) !== waiting.title))
                 ) {
                     throw new HttpError(
                         409,
@@ -447,9 +596,11 @@ export class Memory {
                     return before;
                 } else if (lesson.proposal?.text !== undefined) {
                     lesson.text = lesson.proposal.text;
+                    setTitle(lesson, lesson.proposal.title);
+                    lesson.revision = (lesson.revision ?? 1) + 1;
                     lesson.updatedAt = app.now();
                     delete lesson.proposal;
-                    await said(tx, `approved a lesson's new text: “${snippet(lesson.text, 80)}”`);
+                    await said(tx, `approved a note's new text: “${snippet(titleOf(lesson), 80)}”`);
                 }
 
                 return copy(lesson);
@@ -512,10 +663,13 @@ export class Memory {
                 return before;
             }
 
+            const nextTitle = titled ? newTitle : lesson.title;
+            const same = text === lesson.text && nextTitle === lesson.title;
+
             if (inForce && held) {
                 // Back to the text in force: nothing to propose. The writer's own proposal goes (it changed its mind);
                 // someone else's stays for the owner.
-                if (text === lesson.text) {
+                if (same) {
                     const proposal = lesson.proposal;
 
                     if (
@@ -530,9 +684,12 @@ export class Memory {
                     return copy(lesson);
                 }
 
-                if (lesson.proposal?.text !== text) {
+                const proposedTitle = nextTitle === lesson.title ? undefined : (nextTitle ?? "");
+
+                if (lesson.proposal?.text !== text || lesson.proposal?.title !== proposedTitle) {
                     lesson.proposal = {
                         text: text!,
+                        ...(proposedTitle === undefined ? {} : { title: proposedTitle }),
                         by: writer.userId ?? lesson.by,
                         byPi: writer.byPi,
                         at: app.now(),
@@ -546,7 +703,7 @@ export class Memory {
                 return copy(lesson);
             }
 
-            if (text === lesson.text && (held || inForce)) {
+            if (same && (held || inForce)) {
                 return before;
             }
 
@@ -556,12 +713,363 @@ export class Memory {
                 delete lesson.pending;
             }
 
+            if (inForce && !same) {
+                lesson.revision = (lesson.revision ?? 1) + 1;
+            }
+
             lesson.text = text!;
+            setTitle(lesson, nextTitle ?? "");
             lesson.updatedAt = app.now();
             delete lesson.proposal;
             await said(
                 tx,
-                `changed a lesson to “${snippet(lesson.text, 80)}”${lesson.pending === true ? ", for the owner to approve" : ""}`,
+                `changed a note to “${snippet(titleOf(lesson), 80)}”${lesson.pending === true ? ", for the owner to approve" : ""}`,
+            );
+
+            return copy(lesson);
+        }, context);
+    }
+
+    // ─── Search, read, and pins ────────────────────────────────────────────
+
+    /** The approved notes a conversation may find: its project's and everywhere's (Pia: everywhere's). */
+    async findable(conversationId: ConversationId, cwd: string | undefined): Promise<Lesson[]> {
+        return (await this.inForce(conversationId, cwd)).lessons;
+    }
+
+    /**
+     * Search the notes a conversation may find. Every word of the query must be in the title or the body (a word of the
+     * note that starts with it counts); when no note has them all, the notes with the most of them come, marked
+     * partial. An empty query lists the newest. Title words count three times, an exact id or title ten.
+     */
+    async search(
+        conversationId: ConversationId,
+        cwd: string | undefined,
+        query: string,
+        limit = SEARCH_RESULTS,
+    ): Promise<{ hits: NoteHit[]; partial: boolean; total: number }> {
+        const notes = await this.findable(conversationId, cwd);
+        const asked = [...new Set(words(query))];
+        const max = Math.max(1, Math.min(MAX_SEARCH_RESULTS, Math.floor(limit)));
+        const hit = (lesson: Lesson, excerpt: string): NoteHit => ({
+            id: lesson.id,
+            title: titleOf(lesson),
+            revision: lesson.revision ?? 1,
+            scope: lesson.project === undefined ? "everywhere" : "project",
+            byPi: lesson.byPi,
+            size: lesson.text.length,
+            excerpt,
+        });
+
+        if (asked.length === 0) {
+            const newest = [...notes].sort(
+                (a, b) => (b.updatedAt ?? b.createdAt) - (a.updatedAt ?? a.createdAt),
+            );
+
+            return {
+                hits: newest.slice(0, max).map((lesson) => hit(lesson, excerptOf(lesson.text, []))),
+                partial: false,
+                total: notes.length,
+            };
+        }
+
+        const phrase = query.trim().toLowerCase();
+        const scored = notes.map((lesson) => {
+            const title = words(titleOf(lesson));
+            const body = words(lesson.text);
+            let score = 0;
+            let matched = 0;
+
+            for (const word of asked) {
+                const inTitle = title.filter((each) => each.startsWith(word)).length;
+                const inBody = body.filter((each) => each.startsWith(word)).length;
+
+                if (inTitle + inBody > 0) {
+                    matched++;
+                    score += 3 * Math.min(inTitle, 3) + Math.min(inBody, 5);
+                }
+            }
+
+            if (lesson.id === phrase.replace(/^\[|\]$/g, "")) {
+                score += 10;
+                matched = asked.length;
+            }
+
+            if (titleOf(lesson).toLowerCase() === phrase) {
+                score += 10;
+            }
+
+            if (asked.length > 1 && lesson.text.toLowerCase().includes(phrase)) {
+                score += 5;
+            }
+
+            return { lesson, score, matched };
+        });
+        const all = scored.filter((each) => each.matched === asked.length);
+        const partial = all.length === 0;
+        const found = (partial ? scored.filter((each) => each.matched > 0) : all).sort(
+            (a, b) =>
+                b.matched - a.matched ||
+                b.score - a.score ||
+                (b.lesson.updatedAt ?? b.lesson.createdAt) -
+                    (a.lesson.updatedAt ?? a.lesson.createdAt),
+        );
+
+        return {
+            hits: found
+                .slice(0, max)
+                .map(({ lesson }) => hit(lesson, excerptOf(lesson.text, asked))),
+            partial,
+            total: found.length,
+        };
+    }
+
+    /** Notes a conversation may find, by id; an id it may not find is "missing", whatever the reason. */
+    async read(
+        conversationId: ConversationId,
+        cwd: string | undefined,
+        ids: string[],
+    ): Promise<{ found: Lesson[]; missing: string[] }> {
+        const notes = new Map((await this.findable(conversationId, cwd)).map((n) => [n.id, n]));
+        const found: Lesson[] = [];
+        const missing: string[] = [];
+
+        for (const asked of ids) {
+            const id = asked.trim().replace(/^\[|\]$/g, "");
+            const note = notes.get(id);
+
+            if (note === undefined) {
+                missing.push(asked);
+            } else if (!found.includes(note)) {
+                found.push(note);
+            }
+        }
+
+        return { found, missing };
+    }
+
+    async #pins(conversationId: ConversationId) {
+        return (
+            (await this.#app.harness.snapshot(NotePinsDoc, conversationId, context))?.items ?? {}
+        );
+    }
+
+    /**
+     * The notes a conversation pinned that it may still find, in the order it pinned them, with their latest approved text.
+     * A note forgotten, waiting again, or out of the project drops out; its pin stays, and comes back with it.
+     */
+    async pinned(conversationId: ConversationId, cwd: string | undefined): Promise<Lesson[]> {
+        const pins = await this.#pins(conversationId);
+        const ids = Object.keys(pins).sort(
+            (a, b) => pins[a]!.at - pins[b]!.at || a.localeCompare(b),
+        );
+
+        if (ids.length === 0) {
+            return [];
+        }
+
+        return (await this.read(conversationId, cwd, ids)).found;
+    }
+
+    /**
+     * Pin notes for a conversation, or unpin them. A pin keeps a note's latest approved text in every request, through
+     * compaction, a restart, and a model change. Refused, with nothing pinned, when the pins would pass `MAX_PINS` notes,
+     * `MAX_PINNED` characters, or a tenth of the model's context (`window`, in tokens, at about 4 characters each).
+     */
+    async pin(
+        conversationId: ConversationId,
+        cwd: string | undefined,
+        writer: Writer,
+        ids: string[],
+        pin: boolean,
+        options: { reason?: string; window?: number } = {},
+    ): Promise<{ changed: Lesson[]; missing: string[]; pinned: Lesson[] }> {
+        const app = this.#app;
+
+        if (!pin) {
+            const keys = ids.map((id) => id.trim().replace(/^\[|\]$/g, ""));
+            const changed: Lesson[] = [];
+
+            await app.harness.commit(async (tx) => {
+                const doc = await tx.doc(NotePinsDoc, conversationId);
+
+                for (const key of keys) {
+                    if (Object.hasOwn(doc.items, key)) {
+                        delete doc.items[key];
+                    }
+                }
+            }, context);
+
+            for (const note of (await this.read(conversationId, cwd, keys)).found) {
+                changed.push(copy(note));
+            }
+
+            return {
+                changed,
+                missing: [],
+                pinned: (await this.pinned(conversationId, cwd)).map(copy),
+            };
+        }
+
+        const { found, missing } = await this.read(conversationId, cwd, ids);
+
+        if (found.length === 0) {
+            return {
+                changed: [],
+                missing,
+                pinned: (await this.pinned(conversationId, cwd)).map(copy),
+            };
+        }
+
+        const before = await this.pinned(conversationId, cwd);
+        const after = [...before, ...found.filter((note) => !before.some((b) => b.id === note.id))];
+        const size = after.reduce((sum, note) => sum + note.text.length, 0);
+        const budget = Math.min(
+            MAX_PINNED,
+            options.window === undefined ? MAX_PINNED : Math.floor((options.window * 4) / 10),
+        );
+
+        if (after.length > MAX_PINS) {
+            throw new HttpError(
+                409,
+                `A session pins ${String(MAX_PINS)} notes at most: unpin one first (pinned now: ${before.map((note) => note.id).join(", ")}).`,
+            );
+        }
+
+        if (size > budget) {
+            throw new HttpError(
+                413,
+                `These pins would be ${String(size)} characters; this session's budget is ${String(budget)}. Nothing was pinned: unpin a note, or read this one without pinning it.`,
+            );
+        }
+
+        const reason = options.reason === undefined ? undefined : cutTo(flat(options.reason), 200);
+
+        await app.harness.commit(async (tx) => {
+            const doc = await tx.doc(NotePinsDoc, conversationId);
+
+            // Pinned together, kept in the order asked: each a millisecond after the one before.
+            let at = Math.max(app.now(), ...Object.values(doc.items).map((each) => each.at + 1));
+
+            for (const note of found) {
+                if (!Object.hasOwn(doc.items, note.id)) {
+                    doc.items[note.id] = {
+                        at: at++,
+                        byPi: writer.byPi,
+                        ...(writer.userId === undefined ? {} : { by: writer.userId }),
+                        ...(reason === undefined || reason === "" ? {} : { reason }),
+                    };
+                }
+            }
+        }, context);
+
+        return {
+            changed: found.map(copy),
+            missing,
+            pinned: (await this.pinned(conversationId, cwd)).map(copy),
+        };
+    }
+
+    /** A person pins or unpins a note in a session from the sheet. */
+    async pinFor(id: ConversationId, user: User, lessonId: string, pin: boolean): Promise<void> {
+        const app = this.#app;
+
+        app.requireSee(user, id);
+        app.requireSteer(user);
+        const { missing } = await this.pin(id, app.cwdOf(id), this.#person(user), [lessonId], pin);
+
+        if (missing.length > 0) {
+            throw new HttpError(404, `There is no note ${lessonId} here.`);
+        }
+
+        this.committed();
+    }
+
+    // ─── Model choice ──────────────────────────────────────────────────────
+
+    /** The approved note Pia reads before it picks a model, if the owner marked one. */
+    async modelGuidance(): Promise<Lesson | undefined> {
+        const note = (await this.#all()).find(
+            (lesson) =>
+                lesson.purpose === MODEL_CHOICE &&
+                lesson.pending !== true &&
+                lesson.project === undefined,
+        );
+
+        return note === undefined ? undefined : copy(note);
+    }
+
+    /**
+     * The owner marks a note as the one Pia reads before it picks a model, with an optional thinking rule, or unmarks it.
+     * Only for a note for everywhere that is in force; marking one unmarks any other.
+     */
+    async setPurpose(
+        id: ConversationId,
+        user: User,
+        lessonId: string,
+        request: { purpose?: unknown; models?: unknown; minThinking?: unknown },
+    ): Promise<Lesson> {
+        const app = this.#app;
+
+        app.requireSee(user, id);
+
+        if (user.role !== "owner") {
+            throw new HttpError(403, "Only the owner chooses the note for model choices.");
+        }
+
+        const on = request.purpose === MODEL_CHOICE;
+        const models = Array.isArray(request.models)
+            ? request.models
+                  .filter((each): each is string => typeof each === "string")
+                  .map((each) => flat(each).toLowerCase())
+                  .filter((each) => each !== "")
+            : [];
+        const minThinking =
+            typeof request.minThinking === "string" && LEVELS.includes(request.minThinking)
+                ? request.minThinking
+                : undefined;
+
+        if (on && models.length > 0 && minThinking === undefined) {
+            throw new HttpError(400, `Name a thinking level: one of ${LEVELS.join(", ")}.`);
+        }
+
+        const project = await this.project(id, app.cwdOf(id));
+
+        return app.harness.commit(async (tx) => {
+            const doc = await tx.doc(MemoryDoc);
+            const lesson = this.#find(doc, project, lessonId);
+
+            if (on && (lesson.project !== undefined || lesson.pending === true)) {
+                throw new HttpError(
+                    409,
+                    "Only a note for everywhere that is in force can guide Pia's model choices.",
+                );
+            }
+
+            for (const other of Object.values(doc.items)) {
+                if (other.purpose !== undefined && (other.id !== lesson.id || !on)) {
+                    delete other.purpose;
+                    delete other.modelRule;
+                }
+            }
+
+            if (on) {
+                lesson.purpose = MODEL_CHOICE;
+
+                if (models.length > 0 && minThinking !== undefined) {
+                    lesson.modelRule = { models, minThinking };
+                } else {
+                    delete lesson.modelRule;
+                }
+            }
+
+            await this.#activity(
+                tx,
+                id,
+                this.#person(user),
+                on
+                    ? `made “${snippet(titleOf(lesson), 80)}” the note Pia reads before it picks a model${lesson.modelRule === undefined ? "" : ` (${lesson.modelRule.models.join(", ")}: thinking ${lesson.modelRule.minThinking} or higher)`}`
+                    : `stopped Pia reading “${snippet(titleOf(lesson), 80)}” before it picks a model`,
             );
 
             return copy(lesson);
@@ -585,6 +1093,7 @@ export class Memory {
         app.requireSee(user, id);
         const owner = user.role === "owner";
         const project = pendingOnly ? undefined : await this.project(id, app.cwdOf(id));
+        const pins = pendingOnly ? {} : await this.#pins(id);
         const applying = pendingOnly
             ? ordered(
                   (await this.#all()).filter(
@@ -605,6 +1114,13 @@ export class Memory {
                 return {
                     id: lesson.id,
                     text: lesson.text,
+                    ...(lesson.title === undefined ? {} : { title: lesson.title }),
+                    revision: lesson.revision ?? 1,
+                    ...(lesson.purpose === undefined ? {} : { purpose: lesson.purpose }),
+                    ...(lesson.modelRule === undefined
+                        ? {}
+                        : { modelRule: structuredClone(lesson.modelRule) }),
+                    pinned: Object.hasOwn(pins, lesson.id),
                     scope: lesson.project === undefined ? "everywhere" : "project",
                     ...(pendingOnly && lesson.projectName !== undefined
                         ? { projectName: lesson.projectName }
@@ -631,6 +1147,9 @@ export class Memory {
                                   ...(lesson.proposal.text === undefined
                                       ? {}
                                       : { text: lesson.proposal.text }),
+                                  ...(lesson.proposal.title === undefined
+                                      ? {}
+                                      : { title: lesson.proposal.title }),
                                   ...(lesson.proposal.forget === true ? { forget: true } : {}),
                                   byPi: lesson.proposal.byPi,
                                   byName:
@@ -652,6 +1171,7 @@ export class Memory {
                 project: MAX_PROJECT_LESSONS,
                 everywhere: MAX_EVERYWHERE_LESSONS,
                 text: MAX_LESSON,
+                title: MAX_TITLE,
             },
         };
     }
@@ -660,7 +1180,7 @@ export class Memory {
     async remember(
         id: ConversationId,
         user: User,
-        request: { text?: unknown; scope?: unknown },
+        request: { text?: unknown; title?: unknown; scope?: unknown },
     ): Promise<Lesson> {
         const app = this.#app;
 
@@ -669,6 +1189,7 @@ export class Memory {
 
         return this.add(id, app.cwdOf(id), this.#person(user), {
             text: request.text,
+            ...(request.title === undefined ? {} : { title: request.title }),
             scope: request.scope === "everywhere" ? "everywhere" : "project",
         });
     }
@@ -678,8 +1199,8 @@ export class Memory {
         id: ConversationId,
         user: User,
         lessonId: string,
-        change: { text: unknown } | "remove" | "approve" | "discard",
-        expected?: { text?: string; forget?: boolean },
+        change: { text: unknown; title?: unknown } | "remove" | "approve" | "discard",
+        expected?: { text?: string; title?: string; forget?: boolean },
         pendingOnly = false,
     ): Promise<Lesson> {
         const app = this.#app;

@@ -39,11 +39,9 @@ function promptBefore(entryId) {
     return undefined;
 }
 
-/** A message as the start of a lesson: one line, cut to a lesson's length. */
+/** A message as the start of a note: its Markdown as it is (the sheet says when it is too long). */
 function lessonFrom(text) {
-    const flat = text.replace(/\s+/g, " ").trim();
-
-    return flat.length > 300 ? `${flat.slice(0, 299)}…` : flat;
+    return text.trim();
 }
 
 /** A fork or a send again on its way: a second tap waits for it. */
@@ -211,7 +209,7 @@ export function MessageSheet({ entryId }) {
                 item(
                     "Remember…",
                     () => openSheet({ type: "memory", draft: lessonFrom(text) }),
-                    "keep it as a lesson for the agent",
+                    "keep it as a note for the agent",
                 )
             }
             ${!filesAlone && item("Copy text", copy)}

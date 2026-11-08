@@ -16,7 +16,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import type { AssistantMessage, ModelThinkingLevel } from "@earendil-works/pi-ai";
+import {
+    type Api,
+    type AssistantMessage,
+    clampThinkingLevel,
+    getSupportedThinkingLevels,
+    type Model,
+    type ModelThinkingLevel,
+} from "@earendil-works/pi-ai";
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import {
@@ -32,12 +39,14 @@ import {
 } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
 import type { User } from "./config.ts";
-import { assistantOwner, FollowsDoc, SessionsDoc } from "./docs.ts";
+import { assistantOwner, FollowsDoc, type Lesson, SessionsDoc } from "./docs.ts";
 import { NOTE_ENTRY } from "./entry-format.ts";
 import { describe, HttpError } from "./errors.ts";
 import { clip, defang, quoted } from "./fence.ts";
 import { git } from "./git.ts";
 import { originRepo, parseRepo, requirePush, sameRepo } from "./github.ts";
+import { LEVELS, safeBody, titleOf } from "./memory.ts";
+import { words } from "./model-names.ts";
 import { findModel, rankModels } from "./models.ts";
 import { homePath } from "./paths.ts";
 import { type ClientEntry, projectEntry, snippet } from "./projection.ts";
@@ -72,6 +81,8 @@ const ORIGIN_FOR_MS = 5 * 60_000;
 const FOLLOW_MEMORY_MS = 24 * 3_600_000;
 /** How long Pia's look at a session (a read, its start, a report from it) counts as knowing what it is doing. */
 const CHECKED_FOR_MS = 15 * 60_000;
+/** How long a model-choice code from the owner's guidance note holds: one decision, made soon after reading it. */
+const GUIDED_FOR_MS = 10 * 60_000;
 /**
  * How long after a follow reported its session's "the agent finished" stays muted: long enough for the push of the same run's
  * end, which comes a few seconds later, and short enough not to mute the next run's.
@@ -173,6 +184,13 @@ export class Pia {
      * memory: after a restart Pia looks again before it acts.
      */
     readonly #checked = new Map<string, number>();
+    /**
+     * Model-choice codes Pia got with the owner's guidance note, by `pia:code`: the note's revision and when. Each holds
+     * for one start or switch. In memory: after a restart Pia reads the note again.
+     */
+    readonly #guided = new Map<string, { note: string; revision: number; at: number }>();
+    /** Sessions Pia just started on a default the owner's rule refuses: their first message waits for a switch. */
+    readonly #unfit = new Map<number, string>();
     /** The durable task behind each follow; Pia's extension installs it. */
     readonly task: Task<FollowInput, FollowState, null, object>;
     /** How long a report waits before it looks again whether Pia is back on (tests shorten it). */
@@ -625,19 +643,145 @@ export class Pia {
     }
 
     /** Change the model of a session, for its person: when it hit a limit, say. Takes a loose name. */
-    async setModel(piaId: ConversationId, sessionId: number, spec: string): Promise<string> {
+    async setModel(
+        piaId: ConversationId,
+        sessionId: number,
+        spec: string,
+        guidance?: string,
+    ): Promise<string> {
         const user = this.#person(piaId);
         const id = this.#session(piaId, user, sessionId);
 
         this.#requireLooked(piaId, sessionId, "change the model of");
         const { model, level } = await this.#modelFor(spec);
+        // What the session thinks at after the switch: the level named, else the one it has, as the model takes it.
+        const current = await this.#app.agentState(id);
+        const guided = await this.#checkChoice(
+            piaId,
+            guidance,
+            model,
+            level ?? current?.thinkingLevel ?? "off",
+            "switch",
+        );
 
         await this.#app.commands.configure(id, user, {
             model,
             ...(level === undefined ? {} : { thinkingLevel: level }),
         });
+        this.#spend(piaId, guidance);
+        this.#unfit.delete(sessionId);
+        const after = await this.#app.agentState(id);
 
-        return `${model.provider}/${model.modelId}${level === undefined ? "" : ` (thinking ${level})`}`;
+        return `${model.provider}/${model.modelId} (thinking ${after?.thinkingLevel ?? level ?? "off"})${guided}`;
+    }
+
+    // ─── Model choice ──────────────────────────────────────────────────────
+
+    /**
+     * The check before Pia starts a session or switches one's model, when the owner marked a note as the guide for model
+     * choices (Memory sheet): Pia must have that note's latest revision in its context for this decision. Without a valid
+     * code (`guidance`) from it, this throws with the note, the models there are, and a new code: nothing is made or
+     * changed, and Pia decides again with the note in view. With one, it checks the owner's thinking rule against the
+     * level the session would really think at (`clampThinkingLevel`), and says which revision guided the choice. No
+     * marked note: no check.
+     */
+    async #checkChoice(
+        piaId: ConversationId,
+        guidance: string | undefined,
+        model: { provider: string; modelId: string } | undefined,
+        level: ModelThinkingLevel | undefined,
+        doing: "start" | "switch",
+    ): Promise<string> {
+        const app = this.#app;
+        const note = await app.memory.modelGuidance();
+
+        if (note === undefined) {
+            return "";
+        }
+
+        const revision = note.revision ?? 1;
+        const key = `${String(piaId)}:${(guidance ?? "").trim()}`;
+        const held = this.#guided.get(key);
+        const fresh =
+            held !== undefined &&
+            held.note === note.id &&
+            held.revision === revision &&
+            Date.now() - held.at <= GUIDED_FOR_MS;
+
+        if (!fresh) {
+            const code = randomUUID().slice(0, 8);
+
+            this.#guided.set(`${String(piaId)}:${code}`, {
+                note: note.id,
+                revision,
+                at: Date.now(),
+            });
+
+            for (const [each, value] of this.#guided) {
+                if (Date.now() - value.at > GUIDED_FOR_MS) {
+                    this.#guided.delete(each);
+                }
+            }
+
+            throw new Error(
+                `${held !== undefined && held.revision !== revision ? "The owner's model guidance changed since you read it. " : guidance === undefined ? "" : "That guidance code is not valid now (each code is for one choice, for 10 minutes). "}Nothing was ${doing === "start" ? "started" : "switched"}. Before you choose a model, read the owner's guidance below, decide again (a default model is a choice too), and call again with guidance: "${code}".
+${this.#guidanceText(note)}`,
+            );
+        }
+
+        const rule = note.modelRule;
+        const found =
+            model === undefined ? undefined : app.models.getModel(model.provider, model.modelId);
+
+        if (rule !== undefined && found !== undefined && level !== undefined) {
+            const own = new Set(words(`${found.provider} ${found.id} ${found.name}`));
+            const ruled = rule.models.some((word) => words(word).every((each) => own.has(each)));
+            const effective = clampThinkingLevel(found, level);
+
+            if (ruled && LEVELS.indexOf(effective) < LEVELS.indexOf(rule.minThinking)) {
+                const supported = found.reasoning ? getSupportedThinkingLevels(found) : ["off"];
+                const fits = supported.filter(
+                    (each) => LEVELS.indexOf(each) >= LEVELS.indexOf(rule.minThinking),
+                );
+
+                throw new Error(
+                    `The owner's guidance [${note.id}] rev ${String(revision)} needs thinking ${rule.minThinking} or higher for ${rule.models.join(", ")}; ${found.provider}/${found.id} would think at ${effective}${effective === level ? "" : ` (it lowers ${level} to that)`}. Nothing was ${doing === "start" ? "started" : "switched"}. ${fits.length === 0 ? `This model has no level that high (it has ${supported.join(", ")}): pick another model, or tell your person.` : `Call again with a level in the model name, such as "${found.provider}/${found.id} ${fits[0]!}".`}`,
+                );
+            }
+        }
+
+        return ` (guided by the owner's note [${note.id}] rev ${String(revision)})`;
+    }
+
+    /** A code is spent once the choice it guided is made. */
+    #spend(piaId: ConversationId, guidance: string | undefined): void {
+        if (guidance !== undefined) {
+            this.#guided.delete(`${String(piaId)}:${guidance.trim()}`);
+        }
+    }
+
+    /** The guidance note, the models to choose from with their thinking levels, and the default a start without a model gets. */
+    #guidanceText(note: Lesson): string {
+        const app = this.#app;
+        const available = app.models.getAvailableSnapshot();
+        const levels = (model: Model<Api>) =>
+            (model.reasoning ? getSupportedThinkingLevels(model) : ["off"]).join("/");
+        const fallback = app.commands.defaultModel(app.defaultCwd);
+        const lines = available
+            .slice(0, 60)
+            .map((model) => `- ${model.provider}/${model.id}: thinking ${levels(model)}`);
+        const rule =
+            note.modelRule === undefined
+                ? ""
+                : `
+The owner's rule: ${note.modelRule.models.join(", ")} need thinking ${note.modelRule.minThinking} or higher.`;
+
+        return `<note id="${note.id}" revision="${String(note.revision ?? 1)}" title="${titleOf(note).replace(/["<>]/g, "")}">
+${safeBody(note.text)}
+</note>${rule}
+Signed-in models (check provider_usage when limits matter):
+${lines.join("\n")}${available.length > 60 ? `\n(and ${String(available.length - 60)} more)` : ""}
+Without a model, a new session gets ${fallback.model === undefined ? "no model" : `${fallback.model.provider}/${fallback.model.modelId} (thinking ${fallback.thinkingLevel ?? "off"})`} in the default folder (a folder's own project settings can differ).`;
     }
 
     /** A session's state now, in a few words, for the results of Pia's tools that act on it. */
@@ -839,6 +983,7 @@ export class Pia {
             worktree?: boolean;
             model?: string;
             message?: string;
+            guidance?: string;
         },
     ): Promise<ConversationId> {
         const app = this.#app;
@@ -852,9 +997,24 @@ export class Pia {
             throw new Error("Give a folder or a repository, not both.");
         }
 
-        this.#count(user, "act", ACTIONS_PER_HOUR);
         const folder =
             request.repo === undefined ? request.folder : await this.checkout(piaId, request.repo);
+        // A start with the default model is a choice too: the default is checked as the session would get it in its
+        // folder. A model named without a level keeps the level a new session starts with, as the model takes it.
+        const fallback = app.commands.defaultModel(
+            model === undefined
+                ? app.workspace.checkDirectory(folder ?? app.defaultCwd)
+                : undefined,
+        );
+        const guided = await this.#checkChoice(
+            piaId,
+            request.guidance,
+            model ?? fallback.model,
+            chosen?.level ?? fallback.thinkingLevel ?? "off",
+            "start",
+        );
+
+        this.#count(user, "act", ACTIONS_PER_HOUR);
         const { id } = await app.commands.createSession(
             user,
             {
@@ -874,6 +1034,38 @@ export class Pia {
 
         // Pia made it, and knows what it is doing: nothing yet.
         this.#looked(piaId, id);
+        this.#spend(piaId, request.guidance);
+
+        // The default a session really got (a worktree's own project settings can differ from its folder's) is checked
+        // again before its first message: one the owner's rule refuses gets no message.
+        if (guided !== "" && model === undefined) {
+            const got = await app.agentState(id);
+            const same =
+                got?.model?.provider === fallback.model?.provider &&
+                got?.model?.modelId === fallback.model?.modelId &&
+                got?.thinkingLevel === fallback.thinkingLevel;
+
+            if (!same && got?.model !== undefined) {
+                const note = await app.memory.modelGuidance();
+                const rule = note?.modelRule;
+                const found = app.models.getModel(got.model.provider, got.model.modelId);
+
+                if (rule !== undefined && found !== undefined) {
+                    const own = new Set(words(`${found.provider} ${found.id} ${found.name}`));
+                    const ruled = rule.models.some((word) =>
+                        words(word).every((each) => own.has(each)),
+                    );
+                    const level = got.thinkingLevel ?? "off";
+
+                    if (ruled && LEVELS.indexOf(level) < LEVELS.indexOf(rule.minThinking)) {
+                        this.#unfit.set(
+                            Number(id),
+                            `Started /s/${String(id)}, but its folder's default is ${found.provider}/${found.id} at thinking ${level}, below the owner's rule (${rule.minThinking} or higher for ${rule.models.join(", ")}). No message was sent: switch it with session_model first, then send the task with session_send.`,
+                        );
+                    }
+                }
+            }
+        }
 
         return id;
     }
@@ -899,6 +1091,11 @@ export class Pia {
                 // see, and was checked for model names as the session started.
                 if (options.started !== true) {
                     this.#requireLooked(piaId, sessionId, "message");
+                }
+
+                // Started on a default the owner's rule refuses: no message until a switch.
+                if (this.#unfit.has(sessionId)) {
+                    throw new Error(this.#unfit.get(sessionId));
                 }
             }),
         };

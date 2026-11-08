@@ -138,6 +138,8 @@ export const BUILT_IN_TOOLS: ReadonlySet<string> = new Set([
     "background",
     "codemode",
     "memory",
+    "note_search",
+    "note_load",
     "inbox",
     "inbox_note",
     "sessions",

@@ -262,16 +262,41 @@ export async function conversationRoutes(
 
     if (third === "memory" && fourth !== undefined && method === "POST") {
         const action = parts[4];
+
+        // Pinning and the model-choice mark are for this session only, never through the all-project queue.
+        if ((action === "pin" || action === "unpin" || action === "purpose") && !pendingMemory) {
+            if (action === "purpose") {
+                return json(
+                    response,
+                    200,
+                    await app.memory.setPurpose(id, user, fourth, await readJson(request)),
+                );
+            }
+
+            await app.memory.pinFor(id, user, fourth, action === "pin");
+
+            return json(response, 200, { ok: true });
+        }
+
+        const edited =
+            action === undefined
+                ? await readJson<{ text?: unknown; title?: unknown }>(request)
+                : undefined;
         const change =
             action === "remove" || action === "approve" || action === "discard"
                 ? action
-                : action === undefined
-                  ? { text: (await readJson<{ text?: unknown }>(request)).text }
+                : edited !== undefined
+                  ? {
+                        text: edited.text,
+                        ...(edited.title === undefined ? {} : { title: edited.title }),
+                    }
                   : undefined;
 
         // An approval says what the person saw: it holds only if that is still what waits.
         if (change === "approve") {
-            const seen = await readJson<{ text?: unknown; forget?: unknown }>(request);
+            const seen = await readJson<{ text?: unknown; title?: unknown; forget?: unknown }>(
+                request,
+            );
 
             return json(
                 response,
@@ -283,6 +308,7 @@ export async function conversationRoutes(
                     change,
                     {
                         text: typeof seen.text === "string" ? seen.text : undefined,
+                        ...(typeof seen.title === "string" ? { title: seen.title } : {}),
                         forget: seen.forget === true,
                     },
                     pendingMemory,

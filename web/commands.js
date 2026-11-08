@@ -311,8 +311,8 @@ const COMMANDS = [
     },
     {
         name: "remember",
-        args: "<lesson>",
-        description: "Keep a lesson for the agent in every session of this project",
+        args: "<note>",
+        description: "Keep a note the agent can find in every session of this project",
         available: () => memoryAvailable() && store.state.me?.role !== "viewer",
         run: async (arg) => {
             if (arg === "") {
@@ -324,8 +324,8 @@ const COMMANDS = [
             notify(
                 "info",
                 lesson.pending
-                    ? "Remembered. The agent uses it once the owner approves it."
-                    : "Remembered. The agent gets it from its next message.",
+                    ? "Remembered. The agent can find it once the owner approves it."
+                    : "Remembered. The agent can find it from its next message.",
             );
         },
     },

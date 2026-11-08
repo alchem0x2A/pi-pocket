@@ -1,6 +1,6 @@
-// Memory: lessons the agent saves with its tool reach later sessions of the same project (its worktrees too) in their system
-// prompt, and everywhere's reach every session and Pia; a guest's wait for the owner; a call run again saves once;
-// caps; and who may change what through the routes.
+// Memory: notes (lessons) the agent saves with its tool can be found by later sessions of the same project (its worktrees
+// too) with note_search, and everywhere's by every session and Pia; none is in the prompt unless a session pins it; a
+// guest's wait for the owner; a call run again saves once; caps; and who may change what through the routes.
 import {
     type App,
     cleanUp,
@@ -55,6 +55,15 @@ const route: FauxResponseStep = (request) => {
             return tool({ action: "update", id: rest[0] ?? "", text: rest.slice(1).join(" ") });
         case "list":
             return tool({ action: "list" });
+        case "find":
+            return fauxAssistantMessage([fauxToolCall("note_search", { query: rest.join(" ") })], {
+                stopReason: "toolUse",
+            });
+        case "load":
+            return fauxAssistantMessage(
+                [fauxToolCall("note_load", { ids: [rest[1] ?? ""], mode: rest[0] ?? "read" })],
+                { stopReason: "toolUse" },
+            );
 
         case "check": {
             const { messages, systemPrompt } = request as {
@@ -117,13 +126,19 @@ async function answer(id: ConversationId): Promise<string> {
         : "";
 }
 
-/** Whether a new session in `cwd` gets `word` in its system prompt. */
+/**
+ * Whether a new session in `cwd` finds `word` with note_search. Never in its system prompt: only pinned notes are.
+ */
 async function given(cwd: string, word: string): Promise<boolean> {
     const id = await newSession(app, cwd);
 
     await say(app, id, `check ${word}`);
+    assert.equal(await answer(id), `has ${word}: false`, "no note is in the prompt unpinned");
+    await say(app, id, `find ${word}`);
 
-    return (await answer(id)) === `has ${word}: true`;
+    const found = await answer(id);
+
+    return /\d+ notes? match/.test(found) && found.includes(word);
 }
 
 /** Forget every lesson, for the next test. */

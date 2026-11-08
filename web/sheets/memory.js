@@ -1,7 +1,7 @@
-// Memory: the lessons the agent keeps across sessions, for this session's project and for everywhere.
+// Memory: the notes (once called lessons) the agent can find across sessions, for this session's project and everywhere.
 import { useEffect, useState } from "preact/hooks";
 import { api, attempt, closeSheet, navigate, notify, store } from "../store.js";
-import { html, Sheet, timeAgo } from "../ui.js";
+import { html, Icon, Markdown, plainText, Sheet, timeAgo } from "../ui.js";
 
 /** Memory needs its extension, and a conversation to say which project: `id`, or the one open. */
 export const memoryAvailable = (id) =>
@@ -121,10 +121,10 @@ export function memoryHint(data) {
     return parts.filter(Boolean).join(" · ");
 }
 
-/** Save a lesson by hand: for this project, or everywhere. */
-export async function remember(text, scope = "project", conversationId) {
+/** Save a note by hand: for this project, or everywhere, with an optional title. */
+export async function remember(text, scope = "project", conversationId, title = "") {
     const id = conversationId ?? store.state.conversationId;
-    const lesson = await api(path(id), { text, scope });
+    const lesson = await api(path(id), { text, scope, ...(title.trim() ? { title } : {}) });
 
     refresh();
 
@@ -134,11 +134,95 @@ export async function remember(text, scope = "project", conversationId) {
 /** What the owner saw waiting, sent with Approve: the server approves only if it still waits. */
 function approval(lesson) {
     if (lesson.pending) {
-        return { text: lesson.text };
+        return { text: lesson.text, title: lesson.title ?? "" };
     }
 
-    return lesson.proposal?.forget ? { forget: true } : { text: lesson.proposal?.text };
+    if (lesson.proposal?.forget) {
+        return { forget: true };
+    }
+
+    // A proposal that sets no title keeps the one in force; "" removes it.
+    const title = lesson.proposal?.title ?? lesson.title ?? "";
+
+    return { text: lesson.proposal?.text, title };
 }
+
+/** A note's title: its own, or its body's first line. */
+export const noteTitle = (lesson) =>
+    lesson.title ||
+    (lesson.text.split("\n").find((line) => line.trim() !== "") ?? "")
+        .replace(/^#+\s*/, "")
+        .slice(0, 80);
+
+/** Words of a search, lowercased. */
+const words = (text) =>
+    text
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}_./:@-]+/u)
+        .filter((word) => word !== "");
+
+/** Whether a note has every word of a search, in its title or body (the start of a word is enough). */
+function matches(lesson, query) {
+    const asked = words(query);
+
+    if (asked.length === 0) {
+        return true;
+    }
+
+    const own = words(`${noteTitle(lesson)} ${lesson.text} ${lesson.id}`);
+
+    return asked.every((word) => own.some((each) => each.startsWith(word)));
+}
+
+/**
+ * Title and body fields with their size against the limits: a body or title over its limit shows the error and keeps
+ * Save off, so nothing is cut. Returns whether the draft can be saved.
+ */
+function NoteFields({ title, text, setTitle, setText, limits, autofocus = false, onSubmit }) {
+    const over = text.length > limits.text;
+    const titleOver = title.length > limits.title;
+
+    return html`<div class="note-fields">
+        <input
+            class="note-title-input"
+            type="text"
+            aria-label="Title"
+            placeholder="Title (optional): when it helps"
+            value=${title}
+            onInput=${(event) => setTitle(event.currentTarget.value)}
+        />
+        ${
+            titleOver &&
+            html`<div class="note-size over" role="alert">
+                The title is ${title.length} characters; ${limits.title} at most.
+            </div>`
+        }
+        <textarea
+            rows="6"
+            autofocus=${autofocus}
+            aria-label="Note"
+            placeholder="Markdown is fine: lists, code, links. e.g. Run the tests with npm test; the browser tests need Chromium."
+            value=${text}
+            onInput=${(event) => setText(event.currentTarget.value)}
+            onKeyDown=${(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && onSubmit) {
+                    event.preventDefault();
+                    onSubmit();
+                }
+            }}
+        ></textarea>
+        <div class=${`note-size ${over ? "over" : ""}`} role=${over ? "alert" : undefined}>
+            ${
+                over
+                    ? `Too long: ${text.length} of ${limits.text} characters. Shorten it, or split it into two notes.`
+                    : `${text.length} / ${limits.text}`
+            }
+        </div>
+    </div>`;
+}
+
+const fits = (title, text, limits) =>
+    text.trim() !== "" && text.length <= limits.text && title.length <= limits.title;
 
 /** Who saved a lesson, and where it came from, in a line. */
 function Source({ lesson }) {
@@ -170,11 +254,12 @@ const reach = (lesson) =>
         ? `everywhere: every session, and ${assistantName()}`
         : (lesson.projectName ?? "this project");
 
-/** One lesson: its text, where it came from, and what this person may do with it. */
-function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
+/** One note: its title, its Markdown, where it came from, and what this person may do with it. */
+function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opened = false }) {
     const id = conversationId ?? store.state.conversationId;
     const [draft, setDraft] = useState(null);
     const [forgetting, setForgetting] = useState(false);
+    const [open, setOpen] = useState(opened);
     const act = (rest, body = {}, done = "") =>
         attempt(async () => {
             // Fetched again either way: after a refusal (it changed since), the sheet shows what waits now.
@@ -193,22 +278,29 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
         });
     const approving = data.owner && (lesson.pending || lesson.proposal);
     const withdrawing = !data.owner && lesson.proposal?.mine;
+    const canPin = !pendingOnly && data.canWrite && !lesson.pending;
 
     if (draft !== null) {
-        return html`<div class="lesson">
-            <textarea
-                rows="3"
-                autofocus
-                maxlength=${data.limits.text}
-                value=${draft}
-                onInput=${(event) => setDraft(event.currentTarget.value)}
-            ></textarea>
+        const save = () =>
+            fits(draft.title, draft.text, data.limits) &&
+            act("", { text: draft.text, title: draft.title });
+
+        return html`<div class="lesson editing" data-note=${lesson.id}>
+            <${NoteFields}
+                title=${draft.title}
+                text=${draft.text}
+                setTitle=${(title) => setDraft({ ...draft, title })}
+                setText=${(text) => setDraft({ ...draft, text })}
+                limits=${data.limits}
+                autofocus=${true}
+                onSubmit=${save}
+            />
             <div class="row lesson-actions">
                 <button class="button small ghost" onClick=${() => setDraft(null)}>Cancel</button>
                 <button
                     class="button small primary"
-                    disabled=${draft.trim() === ""}
-                    onClick=${() => act("", { text: draft })}
+                    disabled=${!fits(draft.title, draft.text, data.limits)}
+                    onClick=${save}
                 >
                     Save
                 </button>
@@ -216,15 +308,45 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
         </div>`;
     }
 
-    return html`<div class=${`lesson ${lesson.pending ? "pending" : ""}`}>
-        <div class="lesson-text">${lesson.text}</div>
+    return html`<div
+        class=${`lesson ${lesson.pending ? "pending" : ""} ${open ? "open" : ""}`}
+        data-note=${lesson.id}
+    >
+        <button
+            class="note-head"
+            aria-expanded=${open ? "true" : "false"}
+            onClick=${() => setOpen(!open)}
+        >
+            <span class="note-title">${noteTitle(lesson)}</span>
+            ${lesson.pinned && html`<span class="note-tag">pinned here</span>`}
+            ${lesson.purpose && html`<span class="note-tag">model choice</span>`}
+            <${Icon} name="chevron" size=${16} class=${`note-chevron ${open ? "open" : ""}`} />
+        </button>
+        ${
+            open
+                ? html`<div class="lesson-text note-body">
+                      <${Markdown} text=${lesson.text} conversationId=${id} />
+                  </div>`
+                : html`<div class="lesson-text note-excerpt muted small">
+                      ${lesson.title ? plainText(lesson.text).replace(/\s+/g, " ").slice(0, 140) : ""}
+                  </div>`
+        }
         ${
             lesson.proposal &&
             html`<div class="lesson-proposal">
                 <span class="muted small">
                     ${lesson.proposal.byPi ? "the agent" : lesson.proposal.mine ? "You" : lesson.proposal.byName} ${lesson.proposal.forget ? "proposes forgetting it." : "proposes:"}
                 </span>
-                ${lesson.proposal.text && html`<div class="lesson-text">${lesson.proposal.text}</div>`}
+                ${
+                    lesson.proposal.title !== undefined &&
+                    html`<div class="note-title">${lesson.proposal.title || "(no title)"}</div>`
+                }
+                ${
+                    lesson.proposal.text &&
+                    html`<div class="lesson-text note-body">
+                        <${Markdown} text=${lesson.proposal.text} conversationId=${id} />
+                    </div>`
+                }
             </div>`
         }
         ${
@@ -232,10 +354,11 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
             !data.owner &&
             html`<div class="muted small">Waits for the owner's approval; until then the agent goes on as before.</div>`
         }
+        ${open && data.owner && !pendingOnly && html`<${Purpose} lesson=${lesson} act=${act} />`}
         <div class="lesson-foot">
             <${Source} lesson=${lesson} />
             ${
-                (lesson.mine || approving || withdrawing) &&
+                (lesson.mine || approving || withdrawing || canPin) &&
                 html`<div class="row lesson-actions">
                     ${
                         approving &&
@@ -245,7 +368,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
                                 act(
                                     "/approve",
                                     approval(lesson),
-                                    "Approved: the agent goes by it from its next message.",
+                                    "Approved: the agent can find it from its next message.",
                                 )}
                         >
                             Approve
@@ -258,10 +381,28 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
                         </button>`
                     }
                     ${
+                        canPin &&
+                        html`<button
+                            class="button small ghost"
+                            title=${lesson.pinned ? "Stop sending it with every request here" : "Send it with every request in this session"}
+                            onClick=${() =>
+                                act(
+                                    lesson.pinned ? "/unpin" : "/pin",
+                                    {},
+                                    lesson.pinned
+                                        ? "Unpinned from this session."
+                                        : "Pinned: every request in this session has it.",
+                                )}
+                        >
+                            ${lesson.pinned ? "Unpin" : "Pin here"}
+                        </button>`
+                    }
+                    ${
                         lesson.mine &&
                         html`<button
                             class="button small ghost"
-                            onClick=${() => setDraft(lesson.text)}
+                            onClick=${() =>
+                                setDraft({ title: lesson.title ?? "", text: lesson.text })}
                         >
                             Edit
                         </button>`
@@ -274,13 +415,77 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false }) {
                             onClick=${() => (forgetting ? act("/remove") : setForgetting(true))}
                             onBlur=${() => setForgetting(false)}
                         >
-                            ${forgetting ? "Forget it" : "Forget"}
+                            ${forgetting ? "Delete it" : "Delete"}
                         </button>`
                     }
                 </div>`
             }
         </div>
     </div>`;
+}
+
+/** The owner marks a note for everywhere as the one Pia reads before it picks a model, with an optional thinking rule. */
+function Purpose({ lesson, act }) {
+    const rule = lesson.modelRule;
+    const [models, setModels] = useState(rule ? rule.models.join(", ") : "");
+    const [level, setLevel] = useState(rule?.minThinking ?? "xhigh");
+
+    if (lesson.scope !== "everywhere" || lesson.pending) {
+        return null;
+    }
+
+    const list = models
+        .split(",")
+        .map((each) => each.trim())
+        .filter(Boolean);
+    const mark = () =>
+        act(
+            "/purpose",
+            {
+                purpose: "model-choice",
+                ...(list.length > 0 ? { models: list, minThinking: level } : {}),
+            },
+            "Pia reads this note before it picks a model.",
+        );
+
+    return html`<details class="note-purpose" open=${lesson.purpose ? true : undefined}>
+        <summary class="muted small">
+            ${lesson.purpose ? "Pia reads this before it picks a model" : "Use for Pia's model choices…"}
+        </summary>
+        <div class="note-purpose-body">
+            <label class="field">
+                <span class="label">Models that need a minimum thinking level (words of their ids)</span>
+                <input
+                    type="text"
+                    placeholder="e.g. luna, terra"
+                    value=${models}
+                    onInput=${(event) => setModels(event.currentTarget.value)}
+                />
+            </label>
+            <label class="field">
+                <span class="label">Minimum thinking level</span>
+                <select value=${level} onChange=${(event) => setLevel(event.currentTarget.value)}>
+                    ${["minimal", "low", "medium", "high", "xhigh", "max"].map(
+                        (each) => html`<option value=${each}>${each}</option>`,
+                    )}
+                </select>
+            </label>
+            <div class="row lesson-actions">
+                ${
+                    lesson.purpose &&
+                    html`<button
+                        class="button small ghost"
+                        onClick=${() => act("/purpose", {}, "Pia no longer reads this note first.")}
+                    >
+                        Stop
+                    </button>`
+                }
+                <button class="button small primary" onClick=${mark}>
+                    ${lesson.purpose ? "Save rule" : "Use this note"}
+                </button>
+            </div>
+        </div>
+    </details>`;
 }
 
 /** A group of lessons with its title, or nothing when it has none. */
@@ -305,7 +510,7 @@ function Group({ title, lessons, data, empty, conversationId, pendingOnly = fals
     </div>`;
 }
 
-/** The lessons the agent keeps: what waits for approval, this project's, and everywhere's; and one added by hand. */
+/** The notes the agent can find: what waits for approval, this project's, and everywhere's; a search; and a new one. */
 export function MemorySheet({
     draft: initial = "",
     conversationId,
@@ -315,67 +520,76 @@ export function MemorySheet({
     const id = conversationId ?? store.state.conversationId;
     const data = useMemory(id, pendingOnly, settings);
     const [text, setText] = useState(initial);
+    const [title, setTitle] = useState("");
     const [scope, setScope] = useState("project");
     const [busy, setBusy] = useState(false);
+    const [query, setQuery] = useState("");
+    const [adding, setAdding] = useState(initial !== "");
 
-    const title = pendingOnly ? "Pending memories" : "Memory";
+    const heading = pendingOnly ? "Pending memories" : "Memory";
 
     if (pendingOnly && store.state.me?.role !== "owner") {
-        return html`<${Sheet} title=${title} onClose=${closeSheet}>
+        return html`<${Sheet} title=${heading} onClose=${closeSheet}>
             <p class="muted">Only the owner can review pending memories.</p>
         <//>`;
     }
 
     if (!data) {
-        return html`<${Sheet} title=${title} onClose=${closeSheet}>
+        return html`<${Sheet} title=${heading} onClose=${closeSheet}>
             <p class="muted">Loading…</p>
         <//>`;
     }
 
     if (pendingOnly && data.restartRequired) {
-        return html`<${Sheet} title=${title} onClose=${closeSheet}>
+        return html`<${Sheet} title=${heading} onClose=${closeSheet}>
             <p class="muted">
                 Restart the server from Menu → Restart server to review pending memories across projects.
             </p>
         <//>`;
     }
 
+    // An older server sends no title limit.
+    const limits = { title: 120, ...data.limits };
     const project = data.project;
     const chosen = project ? scope : "everywhere";
-    const waiting = data.owner
-        ? data.lessons.filter((lesson) => lesson.pending || lesson.proposal)
-        : [];
-    const shown = data.lessons.filter((lesson) => !waiting.includes(lesson));
+    const searching = query.trim() !== "";
+    const found = data.lessons.filter((lesson) => matches(lesson, query));
+    const waiting = data.owner ? found.filter((lesson) => lesson.pending || lesson.proposal) : [];
+    const shown = found.filter((lesson) => !waiting.includes(lesson));
+    const here = shown.filter((lesson) => lesson.scope === "project");
+    const everywhere = shown.filter((lesson) => lesson.scope === "everywhere");
 
     const add = () => {
-        if (busy || text.trim() === "") {
+        if (busy || !fits(title, text, limits)) {
             return;
         }
 
         setBusy(true);
         attempt(async () => {
-            const lesson = await remember(text, chosen, id);
+            const lesson = await remember(text, chosen, id, title);
 
             setText("");
+            setTitle("");
+            setAdding(false);
             notify(
                 "info",
                 lesson.pending
-                    ? "Saved. The agent uses it once the owner approves it."
-                    : "Saved. The agent gets it from its next message.",
+                    ? "Saved. The agent can find it once the owner approves it."
+                    : "Saved. The agent can find it from its next message.",
             );
         }).finally(() => setBusy(false));
     };
 
     if (pendingOnly) {
-        return html`<${Sheet} title=${title} onClose=${closeSheet}>
+        return html`<${Sheet} title=${heading} onClose=${closeSheet}>
             <p class="muted small">
                 Memories waiting for your approval, across every project and everywhere.
-                Approve only what you want the agent to keep; until then the agent goes on as before.
+                Approve only what you want the agent to find; until then the agent goes on as before.
             </p>
             <${Group}
                 title=${`To approve · ${waiting.length}`}
                 lessons=${waiting}
-                data=${data}
+                data=${{ ...data, limits }}
                 conversationId=${id}
                 pendingOnly=${true}
                 empty="No memories waiting for approval."
@@ -383,31 +597,49 @@ export function MemorySheet({
         <//>`;
     }
 
-    return html`<${Sheet} title=${title} onClose=${closeSheet}>
+    const full = { ...data, limits };
+
+    return html`<${Sheet} title=${heading} onClose=${closeSheet}>
         ${
             settings &&
             store.state.server?.extensions?.includes("pocket-memory") !== true &&
-            html`<p class="muted small">Memory is off in Extensions. You can still edit its saved lessons here.</p>`
+            html`<p class="muted small">Memory is off in Extensions. You can still edit its saved notes here.</p>`
         }
         <p class="muted small">
-            Short lessons the agent keeps across sessions: how to build and test, gotchas, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> go to every session in it, worktrees too; the rest go everywhere.` : `${assistantName()} keeps lessons for everywhere.`} the agent proposes one only when asked, or when sure it will help in many later sessions, and the owner approves; yours count at once.
+            Notes the agent can search and read across sessions: facts about this machine, how to build and test, conventions, preferences. ${project ? html`Those for <b>${project.name}</b> can be found in every session in it, worktrees too; the rest everywhere.` : `${assistantName()} finds notes for everywhere.`} No note is in the agent's prompt unless a session pins it. The agent proposes notes, and the owner approves them; yours count at once.
         </p>
+        <div class="note-tools">
+            <label class="search note-search">
+                <${Icon} name="search" size=${16} />
+                <input
+                    type="search"
+                    aria-label="Search notes"
+                    placeholder="Search notes"
+                    value=${query}
+                    onInput=${(event) => setQuery(event.currentTarget.value)}
+                />
+            </label>
+            ${
+                data.canWrite &&
+                !adding &&
+                html`<button class="button primary" onClick=${() => setAdding(true)}>
+                    New note
+                </button>`
+            }
+        </div>
         ${
             data.canWrite &&
+            adding &&
             html`<div class="lesson-add">
-                <textarea
-                    rows="2"
-                    placeholder="e.g. Run the tests with npm test; the browser tests need Chromium."
-                    maxlength=${data.limits.text}
-                    value=${text}
-                    onInput=${(event) => setText(event.currentTarget.value)}
-                    onKeyDown=${(event) => {
-                        if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
-                            event.preventDefault();
-                            add();
-                        }
-                    }}
-                ></textarea>
+                <${NoteFields}
+                    title=${title}
+                    text=${text}
+                    setTitle=${setTitle}
+                    setText=${setText}
+                    limits=${limits}
+                    autofocus=${true}
+                    onSubmit=${add}
+                />
                 <div class="row">
                     ${
                         project &&
@@ -431,41 +663,56 @@ export function MemorySheet({
                         </div>`
                     }
                     <button
+                        class="button ghost"
+                        onClick=${() => {
+                            setAdding(false);
+                            setText("");
+                            setTitle("");
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
                         class="button primary"
-                        disabled=${busy || text.trim() === ""}
+                        disabled=${busy || !fits(title, text, limits)}
                         onClick=${add}
                     >
-                        Remember
+                        Save
                     </button>
                 </div>
             </div>`
         }
+        ${searching && found.length === 0 && html`<p class="muted small">No note matches.</p>`}
         ${
             waiting.length > 0 &&
             html`<${Group}
                 title=${`To approve · ${waiting.length}`}
                 lessons=${waiting}
-                data=${data}
+                data=${full}
                 conversationId=${id}
             />`
         }
         ${
             project &&
+            (!searching || here.length > 0) &&
             html`<${Group}
                 title=${`This project: ${project.name}`}
-                lessons=${shown.filter((lesson) => lesson.scope === "project")}
-                data=${data}
+                lessons=${here}
+                data=${full}
                 conversationId=${id}
                 empty="Nothing yet."
             />`
         }
-        <${Group}
-            title="Everywhere"
-            lessons=${shown.filter((lesson) => lesson.scope === "everywhere")}
-            data=${data}
-            conversationId=${id}
-            empty="Nothing yet."
-        />
+        ${
+            (!searching || everywhere.length > 0) &&
+            html`<${Group}
+                title="Everywhere"
+                lessons=${everywhere}
+                data=${full}
+                conversationId=${id}
+                empty="Nothing yet."
+            />`
+        }
     <//>`;
 }
 
@@ -503,20 +750,23 @@ export function LessonCall({ lessonId, conversationId }) {
     }
 
     if (!lesson.pending && !lesson.proposal) {
-        return html`<div class="lesson-call muted small">In memory: the agent goes by it.</div>`;
+        return html`<div class="lesson-call muted small">In memory: the agent can find it.</div>`;
     }
 
     const what = lesson.pending
-        ? "A new lesson"
+        ? "A new note"
         : lesson.proposal.forget
-          ? "Forgetting this lesson"
-          : "New text for this lesson";
+          ? "Forgetting this note"
+          : "New text for this note";
     const text = lesson.pending || lesson.proposal.forget ? lesson.text : lesson.proposal.text;
 
     return html`<div class="lesson-call waiting">
         <div class="grow">
             <div>${what}, for ${reach(lesson)}, waits for ${data.owner ? "you" : "the owner"}:</div>
-            <div class="lesson-text">${text}</div>
+            ${lesson.title && html`<div class="note-title">${lesson.proposal?.title || lesson.title}</div>`}
+            <div class="lesson-text note-body">
+                <${Markdown} text=${text} conversationId=${id} />
+            </div>
         </div>
         ${
             data.owner &&
@@ -526,7 +776,7 @@ export function LessonCall({ lessonId, conversationId }) {
                         act(
                             "/approve",
                             approval(lesson),
-                            "Approved: the agent goes by it from its next message.",
+                            "Approved: the agent can find it from its next message.",
                         )}
                 >
                     Approve
