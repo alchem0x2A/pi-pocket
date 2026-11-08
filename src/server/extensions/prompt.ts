@@ -43,6 +43,29 @@ function docs(dataDir: string): string {
 - the agent's own documentation (skills, prompt templates, models, providers, settings): ${getDocsPath()}`;
 }
 
+/**
+ * The lean start prompt of a normal session (not Pia's): one line about where the agent runs and how to answer, then
+ * pointers. The tools carry the rest; skills, guides, and documentation come on demand. `PI_POCKET_LEAN_PROMPT=off`
+ * restores the full prompt.
+ */
+const isLean = () => process.env.PI_POCKET_LEAN_PROMPT !== "off";
+
+const LEAN_PREAMBLE = `You are a coding agent in Pia, a multiplayer web app built on Pi Durable. People often read on a phone: keep replies short and lead with the answer. With several people, each message starts with [from: Name]. Before a destructive step, say what it will do; never work around a blocked call. Show an image file with ![alt](/path.png).
+Answer a message that starts with [via Pia] or [via linked session …] in ASD-STE100 (Simplified Technical English), and keep every fact.`;
+
+/** Pointers to what comes on demand: project instructions by path, Pia's documentation. */
+function leanPointers(dataDir: string, files: { path: string }[]): string {
+    const code = resolve(APP_ROOT);
+    const lines = [
+        ...files.map(
+            (file) => `- Instructions for this project; read before you change files: ${file.path}`,
+        ),
+        `- Questions about Pia itself: ${join(code, "docs", "index.md")} (data: ${dataDir}; change it through the app)`,
+    ];
+
+    return lines.join("\n");
+}
+
 const STALE_MS = 30_000;
 
 type Resources = {
@@ -110,6 +133,9 @@ export default function createPrompt(host: PocketHost) {
         return `${host.pia.workspace()}/AGENTS.md`;
     };
 
+    // Pia keeps its full prompt; only normal sessions are lean.
+    const lean = (input: PromptInput) => isLean() && piaFile(input) === undefined;
+
     const projectContext = (input: PromptInput): string | undefined => {
         const shared = piaFile(input);
         const { files } = load(cwdOf(input));
@@ -136,13 +162,38 @@ export default function createPrompt(host: PocketHost) {
     return defineExtension({
         name: "pocket-prompt",
         sections: [
-            section("preamble", (input) => (piaFile(input) === undefined ? PREAMBLE : undefined), {
+            section(
+                "preamble",
+                (input) =>
+                    piaFile(input) !== undefined
+                        ? undefined
+                        : lean(input)
+                          ? LEAN_PREAMBLE
+                          : PREAMBLE,
+                { tag: false },
+            ),
+            section("guidelines", (input) => (lean(input) ? undefined : GUIDELINES)),
+            section("pocket_docs", (input) => (lean(input) ? undefined : docs(host.dataDir))),
+            section("project_context", (input) =>
+                lean(input) ? undefined : projectContext(input),
+            ),
+            // A lean session finds skills with tool_search (`local-tools.ts`), not in the prompt.
+            section("skills", (input) => (lean(input) ? undefined : load(cwdOf(input)).skills), {
                 tag: false,
             }),
-            section("guidelines", () => GUIDELINES),
-            section("pocket_docs", () => docs(host.dataDir)),
-            section("project_context", projectContext),
-            section("skills", (input) => load(cwdOf(input)).skills, { tag: false }),
+            section("on_demand", (input) => {
+                if (!lean(input)) {
+                    return undefined;
+                }
+
+                const shared = piaFile(input);
+                const { files } = load(cwdOf(input));
+
+                return leanPointers(
+                    host.dataDir,
+                    shared === undefined ? files : files.filter((file) => file.path !== shared),
+                );
+            }),
             section("environment", (input) => {
                 const base = `Working directory: ${cwdOf(input)}\nPlatform: ${process.platform}`;
 

@@ -831,7 +831,9 @@ export class PocketApp {
         };
 
         // Keep local tool exposure policy separate from the loader and upstream execution environment.
-        const localRegistry = localToolRegistry(registry, await hasRipgrep());
+        const localRegistry = localToolRegistry(registry, await hasRipgrep(), (cwd) =>
+            this.skills(cwd),
+        );
 
         this.#registry = localRegistry;
         const dropIn = join(this.dataDir, "extensions");
