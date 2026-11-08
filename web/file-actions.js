@@ -1,5 +1,5 @@
 // Shared actions for a regular file, in a preview or the image lightbox.
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { api, notify, store } from "./store.js";
 import { html, Icon } from "./ui.js";
 
@@ -77,6 +77,64 @@ export function FileTransfers({ path, conversationId = store.state.conversationI
     const [busy, setBusy] = useState(null);
     const [failure, setFailure] = useState(null);
     const [terminal, setTerminal] = useState(null);
+    const [queue, setQueue] = useState(null);
+    const owner = store.state.me?.role === "owner";
+
+    const refreshQueue = async () => {
+        try {
+            const result = await api(`c/${conversationId}/emacs-queue`);
+
+            setQueue(result.files);
+        } catch {
+            setQueue(null);
+        }
+    };
+
+    useEffect(() => {
+        if (!owner || !conversationId) {
+            return;
+        }
+
+        let active = true;
+
+        const refresh = async () => {
+            try {
+                const result = await api(`c/${conversationId}/emacs-queue`);
+
+                if (active) {
+                    setQueue(result.files);
+                }
+            } catch {
+                if (active) {
+                    setQueue(null);
+                }
+            }
+        };
+
+        refresh();
+        const timer = setInterval(refresh, 5000);
+
+        return () => {
+            active = false;
+            clearInterval(timer);
+        };
+    }, [owner, conversationId]);
+
+    const removeQueued = async (file) => {
+        setFailure(null);
+
+        try {
+            const result = await api(
+                `c/${conversationId}/emacs-queue`,
+                { path: file },
+                { method: "DELETE" },
+            );
+
+            setQueue(result.files);
+        } catch (error) {
+            setFailure(error.message || "Could not remove the file from the Emacs queue.");
+        }
+    };
 
     const download = async () => {
         setBusy("download");
@@ -106,8 +164,8 @@ export function FileTransfers({ path, conversationId = store.state.conversationI
             if (!result.opened) {
                 setFailure(result.error);
             } else {
-                // The server also makes each new WeTTY frame (a reconnect) show this file.
-                notify("info", "Opened in Emacs. Switch to or open the Emacs terminal.");
+                await refreshQueue();
+                notify("info", "Added to the Emacs queue. Switch to or open the Emacs terminal.");
             }
         } catch (error) {
             setFailure(error.message || "Could not open the file in Emacs.");
@@ -138,6 +196,25 @@ export function FileTransfers({ path, conversationId = store.state.conversationI
         >
             ${busy === "emacs" ? html`<${Icon} name="clock" size=${18} />` : html`<${EmacsGlyph} size=${20} />`}
         </button>`
+    }
+    ${
+        owner &&
+        queue &&
+        html`<details class="emacs-queue" style="position: relative">
+        <summary title="Emacs edit queue" aria-label=${`Emacs queue: ${queue.length} ${queue.length === 1 ? "file" : "files"}`}>${queue.length} queued</summary>
+        <div style="position: absolute; right: 0; top: 100%; z-index: 10; background: var(--bg); padding: 8px; min-width: 220px; max-width: 80vw; box-shadow: 0 2px 8px #0004">
+            ${
+                queue.length === 0
+                    ? "No files queued"
+                    : queue.map(
+                          (file) => html`<div style="display: flex; align-items: center; gap: 8px">
+                <span style="overflow-wrap: anywhere; flex: 1">${file}</span>
+                <button class="icon-button" aria-label=${`Remove ${file} from Emacs queue`} onClick=${() => removeQueued(file)}>×</button>
+            </div>`,
+                      )
+            }
+        </div>
+    </details>`
     }
     ${
         failure &&
