@@ -23,8 +23,17 @@ export const VENDOR: Record<string, string> = {
     "preact-hooks.mjs": vendor("preact", "hooks", "dist", "hooks.mjs"),
     "htm.mjs": vendor("htm", "dist", "htm.module.js"),
     "marked.mjs": vendor("marked", "lib", "marked.esm.js"),
+    "katex.mjs": vendor("katex", "dist", "katex.mjs"),
+    "katex.css": vendor("katex", "dist", "katex.min.css"),
     "purify.mjs": vendor("dompurify", "dist", "purify.es.mjs"),
 };
+
+/** KaTeX's fonts (only woff2: every browser Pia supports reads it), served at `/vendor/fonts/<name>` as its CSS asks. */
+export function vendorFont(name: string): string | undefined {
+    return /^KaTeX_[A-Za-z0-9-]+\.woff2$/.test(name)
+        ? vendor("katex", "dist", "fonts", name)
+        : undefined;
+}
 
 export const TYPES: Record<string, string> = {
     ".html": "text/html; charset=utf-8",

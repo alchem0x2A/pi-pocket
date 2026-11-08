@@ -17776,3 +17776,55 @@ pre.gallery-code {
     background: var(--accent);
     vertical-align: middle;
 }
+
+/* Math (`math-view.js`): KaTeX's own styles come from /vendor/katex.css. A display formula scrolls sideways in its own
+ * box when it is wider than the column, so it never widens the page; the TeX button copies its source. */
+.math-inline {
+    white-space: nowrap;
+    cursor: copy;
+}
+
+.math-display {
+    position: relative;
+    margin: 0.6rem 0;
+    padding: 0.2rem 2.4rem 0.2rem 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    text-align: center;
+    -webkit-overflow-scrolling: touch;
+}
+
+.math-display .katex-display {
+    margin: 0.2em 0;
+}
+
+.math-display .katex-display > .katex {
+    text-align: center;
+}
+
+.math.bad {
+    font-family: var(--mono, ui-monospace, monospace);
+    font-size: 0.9em;
+    white-space: pre-wrap;
+    color: var(--muted);
+}
+
+.math-copy {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    padding: 2px 6px;
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font: 11px/1.4 var(--mono, ui-monospace, monospace);
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.math-copy:hover,
+.math-copy:focus-visible {
+    opacity: 1;
+    color: var(--text);
+}
