@@ -563,13 +563,6 @@ const MEMORY_WORDS = {
     remove: "forgot a note",
     list: "listed its notes",
 };
-/** What the agent did with note_load, as a step's label. */
-const NOTE_WORDS = {
-    read: "read notes",
-    session: "pinned notes",
-    unpin: "unpinned notes",
-    list: "listed its pins",
-};
 
 /** A call's line: its label (the tool, or a subagent's name) and what it acts on. */
 function stepWords(call) {
@@ -601,7 +594,7 @@ function stepWords(call) {
             return { label: "searched notes", subject: args.query ?? "" };
         case "note_load":
             return {
-                label: NOTE_WORDS[args.mode ?? "read"] ?? "notes",
+                label: "read notes",
                 subject: (args.ids ?? []).join(" "),
             };
         case "watch_pr":

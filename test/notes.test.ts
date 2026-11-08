@@ -1,5 +1,6 @@
-// Notes: Markdown bodies with titles and an explicit size limit, search and load, session pins that last through
-// compaction, a restart, and a model change and follow approved edits; lessons saved before notes stay word for word.
+// Notes: Markdown bodies with titles and an explicit size limit, search and read; the notes a session read come back
+// after a compaction with their current text, never in the system prompt; old pins are ignored; lessons saved before
+// notes stay word for word.
 import {
     type App,
     cleanUp,
@@ -11,6 +12,7 @@ import {
     root,
     say,
     scriptedModel,
+    until,
 } from "./helpers.ts";
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
@@ -42,6 +44,50 @@ const route: FauxResponseStep = (request) => {
         );
     }
 
+    // "seen WORD": whether WORD is in a message the model gets (the system prompt left out), before this one.
+    if (text.startsWith("seen ")) {
+        const word = text.slice(5);
+        const { messages } = request as { messages: { role: string }[] };
+        const given = JSON.stringify(
+            messages.slice(0, -1).filter((message) => message.role !== "system"),
+        );
+
+        return fauxAssistantMessage([fauxText(`seen ${word}: ${given.includes(word)}`)]);
+    }
+
+    // "kept WORD": whether WORD is in the message with the notes read before a compaction, and that message's place.
+    if (text.startsWith("kept ")) {
+        const word = text.slice(5);
+        const { messages } = request as { messages: { role: string; content: unknown }[] };
+        const textOf = (message: { content: unknown }) =>
+            JSON.stringify(message.content).replace(/\\"/g, '"');
+        const at = messages.findIndex((message) =>
+            textOf(message).includes("Notes you read with note_load before this compaction"),
+        );
+        const after = at > 0 && textOf(messages[at - 1]!).includes("<summary>");
+
+        return fauxAssistantMessage([
+            fauxText(
+                `kept ${word}: ${at >= 0 && textOf(messages[at]!).includes(word)}${at >= 0 && !after ? " (misplaced)" : ""}`,
+            ),
+        ]);
+    }
+
+    // "system WORD": whether WORD is in any system message of the request.
+    if (text.startsWith("system ")) {
+        const word = text.slice(7);
+        const { messages, systemPrompt } = request as {
+            messages: { role: string }[];
+            systemPrompt?: string;
+        };
+        const given = JSON.stringify([
+            systemPrompt ?? "",
+            ...messages.filter((message) => message.role === "system"),
+        ]);
+
+        return fauxAssistantMessage([fauxText(`system ${word}: ${given.includes(word)}`)]);
+    }
+
     // The memory section as the model has it now: its latest version (a change is sent again as a later system message).
     if (text.startsWith("check ")) {
         const word = text.slice(6);
@@ -71,6 +117,26 @@ after(async () => {
     await app?.close();
     cleanUp();
 });
+
+/** The memory section, rendered as the next request gets it. */
+async function sectionText(id: ConversationId): Promise<string> {
+    const agent = await (await app.conversation(id)).agent(context);
+    const memory = agent.sections.find((section) => section.key === "memory")!;
+
+    return (await memory.render(
+        {
+            conversationId: id,
+            agent,
+            env: undefined,
+            shown: {},
+            read: {
+                snapshot: (...args: Parameters<App["harness"]["snapshot"]>) =>
+                    app.harness.snapshot(...args),
+            },
+        } as never,
+        context,
+    )) as string;
+}
 
 async function answer(id: ConversationId): Promise<string> {
     const entries = await app.transcripts.allEntries(id, true);
@@ -118,7 +184,7 @@ test("a note keeps its Markdown lines and its title; a body over the limit is re
     await clear();
 });
 
-test("the agent searches and reads notes; nothing unpinned is in its prompt, and pending notes are never found", async () => {
+test("the agent searches and reads notes; no note is in its prompt, and pending notes are never found", async () => {
     await clear();
     const id = await newSession(app, folder);
 
@@ -166,118 +232,138 @@ test("the agent searches and reads notes; nothing unpinned is in its prompt, and
     assert.match(loaded, new RegExp(`<note id="${noteId}" revision="1"`));
     assert.match(loaded, /~\/Dev\/pi-pocket/);
     assert.match(loaded, /No note nope here/);
-    // A read pins nothing.
-    assert.deepEqual(
-        (await app.harness.snapshot(NotePinsDoc, id, context))?.items ?? {},
-        {},
-        "read mode stores no pin",
+    await say(app, id, "check ~/Dev/pi-pocket");
+    assert.equal(
+        await answer(id),
+        "has ~/Dev/pi-pocket: false",
+        "a read adds nothing to the prompt",
     );
     await clear();
 });
 
-test("a pin lasts through compaction, a restart, and a model change, follows approved edits, and goes with unpin", async () => {
+test("note_load only reads: the old modes and their parameters are gone", async () => {
     await clear();
     const id = await newSession(app, folder);
-    const note = await app.memory.add(id, folder, person(), {
+    const tool = (await (await app.conversation(id)).agent(context)).tools.find(
+        (each) => each.name === "note_load",
+    )!;
+    const properties = (tool.parameters as { properties: Record<string, unknown> }).properties;
+
+    assert.deepEqual(Object.keys(properties), ["ids"]);
+    assert.doesNotMatch(tool.description, /pin|mode/i);
+    const memory = app.memory as unknown as Record<string, unknown>;
+
+    for (const gone of ["pin", "pinned", "pinFor"]) {
+        assert.equal(memory[gone], undefined, `Memory has no ${gone}`);
+    }
+
+    const section = await sectionText(id);
+
+    assert.doesNotMatch(section, /pin/i);
+    assert.ok(section.split("\n").length >= 3 && section.split("\n").length <= 5, section);
+    await clear();
+});
+
+test("the notes read before a compaction come back after it, with their current text, and not in the system prompt", async () => {
+    await clear();
+    app.settings.applyOverrides({ compaction: { keepRecentTokens: 1 } });
+    const id = await newSession(app, folder);
+    const kept = await app.memory.add(id, folder, person(), {
         title: "Deploy checklist",
         text: "Run make ship-heron before tagging.",
         scope: "project",
     });
-
-    await say(app, id, call("note_load", { ids: [note.id], mode: "session", reason: "deploy" }));
-    assert.match(await answer(id), /Pinned .* for this session/);
-    await say(app, id, "check ship-heron");
-    assert.equal(await answer(id), "has ship-heron: true");
-
-    await app.commands.compact(id, owner(app), undefined);
-    await say(app, id, "check ship-heron");
-    assert.equal(await answer(id), "has ship-heron: true", "after compaction");
-
-    await app.close();
-    app = await openApp(model, data);
-    await say(app, id, "check ship-heron");
-    assert.equal(await answer(id), "has ship-heron: true", "after a restart");
-
-    await app.commands.configure(id, owner(app), {
-        model: { provider: "faux", modelId: "faux-2" },
+    const gone = await app.memory.add(id, folder, person(), {
+        title: "Old host",
+        text: "The box is lynx-host.",
+        scope: "everywhere",
     });
-    await say(app, id, "check ship-heron");
-    assert.equal(await answer(id), "has ship-heron: true", "after a model change");
 
-    // The agent's proposed edit waits: the pin keeps the approved text. The owner's edit reaches the next request.
-    await app.memory.change(
-        id,
-        folder,
-        { userId: owner(app).id, byPi: true, name: "the agent" },
-        note.id,
-        {
-            text: "Run make ship-eagle before tagging.",
-        },
-    );
-    await say(app, id, "check ship-eagle");
-    assert.equal(await answer(id), "has ship-eagle: false", "a proposal is not approved text");
-    await app.memory.edit(id, owner(app), note.id, "approve", {
+    await say(app, id, call("note_load", { ids: [kept.id, gone.id] }));
+    assert.match(await answer(id), /ship-heron/);
+    await say(app, id, "filler one");
+    await say(app, id, "filler two");
+
+    // The owner edits one note and forgets the other: after the compaction, the current text only.
+    await app.memory.edit(id, owner(app), kept.id, {
         text: "Run make ship-eagle before tagging.",
         title: "Deploy checklist",
     });
-    await say(app, id, "check ship-eagle");
-    assert.equal(await answer(id), "has ship-eagle: true", "the pin follows the approved edit");
-    assert.equal((await app.harness.snapshot(MemoryDoc, context))?.items[note.id]?.revision, 2);
+    await app.memory.edit(id, owner(app), gone.id, "remove");
+    await app.commands.compact(id, owner(app), undefined);
+    await until(
+        async () =>
+            (await app.transcripts.allEntries(id, true)).some(
+                (entry) => entry.kind === "compaction",
+            ),
+        "the compaction",
+    );
 
-    await say(app, id, call("note_load", { mode: "list" }));
-    assert.match(await answer(id), /Deploy checklist · rev 2/);
-    await say(app, id, call("note_load", { ids: [note.id], mode: "unpin" }));
-    await say(app, id, "check ship-eagle");
-    assert.equal(await answer(id), "has ship-eagle: false");
+    await say(app, id, "kept ship-eagle");
+    assert.equal(await answer(id), "kept ship-eagle: true", "the read note is back, as it is now");
+    await say(app, id, `kept ${kept.id}`);
+    assert.equal(await answer(id), `kept ${kept.id}: true`, "with its id");
+    await say(app, id, "kept Deploy checklist");
+    assert.equal(await answer(id), "kept Deploy checklist: true", "and its title");
+    await say(app, id, "kept ship-heron");
+    assert.equal(await answer(id), "kept ship-heron: false", "not the old text");
+    await say(app, id, `kept ${gone.id}`);
+    assert.equal(await answer(id), `kept ${gone.id}: false`, "a deleted note stays out");
+    await say(app, id, "system ship-eagle");
+    assert.equal(await answer(id), "system ship-eagle: false", "never in the system prompt");
 
-    // Another session never had the pin.
+    // Through a restart too.
+    await app.close();
+    app = await openApp(model, data);
+    app.settings.applyOverrides({ compaction: { keepRecentTokens: 1 } });
+    await say(app, id, "kept ship-eagle");
+    assert.equal(await answer(id), "kept ship-eagle: true", "after a restart");
+
+    // A session that read nothing gets nothing.
     const other = await newSession(app, folder);
 
-    await say(app, other, "check ship-eagle");
-    assert.equal(await answer(other), "has ship-eagle: false");
+    await say(app, other, "filler");
+    await app.commands.compact(other, owner(app), undefined);
+    await until(
+        async () =>
+            (await app.transcripts.allEntries(other, true)).some(
+                (entry) => entry.kind === "compaction",
+            ),
+        "the other compaction",
+    );
+    await say(app, other, "kept ship-eagle");
+    assert.equal(await answer(other), "kept ship-eagle: false");
+    app.settings.applyOverrides({ compaction: {} });
     await clear();
 });
 
-test("a forgotten note leaves the pinned prompt; pins over the budget are refused with nothing pinned", async () => {
+test("a session with pins stored before pins were removed loads and runs, and ignores them", async () => {
     await clear();
     const id = await newSession(app, folder);
-    const small = await app.memory.add(id, folder, person(), {
-        text: "Small-kiwi note.",
+    const note = await app.memory.add(id, folder, person(), {
+        title: "Old pin",
+        text: "Pinned-badger note.",
         scope: "project",
     });
 
-    await app.memory.pin(id, folder, person(), [small.id], true);
-    await say(app, id, "check Small-kiwi");
-    assert.equal(await answer(id), "has Small-kiwi: true");
-    await app.memory.edit(id, owner(app), small.id, "remove");
-    await say(app, id, "check Small-kiwi");
-    assert.equal(await answer(id), "has Small-kiwi: false");
+    // As the old code stored a pin.
+    await app.harness.commit(async (tx) => {
+        (await tx.doc(NotePinsDoc, id)).items = {
+            [note.id]: { at: 1, byPi: true, by: owner(app).id, reason: "old" },
+        };
+    }, context);
+    await app.close();
+    app = await openApp(model, data);
 
-    const big = [];
+    // "seen" first: a later request has the "check" message itself.
+    await say(app, id, "seen Pinned-badger");
+    assert.equal(await answer(id), "seen Pinned-badger: false");
+    await say(app, id, "check Pinned-badger");
+    assert.equal(await answer(id), "has Pinned-badger: false", "the old pin is not in the prompt");
+    const view = await app.memory.view(id, owner(app));
 
-    for (let index = 0; index < 5; index++) {
-        big.push(
-            await app.memory.add(id, folder, person(), {
-                text: `${String(index)} ${"y".repeat(MAX_LESSON - 10)}`,
-                scope: "project",
-            }),
-        );
-    }
-
-    await app.memory.pin(id, folder, person(), [big[0]!.id, big[1]!.id, big[2]!.id], true);
-    await assert.rejects(
-        app.memory.pin(id, folder, person(), [big[3]!.id, big[4]!.id], true),
-        /Nothing was pinned/,
-    );
-    assert.deepEqual(
-        (await app.memory.pinned(id, folder)).map((note) => note.id),
-        [big[0]!.id, big[1]!.id, big[2]!.id],
-    );
-    // A small model's context gets a smaller budget.
-    await assert.rejects(
-        app.memory.pin(id, folder, person(), [big[3]!.id], true, { window: 8000 }),
-        /budget is 3200/,
-    );
+    assert.equal(view.lessons.find((each) => each.id === note.id)?.text, "Pinned-badger note.");
+    assert.equal("pinned" in view.lessons[0]!, false, "the sheet has no pin mark");
     await clear();
 });
 

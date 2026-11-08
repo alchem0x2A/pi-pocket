@@ -67,7 +67,6 @@ import {
     DecisionsDoc,
     FolderFavoritesDoc,
     MemoryDoc,
-    NotePinsDoc,
     type SessionMeta,
     SessionsDoc,
     SpendDoc,
@@ -1210,7 +1209,7 @@ export class PocketApp {
             this.folderFavorites.committed(
                 change.value as { users: Record<string, string[]> } | null,
             );
-        } else if (kind === MemoryDoc.definition.kind || kind === NotePinsDoc.definition.kind) {
+        } else if (kind === MemoryDoc.definition.kind) {
             this.memory.committed();
         } else if (ROOM_DOCS.has(kind) && id !== undefined) {
             if (kind === ChatDoc.definition.kind) {
