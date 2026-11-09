@@ -5,6 +5,8 @@
 // in docs/proposals/prompt-cost.md, section 4.1.
 import { context, newSession, openApp, owner, root, say, scriptedModel } from "./helpers.ts";
 import { localToolRegistry } from "../src/server/local-tools.ts";
+import createPrompt from "../src/server/extensions/prompt.ts";
+import type { PocketHost } from "../src/server/host.ts";
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -101,7 +103,7 @@ async function firstRequest(target: App, cwd: string): Promise<ReturnType<typeof
 
 /** Open an app under explicit switch values and read the folded first request of a normal session. */
 async function requestUnder(
-    lean: "on" | "off",
+    lean: "on" | "off" | "unset",
     discovery: "on" | "off",
     dataDir: string,
 ): Promise<ReturnType<typeof folded>> {
@@ -110,7 +112,12 @@ async function requestUnder(
         discovery: process.env.PI_POCKET_TOOL_DISCOVERY,
     };
 
-    process.env.PI_POCKET_LEAN_PROMPT = lean;
+    if (lean === "unset") {
+        delete process.env.PI_POCKET_LEAN_PROMPT;
+    } else {
+        process.env.PI_POCKET_LEAN_PROMPT = lean;
+    }
+
     process.env.PI_POCKET_TOOL_DISCOVERY = discovery;
 
     const target = await openApp(model, dataDir);
@@ -238,7 +245,7 @@ test("Pia keeps its full prompt sections; base schemas are short there too", asy
 });
 
 test("every switch combination keeps the skills and the search route together", async () => {
-    // lean on, discovery on: the lean prompt with the compact skill index (this file's app, covered above).
+    // lean on, discovery on: the lean prompt with the skill directory pointer (this file's app, covered above).
     // lean on, discovery off: the rollback must not hide the skills without a search route: the full prompt renders.
     const off = await requestUnder("on", "off", join(root, "lean-data-disc-off"));
 
@@ -264,6 +271,24 @@ test("every switch combination keeps the skills and the search route together", 
     assert.ok(base.sections.has("skills"));
     assert.equal(base.tools.has("tool_search"), false);
     assert.equal(base.sections.has("on_demand"), false);
+
+    // The switch unset is the real default: the full prompt, the same as "off".
+    const unset = await requestUnder("unset", "on", join(root, "lean-data-unset"));
+
+    // The same text, but for the data folder each app has.
+    const text = (sections: Map<string, string>, dataDir: string) =>
+        JSON.stringify([...sections])
+            .split(dataDir)
+            .join("<data>");
+
+    assert.equal(
+        text(unset.sections, join(root, "lean-data-unset")),
+        text(full.sections, join(root, "lean-data-full")),
+    );
+    assert.deepEqual(unset.tools, full.tools);
+    assert.ok(unset.sections.has("guidelines"));
+    assert.ok(unset.tools.has("ls"));
+    assert.equal(unset.tools.has("edit"), false);
 });
 
 test("the lean and the Pia prompts follow the stored identity, not the tools a conversation has", () => {
@@ -324,4 +349,152 @@ test("the lean and the Pia prompts follow the stored identity, not the tools a c
         /- `browser`: Browse and inspect websites/,
     );
     assert.equal(typeof (sections["tool_discovery"]!.render(pia, context) as string), "string");
+});
+
+test("an old edit call with top-level oldText and newText still runs under the lean schema", async () => {
+    const id = await newSession(app, folder);
+
+    await say(app, id, 'call write {"path":"legacy.txt","content":"alpha"}');
+    await say(app, id, 'call edit {"path":"legacy.txt","oldText":"alpha","newText":"beta"}');
+    await say(app, id, 'call read {"path":"legacy.txt"}');
+    const messages = (await (await app.harness.conversation(id, context))!.context(context))
+        .messages;
+    const last = messages.findLast((message) => message.role === "toolResult");
+
+    assert.equal(last?.role === "toolResult" && last.isError, false);
+    assert.match(JSON.stringify(last?.content), /beta/);
+});
+
+test("a lean Pia chat keeps the memory, ink board, and inbox note guides; a normal session waits for their tools", async () => {
+    const target = await openApp(model, join(root, "lean-data-guides"));
+
+    try {
+        await target.setExtensionEnabled(owner(target), "ink-board.ts", true);
+
+        const normal = await firstRequest(target, folder);
+
+        for (const guide of ["memory", "ink_board", "inbox-notes"]) {
+            assert.equal(normal.sections.has(guide), false, `${guide} waits in a normal session`);
+        }
+
+        const id = await target.pia.ensure(owner(target));
+
+        await target.commands.configure(id, owner(target), {
+            model: { provider: "faux", modelId: "faux-1" },
+            thinkingLevel: "off",
+        });
+        const before = requests.length;
+
+        await say(target, id, "hello");
+        const pia = folded(requests[before]!);
+
+        for (const guide of ["memory", "ink_board", "inbox-notes"]) {
+            assert.ok(pia.sections.has(guide), `${guide} is in the Pia chat from the start`);
+        }
+
+        // The Pia chat offers no ink tool at the start: the guide comes from its identity, not from a loaded tool.
+        assert.equal(pia.tools.has("ink_open"), false);
+    } finally {
+        await target.close();
+    }
+});
+
+/** The prompt module on a small fake host: `extra` adds or replaces host members. */
+function promptOn(extra: Partial<PocketHost> & Record<string, unknown>) {
+    const notices: string[] = [];
+    const host = {
+        agentDir: join(root, "fake-agent"),
+        dataDir: join(root, "fake-data"),
+        skills: () => [],
+        notice: (level: string, message: string) => notices.push(`${level}: ${message}`),
+        pia: { ownerOf: () => undefined, workspace: () => join(root, "fake-pia") },
+        ...extra,
+    } as unknown as PocketHost;
+    const sections = new Map(
+        (createPrompt(host).sections ?? []).map((section) => [section.key, section]),
+    );
+    const render = async (key: string, tools: string[] = ["note_search", "note_load"]) =>
+        sections.get(key)!.render(
+            {
+                conversationId: 1,
+                agent: { cwd: folder, tools: tools.map((name) => ({ name })), deferred: [] },
+            } as never,
+            context,
+        );
+
+    return { notices, render };
+}
+
+const skill = (name: string, hidden = false) => ({
+    name,
+    description: `The ${name} skill.`,
+    filePath: join(root, "skills", name, "SKILL.md"),
+    baseDir: join(root, "skills", name),
+    sourceInfo: { source: "path" },
+    disableModelInvocation: hidden,
+});
+
+test("on an older host without skillPlaces, the lean prompt lists the skills and warns nobody", async () => {
+    const { notices, render } = promptOn({ skills: () => [skill("chart-maker")] as never });
+
+    assert.match((await render("skills")) as string, /chart-maker/);
+    assert.doesNotMatch((await render("on_demand")) as string, /- Skills:/);
+    assert.deepEqual(notices, []);
+
+    // A host whose skillPlaces fails: the same, and still no warning.
+    const failing = promptOn({
+        skills: () => [skill("chart-maker")] as never,
+        skillPlaces: () => {
+            throw new Error("broken");
+        },
+    });
+
+    assert.match((await failing.render("skills")) as string, /chart-maker/);
+    assert.deepEqual(failing.notices, []);
+});
+
+test("the skill pointer names only places that exist, and is left out when there is none", async () => {
+    const none = promptOn({ skillPlaces: () => [] });
+    const empty = (await none.render("on_demand")) as string;
+
+    assert.doesNotMatch(empty, /- Skills:/);
+    assert.doesNotMatch(empty, /SKILL\.md file in \./);
+    assert.equal(await none.render("skills"), undefined);
+
+    const dir = join(folder, "local-skills");
+    const file = join(root, "one-skill.md");
+
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(file, "---\nname: one\ndescription: One.\n---\n");
+    const some = promptOn({
+        skillPlaces: () => ["local-skills", join(root, "missing-skills"), file, dir],
+    });
+    const pointer = (await some.render("on_demand")) as string;
+
+    // The relative place resolves against the session's folder, as the loader does; the duplicate is listed once.
+    assert.equal(pointer.split(dir).length - 1, 1);
+    assert.doesNotMatch(pointer, /missing-skills/);
+    assert.match(pointer, /skill files: `[^`]*one-skill\.md`/);
+    assert.deepEqual(some.notices, []);
+});
+
+test("the pointer says when a skill is only for a person to name; the note rule needs a note tool", async () => {
+    const dir = join(root, "flagged-skills");
+
+    mkdirSync(dir, { recursive: true });
+    const flagged = promptOn({
+        skills: () => [skill("quiet", true)] as never,
+        skillPlaces: () => [dir],
+    });
+
+    assert.match(
+        (await flagged.render("on_demand")) as string,
+        /disable-model-invocation: true is only for when a person names it/,
+    );
+
+    const plain = promptOn({ skills: () => [skill("loud")] as never, skillPlaces: () => [dir] });
+
+    assert.doesNotMatch((await plain.render("on_demand")) as string, /disable-model-invocation/);
+    assert.match((await plain.render("on_demand")) as string, /Notes \(note_search, note_load\)/);
+    assert.doesNotMatch((await plain.render("on_demand", ["read"])) as string, /Notes \(/);
 });

@@ -78,8 +78,8 @@ export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT === "on";
 const inBase = (name: string) => BASE.has(name) || (isLean() && name === "edit");
 
 /**
- * Short model-facing declarations of the base tools. Execution and validation keep the original schema: each lean
- * schema accepts a subset of what the original accepts (optional fields left out are still accepted).
+ * Short model-facing declarations of the base tools. The harness validates a call against the offered (lean) schema,
+ * then the original execute runs: each lean schema accepts a subset of what the original accepts.
  */
 const LEAN_DECLARATIONS: Readonly<Record<string, { description: string; parameters: unknown }>> = {
     read: {
@@ -187,7 +187,7 @@ function availableTools(isPiaChat: PiaIdentity): PromptSection {
     return section("available_tools", (input) => {
         if (isLean() && !isPiaChat(input.conversationId)) {
             // Names only, of the tools not offered yet: the offered ones carry their own schemas. Skills are not
-            // tools: the prompt's skill index lists them, and tool_search finds no skills.
+            // tools: the prompt points to the skill directories, and tool_search finds no skills.
             const offered = new Set(input.agent.tools.map((tool) => tool.name));
             const names = [...new Set(input.agent.deferred.map((tool) => tool.name))]
                 .filter((name) => !offered.has(name))
