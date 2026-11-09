@@ -13,7 +13,7 @@ import { publicArtifactBundle } from "./http/artifact-assets.ts";
 import { extensionFile } from "./http/extension-routes.ts";
 import { hookRoute } from "./http/hook-routes.ts";
 import { linkRoute } from "./http/link-routes.ts";
-import { serveApp, serveFile, VENDOR, WEB } from "./http/assets.ts";
+import { serveApp, serveFile, VENDOR, vendorFont, WEB } from "./http/assets.ts";
 import { type HttpOptions, json } from "./http/io.ts";
 import { join as joinPage, login, sharePage } from "./http/sign-in.ts";
 
@@ -91,8 +91,18 @@ export function createHandler(options: HttpOptions) {
                     request,
                     response,
                     VENDOR[parts[1]]!,
-                    "text/javascript; charset=utf-8",
+                    parts[1].endsWith(".css")
+                        ? "text/css; charset=utf-8"
+                        : "text/javascript; charset=utf-8",
                 );
+            }
+
+            if (parts[0] === "vendor" && parts[1] === "fonts" && parts[2] !== undefined) {
+                const font = vendorFont(parts[2]);
+
+                if (font !== undefined) {
+                    return await serveFile(request, response, font, "font/woff2");
+                }
             }
 
             if (parts[0] === "login" && (request.method === "GET" || request.method === "POST")) {

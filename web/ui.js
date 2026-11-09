@@ -3,6 +3,8 @@
 import DOMPurify from "dompurify";
 import htm from "htm";
 import { marked } from "marked";
+import { mathExtensions } from "./math.js";
+import { typeset } from "./math-view.js";
 import { Component, createContext, h } from "preact";
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useDragToClose } from "./gestures.js";
@@ -92,6 +94,8 @@ const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (char) => ESCAPES[
 
 /** A fence's language as it may be kept: a short name of safe characters, or nothing. */
 const FENCE_NAME = /^[\w+#.-]{1,24}$/;
+
+marked.use({ extensions: mathExtensions });
 
 marked.use({
     renderer: {
@@ -255,6 +259,9 @@ function codeBlock(pre, fold) {
  */
 function sanitize(html, fold) {
     const fragment = purify.sanitize(html);
+
+    // Math after the sanitizer: KaTeX's own markup, never a reply's.
+    typeset(fragment);
 
     // `src/app.ts` in a reply opens the file: inline code that is a path, not code blocks.
     for (const code of fragment.querySelectorAll("code")) {
@@ -782,6 +789,57 @@ document.addEventListener("click", (event) => {
         },
         () => notify("error", "Could not copy."),
     );
+});
+
+/** Math: a tap on a formula, or the TeX button of a display one, copies its TeX; a copied selection holds TeX too. */
+document.addEventListener("click", (event) => {
+    const target = event.target;
+    const button = target.closest?.("[data-copy-tex]");
+    const math = (button ?? target.closest?.(".math-inline"))?.closest("[data-tex]");
+
+    if (!math || (!button && getSelection()?.toString())) {
+        return;
+    }
+
+    copyText(math.dataset.tex ?? "").then(
+        () => notify("info", "Copied the TeX."),
+        () => notify("error", "Could not copy."),
+    );
+});
+
+document.addEventListener("copy", (event) => {
+    const selection = getSelection();
+
+    if (!selection || selection.isCollapsed || !event.clipboardData) {
+        return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const formulas = [...document.querySelectorAll(".md .math")].filter((each) =>
+        range.intersectsNode(each),
+    );
+
+    if (formulas.length === 0) {
+        return;
+    }
+
+    // The selected text with each formula as `$tex$` (display: `$$tex$$`): the source, as the agent wrote it.
+    const holder = document.createElement("div");
+
+    holder.append(range.cloneContents());
+
+    for (const each of holder.querySelectorAll(".math")) {
+        const tex = each.dataset.tex ?? "";
+
+        each.replaceWith(each.classList.contains("math-display") ? `\n$$${tex}$$\n` : `$${tex}$`);
+    }
+
+    for (const each of holder.querySelectorAll(".math-copy")) {
+        each.remove();
+    }
+
+    event.clipboardData.setData("text/plain", holder.textContent ?? "");
+    event.preventDefault();
 });
 
 /** A long code block's button shows all of it, and folds it again. */
