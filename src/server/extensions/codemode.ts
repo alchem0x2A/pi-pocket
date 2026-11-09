@@ -33,9 +33,10 @@ import {
     type ToolRegistration,
     ToolTask,
 } from "@earendil-works/pi-durable";
+import { createCodemodeExtension } from "@earendil-works/pi-durable/codemode";
 import { CodemodeStoreDoc } from "../docs.ts";
 import { describe } from "../errors.ts";
-import type { PocketHost } from "../host.ts";
+import type { ExtensionWeb, PocketHost } from "../host.ts";
 
 export const CODEMODE_TOOL = "codemode";
 /** Output budget of a script, in estimated tokens (4 characters each), unless its options line sets another. */
@@ -182,7 +183,21 @@ async function budget(
     };
 }
 
-export default function createCodemode(host: PocketHost) {
+export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
+    // Experimental only: native codemode still needs Pia's note retention and nested approval UI integration.
+    // Keep the old executor and its store untouched until those paths have been tested.
+    if (process.env.PI_POCKET_EXPERIMENTAL_NATIVE_CODEMODE === "on") {
+        const sandbox = new CodemodeSandbox({
+            timeoutMs: Number.POSITIVE_INFINITY,
+            memoryLimitBytes: MEMORY_LIMIT_BYTES,
+        });
+
+        web?.onDispose(() => sandbox.close());
+        const native = createCodemodeExtension({ sandbox, models: false });
+
+        return { ...native, name: "pocket-codemode" };
+    }
+
     const codemode = defineTool({
         name: CODEMODE_TOOL,
         description: DESCRIPTION,
