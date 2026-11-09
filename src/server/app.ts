@@ -1031,11 +1031,11 @@ export class PocketApp {
     }
 
     /**
-     * A conversation's committed history, as Pi Durable's task runtime gives it to hooks. The public Harness has no read
-     * of one entry, so `entry` reads the one-entry range at its id from `Conversation.entries()`: fork-aware, so only an
-     * entry visible from the conversation, and of the token's kind when one is given.
+     * Read-only native conversation access for built-ins. HookApi has history reads, but no `agent` or `context` method.
+     * The public Harness has no read of one entry, so `entry` reads a fork-aware one-entry range from
+     * `Conversation.entries()`. The other methods delegate to the supported Conversation APIs.
      */
-    history(conversationId: ConversationId): Pick<HookApi, "entry" | "entries"> {
+    history(conversationId: ConversationId): ReturnType<PocketHost["history"]> {
         const conversation = async (readContext: Context) => {
             const found = await this.harness.conversation(conversationId, readContext);
 
@@ -1062,6 +1062,9 @@ export class PocketApp {
             entry,
             entries: async (query, limit, cursor, readContext) =>
                 (await conversation(readContext)).entries(query, limit, cursor, readContext),
+            agent: async (readContext) => (await conversation(readContext)).agent(readContext),
+            context: async (readContext, options) =>
+                (await conversation(readContext)).context(readContext, options),
         };
     }
 

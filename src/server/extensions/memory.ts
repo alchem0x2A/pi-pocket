@@ -311,7 +311,7 @@ export default function createMemory(host: PocketHost) {
     // current approved text: a note forgotten, waiting again, or out of the project is left out. Not in the system prompt,
     // and the same message while the notes are the same, so the prompt cache stays valid.
     const keepRead = hook(GenerationTask, {
-        beforeRequest: async (request, api) => {
+        beforeRequest: async (request, api, context) => {
             const at = request.messages.findIndex((message) =>
                 userText(message).startsWith(SUMMARY_START),
             );
@@ -325,7 +325,9 @@ export default function createMemory(host: PocketHost) {
             // Match the real head, never a person's message that starts with the same summary text.
             const ids = before.summary === text ? before.ids : [];
 
-            const { found } = await read(api.conversationId, undefined, ids);
+            // Resolve against the current native conversation, not the cwd that applied when the note was read.
+            const { cwd } = await host.history(api.conversationId).agent(context);
+            const { found } = await read(api.conversationId, cwd, ids);
 
             if (found.length === 0) {
                 return undefined;

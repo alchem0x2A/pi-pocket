@@ -89,6 +89,8 @@ test("codemode's hooks read history as the task runtime does: one visible entry,
     assert.deepEqual(await history.entry(UserEntry, user.id, context), user);
     assert.equal(await history.entry(AssistantEntry, user.id, context), undefined);
     assert.deepEqual((await history.entries({}, 10, undefined, context)).items, newest);
+    assert.deepEqual(await history.agent(context), await conversation.agent(context));
+    assert.deepEqual(await history.context(context), await conversation.context(context));
 
     // An entry of another conversation is not visible from this one.
     const other = await newSession(app!);

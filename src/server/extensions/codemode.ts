@@ -17,7 +17,6 @@ import {
     wrapSection,
     wrapTool,
     type HookApi,
-    type ContextView,
     type ToolExecutionApi,
     type ToolExecutionResult,
     type ToolRegistration,
@@ -345,8 +344,7 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
             return undefined;
         }
 
-        const runtime = api as HookApi & Pick<ToolExecutionApi, "agent">;
-        const agent = await runtime.agent(context);
+        const agent = await host.history(api.conversationId).agent(context);
 
         return agent.tools.some((tool) => tool.name === CODEMODE_TOOL) ? agent : undefined;
     };
@@ -357,21 +355,15 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
         hooks: [
             hook(GenerationTask, {
                 beforeRequest: async (request, api, context) => {
-                    const runtime = api as HookApi &
-                        Pick<ToolExecutionApi, "agent"> & {
-                            context(
-                                id: ToolExecutionApi["conversationId"],
-                                context: Context,
-                            ): Promise<ContextView>;
-                        };
-                    const resolved = await runtime.agent(context);
+                    const conversation = host.history(api.conversationId);
+                    const resolved = await conversation.agent(context);
 
                     if (!resolved.tools.some((tool) => tool.name === CODEMODE_TOOL)) {
                         return undefined;
                     }
 
                     const refs = await compactedReferences(
-                        (await runtime.context(api.conversationId, context)).head,
+                        (await conversation.context(context)).head,
                         api,
                         context,
                     );

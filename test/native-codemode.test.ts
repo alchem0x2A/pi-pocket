@@ -18,6 +18,9 @@ import { test } from "node:test";
 import { fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { ConfigStore } from "../src/server/config.ts";
 import { getCurrentTools } from "@earendil-works/pi-ai/utils/transcript";
+import { GenerationTask, type GenerationHooks, type HookApi } from "@earendil-works/pi-durable";
+import createCodemode from "../src/server/extensions/codemode.ts";
+import type { PocketHost, ExtensionWeb } from "../src/server/host.ts";
 
 process.env.PI_POCKET_TOOL_DISCOVERY = "on";
 
@@ -149,6 +152,14 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
 
         assert.ok(before.deferred.some((tool) => tool.name === "fixture_native"));
         assert.ok(!before.tools.some((tool) => tool.name === "fixture_native"));
+        await say(app, id, "before discovery");
+        const beforeDiscovery = (await app.transcripts.allEntries(id, true)).at(-1);
+
+        assert.ok(beforeDiscovery);
+        const noDiscovery = await app.commands.fork(id, owner(app), {
+            entryId: beforeDiscovery.id,
+        });
+
         await say(app, id, "run the fixture");
         const conversation = await app.conversation(id);
         const view = await conversation.context(context);
@@ -203,7 +214,7 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
 
         app.settings.applyOverrides({ compaction: { keepRecentTokens: 1 } });
 
-        for (const fork of [early.id, late.id]) {
+        for (const fork of [noDiscovery.id, early.id, late.id]) {
             await say(app, fork, "filler for branch");
             await app.commands.compact(fork, owner(app), undefined);
             await until(
@@ -212,8 +223,42 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
             );
         }
 
+        assert.ok(
+            !(await app.memory.readBeforeCompaction(noDiscovery.id)).tools.includes(
+                "fixture_native",
+            ),
+        );
+        const beforeNoDiscoveryInjection = requestTexts.length;
+
+        await say(app, noDiscovery.id, "check pre-discovery branch injection");
+        assert.doesNotMatch(
+            requestTexts[beforeNoDiscoveryInjection]!,
+            /Notes you read with note_load before this compaction|Tools you discovered before this compaction/,
+        );
         assert.ok(!(await app.memory.readBeforeCompaction(early.id)).ids.includes(readNote.id));
         assert.ok((await app.memory.readBeforeCompaction(late.id)).ids.includes(readNote.id));
+        const beforeEarlyInjection = requestTexts.length;
+
+        await say(app, early.id, "check early branch injection");
+        assert.doesNotMatch(
+            requestTexts[beforeEarlyInjection]!,
+            /Notes you read with note_load before this compaction/,
+        );
+        assert.match(
+            requestTexts[beforeEarlyInjection]!,
+            /Tools you discovered before this compaction.*fixture_native/,
+        );
+        const beforeLateInjection = requestTexts.length;
+
+        await say(app, late.id, "check late branch injection");
+        assert.match(
+            requestTexts[beforeLateInjection]!,
+            /Notes you read with note_load before this compaction.*Current note text/,
+        );
+        assert.match(
+            requestTexts[beforeLateInjection]!,
+            /Tools you discovered before this compaction.*fixture_native/,
+        );
         await app.memory.edit(id, owner(app), readNote.id, {
             title: "Read note",
             text: "Edited approved text",
@@ -237,6 +282,86 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
         assert.match(reminder, /Edited approved text/);
         assert.doesNotMatch(reminder, /Current note text|searchonlyfixture/);
         assert.match(reminder, /Tools you discovered before this compaction.*fixture_native/);
+
+        // HookApi intentionally has no agent/context methods. Retention uses the host's native conversation readers.
+        const history = app.history(id);
+        const api: HookApi = {
+            taskId: 1 as HookApi["taskId"],
+            conversationId: id,
+            models: app.models,
+            snapshot: app.harness.snapshot.bind(app.harness),
+            snapshotAsOf: app.harness.snapshotAsOf.bind(app.harness),
+            entry: history.entry,
+            entries: history.entries,
+            memo: async () => {
+                throw new Error("This retention hook must not need a memo");
+            },
+        };
+        const disposers: (() => unknown)[] = [];
+        const extension = createCodemode(
+            {
+                history: (conversationId: HookApi["conversationId"]) => app.history(conversationId),
+                pia: { ownerOf: () => undefined },
+            } as unknown as PocketHost,
+            {
+                settings: () => {},
+                setting: (name: string) => (name === "mode" ? "only" : false),
+                onDispose: (dispose: () => unknown) => disposers.push(dispose),
+            } as unknown as ExtensionWeb,
+        );
+
+        try {
+            assert.equal("agent" in api, false);
+            assert.equal("context" in api, false);
+            const hooks = extension.hooks!.find(
+                (item) => item.task === GenerationTask.definition.name,
+            )!.handlers as Partial<GenerationHooks>;
+            const injected = await hooks.beforeRequest!(
+                { messages: (await conversation.context(context)).messages },
+                api,
+                context,
+            );
+
+            assert.ok(injected);
+            assert.match(
+                JSON.stringify(injected.messages),
+                /Tools you discovered before this compaction.*fixture_native/,
+            );
+            const memoryHooks = after.extensions
+                .find((item) => item.name === "pocket-memory")!
+                .hooks!.find((item) => item.task === GenerationTask.definition.name)!
+                .handlers as Partial<GenerationHooks>;
+            const restoredNotes = await memoryHooks.beforeRequest!(
+                { messages: (await conversation.context(context)).messages },
+                api,
+                context,
+            );
+
+            assert.ok(restoredNotes);
+            assert.match(
+                JSON.stringify(restoredNotes.messages),
+                /Notes you read with note_load before this compaction.*Edited approved text/,
+            );
+        } finally {
+            for (const dispose of disposers) {
+                await dispose();
+            }
+        }
+
+        await app.setExtensionEnabled(owner(app), "memory.ts", false);
+        const beforeNoMemoryInjection = requestTexts.length;
+
+        await say(app, id, "check retained tools without Memory");
+        assert.match(
+            requestTexts[beforeNoMemoryInjection]!,
+            /Tools you discovered before this compaction.*fixture_native/,
+        );
+        assert.doesNotMatch(
+            requestTexts[beforeNoMemoryInjection]!,
+            /Notes you read with note_load before this compaction/,
+        );
+        await app.setExtensionEnabled(owner(app), "memory.ts", true);
+
         assert.ok(requests[0]!.includes("codemode"));
         assert.ok(!requests[0]!.includes("note_load"));
         assert.ok(!requests[0]!.includes("bash"));
@@ -407,6 +532,13 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
 
         assert.ok(!resetRefs.ids.includes(readNote.id), JSON.stringify(resetRefs));
         assert.ok(!resetRefs.tools.includes("fixture_native"), JSON.stringify(resetRefs));
+        const beforeResetInjection = requestTexts.length;
+
+        await say(app, late.id, "check reset injection");
+        assert.doesNotMatch(
+            requestTexts[beforeResetInjection]!,
+            /Notes you read with note_load before this compaction|Tools you discovered before this compaction/,
+        );
 
         // Native nested tasks have their own task IDs. The guard presents their approvals on the parent card.
         app.guard.judge = async (name, args) =>
@@ -470,6 +602,13 @@ test("native codemode discovers and calls a deferred extension tool in one scrip
             "scope compaction",
         );
         assert.ok((await app.memory.readBeforeCompaction(scopedId)).ids.includes(scoped.id));
+        const beforeCurrentScope = requestTexts.length;
+
+        await say(app, scopedId, "check current project scope");
+        assert.match(
+            requestTexts[beforeCurrentScope]!,
+            /Notes you read with note_load before this compaction.*scope-secret-marker/,
+        );
         await (await app.conversation(scopedId)).configure({ cwd: outside }, context);
         const beforeScope = requestTexts.length;
 

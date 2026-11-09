@@ -3,6 +3,7 @@ import { awaitWithContext } from "@earendil-works/chord/context";
 import type { ProviderConfig, Skill } from "@earendil-works/pi-coding-agent";
 import type { Api, Model, ModelThinkingLevel } from "@earendil-works/pi-ai";
 import type {
+    Conversation,
     ConversationId,
     DocumentReader,
     Extension,
@@ -497,10 +498,12 @@ export interface PocketHost {
     /** Session compactions: a selected review model can write their summaries without changing the session model. */
     readonly compactionReview: Pick<CompactionReview, "summarize" | "failure">;
     /**
-     * A conversation's committed history, as a hook reads it (`HookApi.entry` and `entries`): codemode gives these to
-     * the hooks it runs for a script's calls, since a tool's API has no history reads.
+     * Read-only conversation access for built-ins. `entry` and `entries` match HookApi; `agent` and `context` delegate
+     * to the native Conversation methods. HookApi itself does not expose those methods.
      */
-    readonly history: (conversationId: ConversationId) => Pick<HookApi, "entry" | "entries">;
+    readonly history: (
+        conversationId: ConversationId,
+    ) => Pick<HookApi, "entry" | "entries"> & Pick<Conversation, "agent" | "context">;
     /** Sessions' watches of their pull requests: the agent's watch_pr tool starts and stops them. */
     readonly watches: Pick<Watches, "task" | "start" | "stop" | "get">;
     /** Repository watches: the triggers extension runs their task; Pia's repo_watch tool sets them up. */
