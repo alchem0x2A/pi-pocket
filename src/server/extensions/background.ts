@@ -4,7 +4,7 @@
  * in Running now, where people can stop it too. While this is off, no task starts, and the ones running go on unwatched
  * until it is on again.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import {
     BACKGROUND_EXTENSION,

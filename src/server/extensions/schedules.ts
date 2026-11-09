@@ -3,7 +3,7 @@
  * to check back on something slow or for a regular job. While this is off, no scheduled message goes out; they wait
  * until it is on again.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import type { Schedule } from "../docs.ts";
 import type { ExtensionWeb, PocketHost } from "../host.ts";

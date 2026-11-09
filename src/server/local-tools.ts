@@ -5,7 +5,7 @@
 import { access, stat } from "node:fs/promises";
 import { constants } from "node:fs";
 import { delimiter, join } from "node:path";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
     defineExtension,
     defineTool,

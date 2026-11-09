@@ -14,7 +14,7 @@ import { join } from "node:path";
 import type { Context } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { defineExtension, defineTool, type ToolRegistration } from "@earendil-works/pi-durable";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import type { App } from "./helpers.ts";
 
 process.env.PI_POCKET_TOOL_DISCOVERY = "on";
@@ -168,7 +168,8 @@ test("a normal session starts with a short prompt and short base tools", async (
     assert.doesNotMatch(prompt, /Instructions for this project/);
     assert.match(prompt, /ASD-STE100/);
     // Character bound (about 4 per token): real tokens are measured in docs/proposals/prompt-cost.md, section 4.1.
-    assert.ok(prompt.length + schemas.length < 5500, `${prompt.length} + ${schemas.length}`);
+    // The native description adds schema discovery and structured-result rules. This is not a token measurement.
+    assert.ok(prompt.length + schemas.length < 6200, `${prompt.length} + ${schemas.length}`);
 });
 
 test("the lean prompt lists no skills; the pointer names the skill directories", async () => {

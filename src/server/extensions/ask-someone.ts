@@ -3,7 +3,7 @@
  * link opens a page with no sign-in, where they answer once; the answer comes back to the session for you to give the agent.
  */
 import { createHash } from "node:crypto";
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineDoc, defineExtension, defineTool } from "@earendil-works/pi-durable";
 // Types only: at run time this module uses nothing of Pia's but the host and web, as a drop-in would.
 import type {

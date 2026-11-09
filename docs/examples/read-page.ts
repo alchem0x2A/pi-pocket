@@ -1,7 +1,7 @@
 /**
  * Reads a public web page for the agent: a read_page tool that fetches only public addresses and fences the page's text.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { Host } from "../../types/pocket.d.ts";
 

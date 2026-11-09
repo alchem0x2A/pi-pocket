@@ -6,7 +6,8 @@
  * persistent profile's cookies and storage do survive; `profile: "isolated"` avoids that profile entirely.
  */
 import { awaitWithContext } from "@earendil-works/chord/context";
-import { type ImageContent, type TextContent, Type } from "@earendil-works/pi-ai";
+import { type ImageContent, type TextContent } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { AgentDoc, defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import type { BrowserPage, BrowserProfile, LogEntry, Target } from "../browser/page.ts";
 import { displayUrl, normalizeUrl } from "../browser/urls.ts";

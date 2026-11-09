@@ -190,7 +190,7 @@ test("a drop-in that is on gives the agent its tools and hooks, reloads when edi
 
 /** A drop-in with one extension, and one tool in it when `tool` is given. */
 const named = (extension: string, tool?: string) => `/** ${extension}, for the names test. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 
 export default () =>
@@ -219,7 +219,7 @@ test("a drop-in cannot take a name Pia keeps: it is refused", async () => {
 
 /** A drop-in that says which version of the extension API it was written for, with a tool that returns `output`. */
 const versioned = (name: string, api: string) => `/** Versioned ${name}. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 
 ${api}

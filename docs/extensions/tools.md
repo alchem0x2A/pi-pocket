@@ -27,7 +27,7 @@ export default function createMyWords() {
 
 - `name` must be different from the name of each other tool ([Names](reference/names.md)). Use a prefix of your own.
 - `description` and `parameters` go to the model with each request. Keep them short and exact.
-- `parameters` is a TypeBox schema (`Type` from `@earendil-works/pi-ai`). Pi Durable checks the arguments against it before `execute` runs.
+- `parameters` is a JSON Schema object. Make it with TypeBox (`Type` from `typebox`) or with the builders of `@earendil-works/pi-schema` (`obj`, `str`, `opt`). Pi Durable checks the arguments against it with pi-schema before `execute` runs. Since Pi Durable 1.5.0, only what JSON Schema says is checked: TypeBox's extra features (`Type.Refine()`, `Type.BigInt()`, `Type.Undefined()`, codecs, and formats from `Format.Set()`) are not applied. pi-ai no longer exports `Type`; Pi Pocket still gives drop-ins that import `Type` from `@earendil-works/pi-ai` the TypeBox `Type`, so they load as before.
 - `execute(args, api, context)` does the work.
 
 ## Local tool catalog summaries

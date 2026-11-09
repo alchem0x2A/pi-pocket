@@ -1665,7 +1665,11 @@ Without a model, a new session gets ${fallback.model === undefined ? "no model" 
                 };
 
                 await strand(watch.value);
-                watch.start(strand);
+                watch.start(async (call) => {
+                    if (call.kind === "value") {
+                        await strand(call.value);
+                    }
+                });
             }
 
             settled = await submission.wait(context);

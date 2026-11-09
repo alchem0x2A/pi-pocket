@@ -1,7 +1,7 @@
 /**
  * Counts the words in a text: a tool for the agent, and a /my-words command for people.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { Web } from "../../types/pocket.d.ts";
 

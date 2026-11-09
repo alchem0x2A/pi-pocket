@@ -1,5 +1,5 @@
 /** Agent-facing Design tools and workspace export routes. Registered by the Design module. */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineTool, type ToolRegistration } from "@earendil-works/pi-durable";
 import type { ExtensionWeb, PocketHost } from "../host.ts";
 import { readBundle } from "./bundle.ts";

@@ -4,7 +4,7 @@
  * webhooks turn posts from other services into messages to a session or to Pia. While this is off, watches wait and
  * webhooks answer 503.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { PrWatch } from "../docs.ts";
 import { quoted } from "../fence.ts";

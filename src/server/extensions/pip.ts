@@ -4,7 +4,7 @@
  * requests and acts on what happens there, and can deny (never allow) calls waiting for approval. Only Pia's own
  * conversation selects this extension; while it is off, Pia is hidden and its follows wait.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import {
     type ConversationId,
     defineExtension,

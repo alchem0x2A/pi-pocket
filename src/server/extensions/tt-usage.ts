@@ -6,7 +6,7 @@
  * (`limit-gate.ts`): it only reads `provider-limits.json`, to show the gate beside the numbers. The probe starts one
  * small linked session on the cheapest model, reads its result, then stops and archives it.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, GenerationTask, hook } from "@earendil-works/pi-durable";
 import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";

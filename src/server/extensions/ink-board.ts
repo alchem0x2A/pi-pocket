@@ -5,7 +5,7 @@
  * talks to it on `127.0.0.1:INK_BOARD_PORT` (default 8375). It reuses a running service, or starts one from the
  * checkout and stops only that one. Nothing is installed: when the checkout is missing, the tools say how to set it up.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { Type } from "typebox";
 import { defineExtension, defineTool, section } from "@earendil-works/pi-durable";
 import { spawn, type ChildProcess } from "node:child_process";
 import { access, readFile } from "node:fs/promises";

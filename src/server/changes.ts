@@ -153,11 +153,16 @@ function piEdits(
                 continue;
             }
 
-            for (const call of calls as { name?: unknown; status?: unknown; path?: unknown }[]) {
+            for (const call of calls as {
+                name?: unknown;
+                status?: unknown;
+                path?: unknown;
+                applied?: unknown;
+            }[]) {
                 if (
                     typeof call.name !== "string" ||
                     !EDITORS.has(call.name) ||
-                    call.status !== "ok" ||
+                    (call.status !== "ok" && call.applied !== true) ||
                     typeof call.path !== "string" ||
                     call.path === ""
                 ) {
@@ -200,9 +205,11 @@ export function editFacts(entry: ClientEntry): ClientEntry | undefined {
                           return [];
                       }
 
-                      const { name, status, path } = call as Record<string, unknown>;
+                      const { name, status, path, applied } = call as Record<string, unknown>;
 
-                      return [{ name, status, path }];
+                      return [
+                          { name, status, path, ...(applied === true ? { applied: true } : {}) },
+                      ];
                   }),
               }
             : undefined;
