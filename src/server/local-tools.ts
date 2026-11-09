@@ -25,8 +25,13 @@ import {
 } from "@earendil-works/pi-durable/tool-search";
 
 const POLICY = "pocket-local-tools";
-/** Offered from the start. The note tools too: the prompt tells the agent to search notes before it acts. */
+/**
+ * Offered from the start. The note tools too: the prompt tells the agent to search notes before it acts. Codemode
+ * too (Tina's rule: a top-tier tool): deferred, agents almost never loaded it, and its use fell from about 1 call in
+ * 8 to about 1 in 1000 after on-demand tools merged on 2026-10-30.
+ */
 const BASE = new Set([
+    "codemode",
     "read",
     "write",
     "bash",
@@ -51,6 +56,7 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
     rg: "Search file contents",
     tool_search: "Find tools by purpose",
     tool_load: "Load selected tool schemas",
+    codemode: "Batch and filter tool calls",
     artifact: "Publish interactive pages and documents",
     artifact_inline: "Embed interactive reply cards",
     browser: "Browse and inspect websites",
