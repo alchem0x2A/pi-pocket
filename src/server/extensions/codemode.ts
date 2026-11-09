@@ -12,7 +12,6 @@ import {
     defineExtension,
     GenerationTask,
     hook,
-    LiveDoc,
     section,
     wrapSection,
     wrapTool,
@@ -20,6 +19,7 @@ import {
     type ToolExecutionApi,
     type ToolExecutionResult,
     type ToolRegistration,
+    type ToolTaskInput,
     ToolTask,
 } from "@earendil-works/pi-durable";
 import {
@@ -35,6 +35,7 @@ export const CODEMODE_TOOL = "codemode";
 const MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
 /** Only actual UI requirements stay direct; ordinary script tools never gain model-facing schemas. */
 const DIRECT_UI = new Set([CODEMODE_TOOL, "ink_read", "browser", "tool_load"]);
+const DIRECT_UI_READS = new Set(["browser", "ink_read"]);
 
 /** Record native discovery results, not schemas. The native implementation still ranks and describes tools. */
 class DiscoverySandbox extends CodemodeSandbox {
@@ -153,15 +154,15 @@ function enrich(
         return result;
     }
 
-    const details = result.details as { calls?: { id: number }[] } | undefined;
-    const calls =
-        details?.calls ??
-        Object.entries(refs.paths).map(([id, item]) => ({
-            id: Number(id),
-            name: item.name,
-            status: "ok",
-            path: item.path,
-        }));
+    const details = result.details as
+        { calls?: { id: number; name?: string; status?: string; path?: string }[] } | undefined;
+    const calls = [...(details?.calls ?? [])];
+
+    for (const [id, item] of Object.entries(refs.paths)) {
+        if (!calls.some((call) => call.id === Number(id))) {
+            calls.push({ id: Number(id), ...item, status: "ok" });
+        }
+    }
 
     return {
         ...result,
@@ -176,7 +177,7 @@ function enrich(
                           ...call,
                           ...(refs.paths[String(call.id)] === undefined
                               ? {}
-                              : { path: refs.paths[String(call.id)]!.path }),
+                              : { path: refs.paths[String(call.id)]!.path, applied: true }),
                       })),
                   }),
         },
@@ -220,8 +221,6 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
     const nativeTool = native.tools![0]!;
 
     const runNative = async (args: { code: string }, api: ToolExecutionApi, context: Context) => {
-        // The native call details carry an argument preview, which can be truncated. The Changes sheet needs
-        // the actual validated path, including a path changed by a beforeTool hook, not the script's raw input.
         // The old definition remains readable. Existing native values win over old values on an explicit transition.
         if (
             (await api.snapshot(CodemodeTransitionDoc, api.conversationId, context))?.done !== true
@@ -241,11 +240,7 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
             }, context);
         }
 
-        const record = async (update: {
-            notes?: string[];
-            tools?: string[];
-            path?: { id: number; name: string; value: string };
-        }) => {
+        const record = async (update: { notes?: string[]; tools?: string[] }) => {
             await api.commit(async (tx) => {
                 const refs = await tx.doc(CodemodeReferencesDoc, api.taskId);
 
@@ -260,13 +255,6 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
                         refs.tools.push(name);
                     }
                 }
-
-                if (update.path !== undefined) {
-                    refs.paths[String(update.path.id)] = {
-                        name: update.path.name,
-                        path: update.path.value,
-                    };
-                }
             }, context);
         };
 
@@ -276,6 +264,20 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
         );
         const nestedApi: ToolExecutionApi = {
             ...api,
+            // UI read tools keep their existing On-mode script access. Only filters the script catalog per
+            // conversation; a global callers wrapper would also restrict On and Pia's independent mode.
+            agent: async (scope) => {
+                const current = await api.agent(scope);
+
+                return only(api.conversationId)
+                    ? {
+                          ...current,
+                          callable: current.callable.filter(
+                              (tool) => !DIRECT_UI_READS.has(tool.name),
+                          ),
+                      }
+                    : current;
+            },
             executeTool: async (name, input, scope, options) => {
                 const result = await api.executeTool(name, input, scope, options);
 
@@ -295,24 +297,6 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
                             (id): id is string => typeof id === "string",
                         ),
                     });
-                }
-
-                const match = /^c([1-9][0-9]*)$/.exec(options?.key ?? "");
-
-                if (!result.isError && match !== null && (name === "write" || name === "edit")) {
-                    try {
-                        const live = await api.snapshot(LiveDoc, api.conversationId, scope);
-                        const slot = live?.nestedTools?.find(
-                            (item) => item.taskId === result.taskId,
-                        );
-                        const path = slot?.arguments.path;
-
-                        if (typeof path === "string") {
-                            await record({ path: { id: Number(match[1]), name, value: path } });
-                        }
-                    } catch {
-                        // Do not turn a completed write into a failed call if its presentation could not be read.
-                    }
                 }
 
                 return result;
@@ -367,7 +351,14 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
                         api,
                         context,
                     );
-                    const allowed = new Set(resolved.callable.map((tool) => tool.name));
+                    const allowed = new Set(
+                        resolved.callable
+                            .filter(
+                                (tool) =>
+                                    !only(api.conversationId) || !DIRECT_UI_READS.has(tool.name),
+                            )
+                            .map((tool) => tool.name),
+                    );
                     const remembered = refs.tools.filter((name) => allowed.has(name));
                     const messages = [...request.messages];
                     const at = messages.findIndex(
@@ -452,7 +443,11 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
                     }
 
                     if (call.parent !== undefined) {
-                        return undefined;
+                        return DIRECT_UI_READS.has(call.name)
+                            ? {
+                                  block: "Only mode requires this UI read tool to be called directly.",
+                              }
+                            : undefined;
                     }
 
                     const offered = agent.tools.find((tool) => tool.name === call.name);
@@ -488,13 +483,45 @@ export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
             }),
         ],
         wraps: [
-            // These tools expose images or interactive forms on their own cards. Do not silently drop their
-            // images inside a schema-less nested result. They stay deferred and load only on explicit request.
-            ...["browser", "ink_read"].map((name) =>
-                wrapTool({ name } as ToolRegistration, (tool) =>
-                    tool.callers === undefined ? { ...tool, callers: ["model"] } : tool,
-                ),
+            // Tool.execute receives the final validated arguments, after argument repair and beforeTool rewrites.
+            // Record a successful nested write before the child reports success, not by reading ephemeral live slots
+            // from the parent later. The parent keeps these facts even if it is stopped before it receives the result.
+            ...["write", "edit"].map((name) =>
+                wrapTool({ name } as ToolRegistration, (tool) => ({
+                    ...tool,
+                    execute: async (args, api, context) => {
+                        const task = await api.getTask(api.taskId, context);
+
+                        if (task?.kind !== ToolTask.definition.name) {
+                            throw new Error(
+                                "Cannot identify the write task for durable Changes attribution.",
+                            );
+                        }
+
+                        const input = task.input as ToolTaskInput;
+                        const key =
+                            input.kind === "nested" ? /^c([1-9][0-9]*)$/.exec(input.key) : null;
+                        const result = await tool.execute(args, api, context);
+                        const path = (args as { path?: unknown }).path;
+
+                        if (
+                            result.isError !== true &&
+                            input.kind === "nested" &&
+                            key !== null &&
+                            typeof path === "string"
+                        ) {
+                            await api.commit(async (tx) => {
+                                const refs = await tx.doc(CodemodeReferencesDoc, input.parent);
+
+                                refs.paths[key[1]!] = { name, path };
+                            }, context);
+                        }
+
+                        return result;
+                    },
+                })),
             ),
+
             wrapSection("available_tools", (original) => ({
                 ...original,
                 render: (input, context) => {

@@ -314,4 +314,4 @@ The maskable icon places the 352 × 352 artwork on a 512 × 512 page with 80-pix
 - `compacted-references.ts`: raw-history reference scan, with fork and reset boundaries and old direct-note support.
 - `docs.ts`: unchanged legacy store plus the transition and per-task reference documents.
 - `projection.ts`: native nested progress on the parent card. `extensions/guard.ts`: nested approvals on that card.
-- `test/codemode.test.ts`, `test/native-codemode.test.ts`: isolated native, store, guard, retention, approval, and mode tests. The manual upgrade and model-smoke scripts are `test/codemode-upgrade-exercise.ts` and `test/codemode-model-smoke.ts`.
+- `test/codemode.test.ts`, `test/native-codemode.test.ts`: isolated native, store, guard, retention, approval, and mode tests. `test/codemode-ui-modes.test.ts` checks per-conversation UI script access; `test/codemode-changes.test.ts` checks actual workspace attribution, including rewritten paths and cancellation. The manual upgrade and model-smoke scripts are `test/codemode-upgrade-exercise.ts` and `test/codemode-model-smoke.ts`.

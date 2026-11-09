@@ -38,13 +38,13 @@ The live configuration was read only. Explicitly enabled: `ink-board.ts`, `pip.t
 
 Only keeps these direct paths when enabled and available:
 
-| Path                                      | Reason                                                                                                       |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `codemode`                                | Runs scripts. It cannot call itself.                                                                         |
-| `browser`                                 | Images and interactive forms need its own card. It is model-only.                                            |
-| `ink_read`                                | Markup images need direct model/UI delivery. It is model-only. Other Ink Board tools remain script-callable. |
-| Explicit model-only registrations         | Preserve the extension author's caller boundary. Never make them script-callable.                            |
-| `tool_load`, when a direct UI tool exists | Load a deferred UI declaration on the next request. It rejects ordinary script-tool names in Only mode.      |
+| Path                                      | Reason                                                                                                                     |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `codemode`                                | Runs scripts. It cannot call itself.                                                                                       |
+| `browser`                                 | Images and interactive forms need its own card in Only. On keeps script access.                                            |
+| `ink_read`                                | Markup images need direct model/UI delivery in Only. On keeps script access. Other Ink Board tools remain script-callable. |
+| Explicit model-only registrations         | Preserve the extension author's caller boundary. Never make them script-callable.                                          |
+| `tool_load`, when a direct UI tool exists | Load a deferred UI declaration on the next request. It rejects ordinary script-tool names in Only mode.                    |
 
 There is no artifact or design exception. `memory` is not a direct Only exception: nested proposals reach Memory and the owner's cross-project pending queue. Inline cards are optional. Script-callable notes do not expand the model-facing schema list. No background jobs or job system were enabled or added.
 
@@ -56,7 +56,7 @@ Before reinjection, note IDs resolve against current approved content and curren
 
 All agent-written notes remain proposals. Pending text is excluded from reads, search, and retained-note injection, including in its originating session. The owner can find and edit nested proposals in the existing queue. An edit now leaves a pending proposal pending. A separate explicit approval is required. Tests check edited approved content, provenance, separate sessions, compaction, forks before and after a read, reset, removal, and scope changes.
 
-Native write/edit results keep the actual validated path for Changes, not the truncated argument preview. Native nested progress uses the parent card's existing call list. Guard approvals attach to that card but retain unique nested call IDs and separate allow/deny decisions. Plan mode resolves nested annotations from `agent.callable`.
+Native write/edit wrappers durably record the actual validated path before child success. Changes uses that applied receipt, not a live slot or the truncated argument preview. A confirmed receipt remains usable if Stop or timeout prevents delivery to the parent script. Native nested progress uses the parent card's existing call list. Guard approvals attach to that card but retain unique nested call IDs and separate allow/deny decisions. Plan mode resolves nested annotations from `agent.callable`.
 
 ## Verification
 
@@ -64,7 +64,7 @@ Automated tests cover file read/write/edit, shell grep, registered and deferred 
 
 Ink Board uses a mocked isolated service and fixture token. The test checks images, links, service identity, and that an unidentified service gets no command or token. Usage tests load the actual extension with every account disabled; no credential or network lookup is needed. They check owner access and guest rejection. Live Ink Board state, real usage endpoints, provider sign-in/refresh, and browser form UI were not exercised against real services.
 
-The full suite first had an artifact UI timeout; that file passed alone. A later full run had one design UI width assertion (`1920`); that file also passed alone (18 tests). The final full run passed all 1,055 tests. `npm run format` ran on a throwaway source copy; only task-owned files were copied back. Final `npm run check`, `npm run lint`, and `git diff --check` passed. These results do not erase the earlier full-run failures.
+The full suite first had an artifact UI timeout; that file passed alone. A later full run had one design UI width assertion (`1920`); that file also passed alone (18 tests). The pre-review final full run passed all 1,055 tests. `npm run format` ran on a throwaway source copy; only task-owned files were copied back. Final `npm run check`, `npm run lint`, and `git diff --check` passed. These results do not erase the earlier full-run failures.
 
 ## Real-model smoke tests
 
@@ -98,3 +98,21 @@ The earlier optional `HookApi` cast in Memory was already removed in `49c75fe7`.
 Tests now inspect actual post-compaction injection, not just result metadata: a fork before discovery has neither reference; a fork before the note read has the discovered tool name but no read note; a fork after the read has both; a reset has neither. Current approved note text is injected only in scope. A cwd change excludes the old project note. Tool-name injection still works with Memory disabled. An exact HookApi fixture with no agent/context methods exercises both hooks. The native executor remains the only executor in both modes. No real-model smoke test was repeated for this API-only follow-up; the Strata and metric limits above remain.
 
 Follow-up verification: `npm run format` passed on a throwaway source copy, with only task-owned files copied back. Type checking and lint passed. The 15 focused native, note, history, and injection tests passed. The first full run passed 1,054 of 1,055 tests; the existing artifact follow-up timeout failed again. That file passed all 10 tests alone. The final full rerun passed all 1,055 tests. The earlier failure remains recorded in `/tmp/pia-retention-review-full.log`; the passing full rerun is `/tmp/pia-retention-review-full-rerun.log`. No live data, settings, or service changed.
+
+## Independent review fixes: UI mode scope and durable Changes
+
+1. The global `callers: ["model"]` wrappers for browser and Ink Board reads were removed. On keeps the original script access. Only filters these two names from the script catalog for that conversation and rejects nested attempts through a tool hook. Direct UI calls remain available. Pia's independent On choice is preserved. Isolated native-registry tests check script execution counts, discovery, guessed calls, direct calls, an indirect nested caller, switching back to On, and Pia's separate setting. These tests do not contact live Browser or Ink Board services. On keeps the prior text-return contract for schema-less script results; use direct UI calls for their images.
+
+2. Attribution no longer reads `LiveDoc` or swallows live-slot lookup errors. A write/edit wrapper receives the final validated path after hooks rewrite arguments. It reads the durable task's parent/key with `api.getTask()` and commits the successful applied path into the parent's task document before returning child success. The result's `applied: true` receipt is preserved by light projection and workspace edit-fact caching. Native script-call status is not changed. Thus a file write can remain attributed even when the script times out before receiving its result.
+
+`test/codemode-changes.test.ts` calls the actual `app.workspace.changes()` API. It checks native write and edit attribution in On and Only; a hook-rewritten path longer than the 200-character argument preview; a denied write; and a parent whose live-slot reader throws. It also stops the parent after the child result commits but before the parent receives it. The test queries Changes while the parent is still running, checks attribution when the stopped parent publishes its result, and checks again after reopen. A timeout case checks the same durable applied receipt. These are workspace assertions, not result-detail-only assertions.
+
+**Precise limit:** filesystem writes and durable metadata are not one transaction. If Stop, process loss, or an I/O failure interrupts the operation before its successful file-operation return and attribution commit, the file can change without a confirmed receipt. It remains visible in Changes, but `byPi: false` is then unconfirmed attribution. While a parent is still running, Changes can list its file without attribution because its result is not yet in the transcript. The code does not guess the original path or commit after cancellation. The injected attribution-commit-failure test proves that the file effect is visible, the tool reports failure, and attribution is not falsely confirmed.
+
+3. Supported retention readers were committed in `7166ee50`: both hooks use native `Conversation.agent()` and `Conversation.context()` through the read-only host reader. No optional HookApi agent/context cast remains in Memory or codemode. Hook, fork, reset, current-scope, and actual-injection tests are rerun on the same code as these fixes. The host-reader test compares resolved declarations, not execute-function identity: registry wrappers can create fresh closures at each resolution. Both modes still use one native executor.
+
+Session 170373's full report was not accessible through the available session tools. The concrete findings supplied in Pia's message were used. No live data, settings, service, merge, deployment, or restart changed. The earlier Strata and real-model metric limits remain; no real-model smoke run was repeated for these fixes.
+
+The first full run for these fixes passed 1,060 of 1,061 tests. One Design UI test timed out waiting for a slide to scale to its frame. All 18 tests in that file passed on an isolated rerun. Targeted checks passed all 28 native, Changes, mode, hook, fork/reset, scope, and plan tests. These results do not erase the full-run timeout. The final default parallel rerun had the same result: 1,060 passed, 1 failed at the same Design slide-scaling timeout. Check and lint passed on that code, and all 28 targeted tests passed again. The default suite is not green; do not waive this release gate. Logs are `/tmp/pia-review-final-full.log` and `/tmp/pia-release-review-full.log`.
+
+A serial full-suite attempt (`node --test --test-concurrency=1 test/*.test.ts`) exceeded the 480-second shell limit after 888 passes and no recorded test failure. It did not complete, so no serial full-suite pass is claimed. The Design case passed in that run. Its log is `/tmp/pia-review-full-serial.log`. The 18-test isolated Design run passed (`/tmp/pia-review-design-isolated.log`). This evidence does not establish the cause of the parallel failure. The migration fixes are committed for independent review, not release or deployment.

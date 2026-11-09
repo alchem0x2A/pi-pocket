@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { AssistantEntry, type ConversationId, UserEntry } from "@earendil-works/pi-durable";
+import {
+    AssistantEntry,
+    type Conversation,
+    type ConversationId,
+    UserEntry,
+} from "@earendil-works/pi-durable";
 import {
     type App,
     cleanUp,
@@ -89,7 +94,25 @@ test("codemode's hooks read history as the task runtime does: one visible entry,
     assert.deepEqual(await history.entry(UserEntry, user.id, context), user);
     assert.equal(await history.entry(AssistantEntry, user.id, context), undefined);
     assert.deepEqual((await history.entries({}, 10, undefined, context)).items, newest);
-    assert.deepEqual(await history.agent(context), await conversation.agent(context));
+    const describedAgent = (agent: Awaited<ReturnType<Conversation["agent"]>>) => ({
+        model: agent.model,
+        cwd: agent.cwd,
+        tools: agent.tools.map(({ name, description, parameters, callers, deferred }) => ({
+            name,
+            description,
+            parameters,
+            callers,
+            deferred,
+        })),
+        callable: agent.callable.map((tool) => tool.name),
+        deferred: agent.deferred.map((tool) => tool.name),
+    });
+
+    // Registry wrappers can create fresh execute closures on each resolution; compare their declarations, not function identity.
+    assert.deepEqual(
+        describedAgent(await history.agent(context)),
+        describedAgent(await conversation.agent(context)),
+    );
     assert.deepEqual(await history.context(context), await conversation.context(context));
 
     // An entry of another conversation is not visible from this one.
