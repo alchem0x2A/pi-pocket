@@ -148,6 +148,7 @@ test("a normal session starts with a short prompt and short base tools", async (
 
     assert.deepEqual([...tools.keys()].sort(), [
         "bash",
+        "codemode",
         "edit",
         "note_load",
         "note_search",

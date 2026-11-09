@@ -112,6 +112,7 @@ test("sessions and Pia use local tool discovery", async () => {
 
     assert.deepEqual(offered.filter((name) => name !== "rg").sort(), [
         "bash",
+        "codemode",
         "ls",
         // The prompt tells the agent to search notes before it acts: their tools need no loading.
         "note_load",
@@ -293,7 +294,8 @@ test("optional guides disappear before loading, lessons and policy sections rema
     assert.ok(before.sections.some((section) => section.key === "memory"));
     assert.equal(await render("browser"), undefined);
     assert.equal(await render("subagents"), undefined);
-    assert.equal(await render("codemode"), undefined);
+    // Codemode is a base tool: offered from the start, so its guide renders before any load.
+    assert.ok(await render("codemode"));
     assert.ok(await render("tool_discovery"));
 
     await say(app, id, 'call tool_search {"query":"browser","limit":1}');
