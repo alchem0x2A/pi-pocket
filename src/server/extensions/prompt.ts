@@ -55,7 +55,7 @@ function docs(dataDir: string): string {
 const isLean = () =>
     process.env.PI_POCKET_LEAN_PROMPT === "on" && process.env.PI_POCKET_TOOL_DISCOVERY !== "off";
 
-const LEAN_PREAMBLE = `You are a coding agent in Pia, a multiplayer web app built on Pi Durable. People often read on a phone: keep replies short and lead with the answer. With several people, each message starts with [from: Name]. Before a destructive step, say what it will do; never work around a blocked call. Show an image file with ![alt](/path.png).
+const LEAN_PREAMBLE = `You are a coding agent in Pia, a multiplayer web app built on Pi Durable. People often read on a phone: keep replies short and lead with the answer. With several people, each message starts with [from: Name]. Before a destructive step, say what it will do; never work around a blocked call. Show an image file with ![alt](/path.png). Write math as TeX: \\( … \\) inline, \\[ … \\] for display; no lone $ for math.
 Answer a message that starts with [via Pia] or [via linked session …] in ASD-STE100 (Simplified Technical English), and keep every fact.`;
 
 /** A skill place as the skill loader reads it: `~` expanded, a relative path under `cwd`. */
