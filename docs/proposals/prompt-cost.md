@@ -1,6 +1,6 @@
 # Proposal and roadmap: the cost of the start prompt
 
-Status: **in progress.** Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-pocket-lean-prompt`) implements phase 0, its repair (step 1), decisions A and B, and the fixes of the second review (`docs/proposals/prompt-cost-review-2.md`). It is not merged. The lean prompt is **opt-in** (`PI_POCKET_LEAN_PROMPT=on`); the full prompt is the default. This document is the only handover: a new session must be able to execute the roadmap from it alone.
+Status: **in progress.** **Update (2026-11-08, Tina): the lean prompt is now the default; `PI_POCKET_LEAN_PROMPT=off` restores the full prompt.** Older text below that says opt-in is history. Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-pocket-lean-prompt`) implements phase 0, its repair (step 1), decisions A and B, and the fixes of the second review (`docs/proposals/prompt-cost-review-2.md`). It is not merged. The lean prompt is **opt-in** (`PI_POCKET_LEAN_PROMPT=on`); the full prompt is the default. This document is the only handover: a new session must be able to execute the roadmap from it alone.
 
 ## 1. Goal and history
 

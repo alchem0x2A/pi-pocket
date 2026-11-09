@@ -49,11 +49,11 @@ function docs(dataDir: string): string {
 /**
  * The lean start prompt of a normal session (not Pia's): a short preamble, the project's AGENTS.md files inlined, a
  * pointer to the skill directories, and short tool schemas. Skills are not listed; guides and documentation come on
- * demand. Opt-in: `PI_POCKET_LEAN_PROMPT=on`; the full prompt is the default. With tool discovery off there is no
+ * demand. On by default; `PI_POCKET_LEAN_PROMPT=off` restores the full prompt. With tool discovery off there is no
  * search route, so the lean prompt falls back to the full one instead of hiding its sections.
  */
 const isLean = () =>
-    process.env.PI_POCKET_LEAN_PROMPT === "on" && process.env.PI_POCKET_TOOL_DISCOVERY !== "off";
+    process.env.PI_POCKET_LEAN_PROMPT !== "off" && process.env.PI_POCKET_TOOL_DISCOVERY !== "off";
 
 const LEAN_PREAMBLE = `You are a coding agent in Pia, a multiplayer web app built on Pi Durable. People often read on a phone: keep replies short and lead with the answer. With several people, each message starts with [from: Name]. Before a destructive step, say what it will do; never work around a blocked call. Show an image file with ![alt](/path.png). Write math as TeX: \\( … \\) inline, \\[ … \\] for display; no lone $ for math.
 Answer a message that starts with [via Pia] or [via linked session …] in ASD-STE100 (Simplified Technical English), and keep every fact.`;
