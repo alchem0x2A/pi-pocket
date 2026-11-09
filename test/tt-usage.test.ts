@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { test } from "node:test";
-import { localZoneTime, usageResets } from "../src/server/extensions/tt-usage-helpers.ts";
+import { localZoneTime, usageResets } from "../src/server/extensions/_tt-usage-helpers.ts";
 
 test("usage resets omit unused windows and keep the limiting window reset", () => {
     assert.deepEqual(

@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ExtensionWeb as Web, PocketHost as Host } from "../host.ts";
-import { localZoneTime, usageResets, type UsageReset } from "./tt-usage-helpers.ts";
+import { localZoneTime, usageResets, type UsageReset } from "./_tt-usage-helpers.ts";
 
 export const pocketApi = 2;
 
