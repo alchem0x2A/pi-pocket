@@ -139,6 +139,7 @@ import {
     type ProjectTrust,
     readProjectTrust,
     saveProjectTrust,
+    skillPlaces,
     type SkillSources,
     type TrustChoice,
 } from "./skills.ts";
@@ -770,6 +771,7 @@ export class PocketApp {
                 }
             },
             skills: (cwd) => this.skills(cwd),
+            skillPlaces: (cwd) => skillPlaces(cwd, this.#skillSources()),
             resolveModel: (spec) => resolveModel(this.models, spec, this.signInNeeded),
             subagentModels: () => this.config.subagentModels,
             modelProblem: (ref, fresh) => this.providers.problem(ref, fresh),
@@ -830,8 +832,14 @@ export class PocketApp {
             thinkingLevels: THINKING_LEVELS,
         };
 
-        // Keep local tool exposure policy separate from the loader and upstream execution environment.
-        const localRegistry = localToolRegistry(registry, await hasRipgrep());
+        // Keep local tool exposure policy separate from the loader and upstream execution environment. The view
+        // knows which conversation is the one long-running Pia chat by its stored identity, the same check the prompt
+        // uses; it never decides that from the tools a conversation has.
+        const localRegistry = localToolRegistry(
+            registry,
+            await hasRipgrep(),
+            (conversationId) => this.pia.ownerOf(conversationId) !== undefined,
+        );
 
         this.#registry = localRegistry;
         const dropIn = join(this.dataDir, "extensions");

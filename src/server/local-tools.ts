@@ -10,6 +10,7 @@ import {
     defineExtension,
     defineTool,
     section,
+    type ConversationId,
     type Extension,
     type RegistryReader,
     type RegistrySnapshot,
@@ -67,6 +68,97 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
 };
 const UNKNOWN_DESCRIPTION = "Search for tool details";
 
+/**
+ * The lean start prompt (`extensions/prompt.ts`): short schemas for the base tools, every guide on demand. Opt-in:
+ * `PI_POCKET_LEAN_PROMPT=on`; the full prompt is the default. With `PI_POCKET_TOOL_DISCOVERY=off` this whole view is
+ * bypassed, so no combination of the two switches leaves a session without its sections or its search route.
+ */
+export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT === "on";
+/** The lean prompt names no file rules, so edit comes from the start too. */
+const inBase = (name: string) => BASE.has(name) || (isLean() && name === "edit");
+
+/**
+ * Short model-facing declarations of the base tools. The harness validates a call against the offered (lean) schema,
+ * then the original execute runs: each lean schema accepts a subset of what the original accepts.
+ */
+const LEAN_DECLARATIONS: Readonly<Record<string, { description: string; parameters: unknown }>> = {
+    read: {
+        description:
+            "Read a file (text or image). Long text is cut at 2000 lines; use offset and limit.",
+        parameters: Type.Object({
+            path: Type.String(),
+            offset: Type.Optional(Type.Number()),
+            limit: Type.Optional(Type.Number()),
+        }),
+    },
+    write: {
+        description: "Create or replace a file.",
+        parameters: Type.Object({ path: Type.String(), content: Type.String() }),
+    },
+    edit: {
+        description:
+            "Replace exact text in a file. Each oldText must be unique in the file and must not overlap another.",
+        parameters: Type.Object({
+            path: Type.String(),
+            edits: Type.Array(Type.Object({ oldText: Type.String(), newText: Type.String() })),
+        }),
+    },
+    bash: {
+        description:
+            "Run a shell command in the working directory. Output is cut at 2000 lines; timeout in seconds.",
+        parameters: Type.Object({
+            command: Type.String(),
+            timeout: Type.Optional(Type.Number()),
+        }),
+    },
+    tool_search: {
+        description: "Find optional tools by task or name. Loads nothing.",
+        parameters: Type.Object({ query: Type.String(), limit: Type.Optional(Type.Number()) }),
+    },
+    tool_load: {
+        description: "Load tools by exact name; they work from the next step on.",
+        parameters: Type.Object({
+            names: Type.Array(Type.String(), { minItems: 1, maxItems: 10 }),
+        }),
+    },
+    note_search: {
+        description:
+            "Search notes from earlier sessions (facts, rules, preferences) at the start of a task. Notes can be out of date.",
+        parameters: Type.Object({
+            query: Type.String(),
+            limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+        }),
+    },
+    note_load: {
+        description: "Read whole notes by id.",
+        parameters: Type.Object({
+            ids: Type.Array(Type.String(), { minItems: 1, maxItems: 10 }),
+        }),
+    },
+    ls: {
+        description: "List a directory.",
+        parameters: Type.Object({
+            path: Type.Optional(Type.String()),
+            limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 2000 })),
+        }),
+    },
+};
+
+/**
+ * The lean model-facing declaration of a base tool. The harness validates a call against the offered declaration,
+ * and the original execute still gets the same arguments.
+ */ function leanDeclaration(tool: ToolRegistration): ToolRegistration {
+    const lean = LEAN_DECLARATIONS[tool.name];
+
+    return lean === undefined
+        ? tool
+        : ({
+              ...tool,
+              description: lean.description,
+              parameters: lean.parameters,
+          } as ToolRegistration);
+}
+
 /** Ignore invalid metadata instead of truncating its meaning. A catalog must remain compact and single-line. */
 function shortDescription(tool: CatalogTool): string {
     const summary = tool.shortDescription;
@@ -84,9 +176,31 @@ function shortDescription(tool: CatalogTool): string {
         : UNKNOWN_DESCRIPTION;
 }
 
-function availableTools(): PromptSection {
-    return section("available_tools", ({ agent }) => {
-        const tools = new Map([...agent.tools, ...agent.deferred].map((tool) => [tool.name, tool]));
+/**
+ * Whether a conversation is the one long-running Pia chat. It is decided by the stored identity of the conversation
+ * (who its assistant is), never by the tools it happens to have: a tool name is not an identity, and an excluded or
+ * renamed tool must not change the prompt. `prompt.ts` uses the same check.
+ */
+export type PiaIdentity = (conversationId: ConversationId) => boolean;
+
+function availableTools(isPiaChat: PiaIdentity): PromptSection {
+    return section("available_tools", (input) => {
+        if (isLean() && !isPiaChat(input.conversationId)) {
+            // Names only, of the tools not offered yet: the offered ones carry their own schemas. Skills are not
+            // tools: the prompt points to the skill directories, and tool_search finds no skills.
+            const offered = new Set(input.agent.tools.map((tool) => tool.name));
+            const names = [...new Set(input.agent.deferred.map((tool) => tool.name))]
+                .filter((name) => !offered.has(name))
+                .sort((a, b) => a.localeCompare(b));
+
+            return names.length === 0
+                ? undefined
+                : `Load with tool_load when needed: ${names.join(", ")}.`;
+        }
+
+        const tools = new Map(
+            [...input.agent.tools, ...input.agent.deferred].map((tool) => [tool.name, tool]),
+        );
 
         return [...tools.values()]
             .sort((a, b) => a.name.localeCompare(b.name))
@@ -106,6 +220,8 @@ const LAZY_GUIDES = new Set([
     "pocket-codemode",
     "pocket-design",
 ]);
+/** In the lean prompt, these guides wait for their tools too. Memory's rules move into note_search and memory. */
+const LEAN_LAZY_GUIDES = new Set(["ink-board", "pocket-inbox-notes", "pocket-memory"]);
 
 /** Probe once at startup. Execution still uses the conversation's environment, never a separate shell or cwd. */
 export async function hasRipgrep(): Promise<boolean> {
@@ -300,6 +416,7 @@ function discoveryTool(): ToolRegistration {
                         loaded: agent.tools.some((tool) => tool.name === name),
                     };
                 });
+
                 const text =
                     matches.length === 0
                         ? "No matching tools found."
@@ -311,7 +428,10 @@ function discoveryTool(): ToolRegistration {
                               )
                               .join("\n");
 
-                return { output: [{ type: "text", text }], details: { matches } };
+                return {
+                    output: [{ type: "text", text }],
+                    details: { matches },
+                };
             },
         }),
         { annotations: { readOnlyHint: true } },
@@ -375,20 +495,28 @@ function loadTool(): ToolRegistration {
 
 /** Tools of this extension stay offered: Pia's session management must not need discovery first. */
 const NEVER_DEFERRED = new Set(["pocket-pip"]);
+/** Base tools that a lean session loads only when needed: bash covers them. */
+const LEAN_START_DEFERRED = new Set(["ls", "rg"]);
 
 const TASK_FOCUS =
     "Focus on the request this session was given, and finish it; do not start unrelated work.";
 
 /** A synthetic extension exposes local tool discovery. */
-function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[]): Extension {
+function policy(
+    snapshot: RegistrySnapshot,
+    extras: readonly ToolRegistration[],
+    isPiaChat: PiaIdentity,
+): Extension {
     const wraps: Wrap[] = [];
 
     for (const { extension, tool } of snapshot.tools()) {
-        if (!BASE.has(tool.name) && !NEVER_DEFERRED.has(extension.name)) {
+        if (!inBase(tool.name) && !NEVER_DEFERRED.has(extension.name)) {
             wraps.push({
                 tool: tool.name,
                 wrap: (original: ToolRegistration) => ({ ...original, deferred: true as const }),
             });
+        } else if (isLean() && Object.hasOwn(LEAN_DECLARATIONS, tool.name)) {
+            wraps.push({ tool: tool.name, wrap: leanDeclaration });
         }
     }
 
@@ -396,9 +524,15 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
         const names = extension.tools?.map((tool) => tool.name) ?? [];
 
         // Lessons, policy, and unknown extension sections stay present even when tools are not loaded.
-        if (names.length === 0 || !LAZY_GUIDES.has(extension.name)) {
+        const leanOnly = !LAZY_GUIDES.has(extension.name);
+        const lazy = !leanOnly || (isLean() && LEAN_LAZY_GUIDES.has(extension.name));
+
+        if (names.length === 0 || !lazy) {
             continue;
         }
+
+        // Memory's guide waits for the memory tool, not for the note tools that are always offered.
+        const triggers = extension.name === "pocket-memory" ? ["memory"] : names;
 
         for (const guide of extension.sections ?? []) {
             wraps.push({
@@ -406,7 +540,10 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
                 wrap: (original: PromptSection) => ({
                     ...original,
                     render: (...[input, context]: Parameters<PromptSection["render"]>) =>
-                        names.some((name) => input.agent.tools.some((tool) => tool.name === name))
+                        (leanOnly && isPiaChat(input.conversationId)) ||
+                        triggers.some((name) =>
+                            input.agent.tools.some((tool) => tool.name === name),
+                        )
                             ? original.render(input, context)
                             : undefined,
                 }),
@@ -416,27 +553,32 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
 
     const registered = new Set(snapshot.tools().map(({ tool }) => tool.name));
 
+    // Lean: the local extras get lean declarations too, and ls (bash covers it) waits for tool_load.
+    const own = extras
+        .filter((tool) => !registered.has(tool.name))
+        .map((tool) =>
+            !isLean()
+                ? tool
+                : LEAN_START_DEFERRED.has(tool.name)
+                  ? { ...leanDeclaration(tool), deferred: true as const }
+                  : leanDeclaration(tool),
+        );
+
     return defineExtension({
         name: POLICY,
-        tools: extras.filter((tool) => !registered.has(tool.name)),
+        tools: own,
         wraps,
         sections: [
-            availableTools(),
-            section(
-                "tool_discovery",
-                () =>
-                    "The available_tools catalog lists enabled tools, not loaded schemas. If a tool's purpose is clear, use tool_load with its exact name; already-offered tools need no loading. If unsure, use tool_search with an exact name or keywords for descriptions, then load only the tools needed for this session. Search loads nothing. tool_load supplies authoritative schemas and guides on the next request; they persist in this conversation. Disabled tools cannot be loaded.",
+            availableTools(isPiaChat),
+            section("tool_discovery", (input) =>
+                isLean() && !isPiaChat(input.conversationId)
+                    ? undefined
+                    : "The available_tools catalog lists enabled tools, not loaded schemas. If a tool's purpose is clear, use tool_load with its exact name; already-offered tools need no loading. If unsure, use tool_search with an exact name or keywords for descriptions, then load only the tools needed for this session. Search loads nothing. tool_load supplies authoritative schemas and guides on the next request; they persist in this conversation. Disabled tools cannot be loaded.",
             ),
-            // Task sessions only: the Pia chat, which has the session tools, gets its own prompt from Pia's extension.
-            section("task_focus", (input) => {
-                const all = [...input.agent.tools, ...input.agent.deferred];
-
-                if (all.some((tool) => tool.name === "session_start")) {
-                    return undefined;
-                }
-
-                return TASK_FOCUS;
-            }),
+            // Task sessions only: the Pia chat, known by its stored identity, gets its own prompt from Pia's extension.
+            section("task_focus", (input) =>
+                isPiaChat(input.conversationId) ? undefined : TASK_FOCUS,
+            ),
         ],
     });
 }
@@ -444,10 +586,13 @@ function policy(snapshot: RegistrySnapshot, extras: readonly ToolRegistration[])
 /**
  * A cached read-only view follows loader publications without mutating installed extensions or stored agent choices.
  * `PI_POCKET_TOOL_DISCOVERY=off` turns it off for rollback and tests.
+ * `isPiaChat` says which conversation is the one long-running Pia chat, by its stored identity: the same check
+ * `extensions/prompt.ts` uses.
  */
 export function localToolRegistry(
     registry: RegistryReader,
     ripgrep: boolean,
+    isPiaChat: PiaIdentity = () => false,
 ): RegistryReader & { changed(): void } {
     // A local rollback switch also lets legacy scripted-model tests keep their fixed, eager tool manifests.
     if (process.env.PI_POCKET_TOOL_DISCOVERY === "off") {
@@ -491,7 +636,7 @@ export function localToolRegistry(
             const snapshot = registry.snapshot();
 
             if (snapshot !== previous) {
-                const local = policy(snapshot, extras);
+                const local = policy(snapshot, extras, isPiaChat);
 
                 current = {
                     tasks: () => snapshot.tasks(),
