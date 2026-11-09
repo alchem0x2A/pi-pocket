@@ -379,7 +379,7 @@ function Lesson({ lesson, data, conversationId, pendingOnly = false, open: opene
                         </button>`
                     }
                     ${
-                        lesson.mine &&
+                        (lesson.mine || (data.owner && lesson.pending)) &&
                         html`<button
                             class="button small ghost"
                             onClick=${() =>

@@ -637,14 +637,43 @@ export function projectLive(live: LiveState | undefined): ClientLive {
     }
 
     if (live.tools !== undefined) {
-        out.tools = live.tools.map((slot) => ({
-            callId: slot.callId,
-            name: slot.name,
-            status: slot.status,
-            ...(slot.taskId === undefined ? {} : { taskId: slot.taskId as unknown as number }),
-            ...(slot.output === undefined ? {} : { output: tail(slot.output, LIVE_OUTPUT_LIMIT) }),
-            ...(slot.details === undefined ? {} : { details: projectDetails(slot.details, false) }),
-        }));
+        out.tools = live.tools.map((slot) => {
+            const nested =
+                slot.name === "codemode"
+                    ? (live.nestedTools?.filter((item) => item.parentTaskId === slot.taskId) ?? [])
+                    : [];
+            const details =
+                nested.length === 0
+                    ? slot.details
+                    : {
+                          calls: nested.map((item) => ({
+                              name: item.name,
+                              status:
+                                  item.status === "done"
+                                      ? item.summary?.isError
+                                          ? "error"
+                                          : "ok"
+                                      : "running",
+                              ...(item.summary?.durationMs === undefined
+                                  ? {}
+                                  : { durationMs: item.summary.durationMs }),
+                              ...(item.summary?.error === undefined
+                                  ? {}
+                                  : { error: item.summary.error }),
+                          })),
+                      };
+
+            return {
+                callId: slot.callId,
+                name: slot.name,
+                status: slot.status,
+                ...(slot.taskId === undefined ? {} : { taskId: slot.taskId as unknown as number }),
+                ...(slot.output === undefined
+                    ? {}
+                    : { output: tail(slot.output, LIVE_OUTPUT_LIMIT) }),
+                ...(details === undefined ? {} : { details: projectDetails(details, false) }),
+            };
+        });
     }
 
     if (live.compactions !== undefined) {

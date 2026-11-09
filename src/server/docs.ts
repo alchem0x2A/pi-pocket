@@ -337,6 +337,30 @@ export const CodemodeStoreDoc = defineDoc<{ values: Record<string, JsonValue> }>
     initial: () => ({ values: {} }),
 });
 
+/** One-time copy of the legacy codemode store into the native rewindable store. */
+export const CodemodeTransitionDoc = defineDoc<{ done: boolean }>({
+    kind: "pocket.codemode-transition",
+    version: 1,
+    ...rebased,
+    scope: "conversation",
+    history: "rewindable",
+    fork: "asOf",
+    initial: () => ({ done: false }),
+});
+
+/** Reference metadata for a native codemode task, retained until its result (also after an abort) is stored. */
+export const CodemodeReferencesDoc = defineDoc<{
+    notes: string[];
+    tools: string[];
+    paths: Record<string, { name: string; path: string }>;
+}>({
+    kind: "pocket.codemode-references",
+    version: 1,
+    ...rebased,
+    scope: "task",
+    initial: () => ({ notes: [], tools: [], paths: {} }),
+});
+
 /** A conversation's named background subagents, and the reporter task of each message sent to them. */
 export const SubagentsDoc = defineDoc<{
     agents: Record<string, SubagentRecord>;

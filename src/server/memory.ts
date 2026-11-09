@@ -14,13 +14,9 @@ import { realpath } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import {
-    CompactionEntry,
-    type ConversationId,
-    ResetEntry,
-    type Tx,
-} from "@earendil-works/pi-durable";
+import { type ConversationId, type Tx } from "@earendil-works/pi-durable";
 import type { PocketApp } from "./app.ts";
+import { compactedReferences } from "./compacted-references.ts";
 import { addActivity } from "./collab.ts";
 import type { User } from "./config.ts";
 import { assistantOwner, ChatDoc, type Lesson, MemoryDoc } from "./docs.ts";
@@ -707,12 +703,8 @@ export class Memory {
                 return before;
             }
 
-            // The owner's own edit is in force at once: of a lesson waiting, it approves it too.
-            if (!held && !inForce) {
-                this.#roomFor(doc, lesson);
-                delete lesson.pending;
-            }
-
+            // Editing a pending proposal does not approve it. The owner must review the new text and approve it
+            // explicitly; until then no session may use the proposal as memory.
             if (inForce && !same) {
                 lesson.revision = (lesson.revision ?? 1) + 1;
             }
@@ -855,58 +847,14 @@ export class Memory {
      */
     async readBeforeCompaction(
         conversationId: ConversationId,
-    ): Promise<{ summary: string; ids: string[] }> {
+    ): Promise<{ summary: string; ids: string[]; tools: string[] }> {
         const conversation = await this.#app.conversation(conversationId);
-        const head = (await conversation.context(context)).head;
 
-        if (head?.kind !== CompactionEntry.kind || head.head === undefined) {
-            return { summary: "", ids: [] };
-        }
-
-        const summary = (head.model ?? [])
-            .flatMap((message) =>
-                message.role === "user" && typeof message.content !== "string"
-                    ? message.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
-                    : message.role === "user"
-                      ? [message.content]
-                      : [],
-            )
-            .join("");
-        const newestFirst: string[] = [];
-        let cursor: Parameters<typeof conversation.entries>[2];
-
-        scan: do {
-            const page = await conversation.entries(
-                { maxEntryId: (head.head - 1) as typeof head.head, order: "descending" },
-                200,
-                cursor,
-                context,
-            );
-
-            for (const entry of page.items) {
-                if (entry.kind === ResetEntry.kind) {
-                    break scan;
-                }
-
-                for (const message of entry.model ?? []) {
-                    if (message.role !== "toolResult" || message.toolName !== "note_load") {
-                        continue;
-                    }
-
-                    const text = message.content
-                        .flatMap((part) => (part.type === "text" ? [part.text] : []))
-                        .join("\n");
-
-                    for (const found of [...text.matchAll(/<note id="([^"]+)"/g)].reverse()) {
-                        newestFirst.push(found[1]!);
-                    }
-                }
-            }
-
-            cursor = page.next;
-        } while (cursor !== undefined);
-
-        return { summary, ids: [...new Set(newestFirst)].reverse() };
+        return compactedReferences(
+            (await conversation.context(context)).head,
+            conversation,
+            context,
+        );
     }
 
     // ─── Model choice ──────────────────────────────────────────────────────

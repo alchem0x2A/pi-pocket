@@ -1,449 +1,551 @@
 /**
- * Codemode lets the agent write JavaScript that calls its other tools, to batch independent calls, chain them, or
- * filter large output before it reaches the model. Scripts run in a QuickJS sandbox without Node, files, network, or
- * timers; their only capability is calling tools. Every call a script makes goes through the same steps as a direct
- * call (argument checks, then every `beforeTool` and `afterTool` hook), so Lancet Guard judges each one and can ask
- * for approval. Only the script's output reaches the model. `store()` values are kept per conversation.
+ * Codemode runs scripts through Pi Durable's native executor, with owner-selected tool exposure and Pia's history adapters.
+ * The sandbox has no Node, file system, network, or timers. Nested calls use Durable's tools, guards, and replay policy.
  */
-import { randomBytes } from "node:crypto";
-import { writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import type { JsonValue } from "@earendil-works/chord";
-import { withAbortSignal } from "@earendil-works/chord/context";
-import { type ToolCall } from "@earendil-works/pi-ai";
-import { Type } from "typebox";
-import { validateToolArguments } from "@earendil-works/pi-ai/utils/validation";
+import type { Context } from "@earendil-works/chord";
 import {
-    type CodemodeResult,
     CodemodeSandbox,
-    parseCodemodeSource,
+    type CodemodeRun,
+    type CodemodeRunOptions,
 } from "@earendil-works/pi-codemode";
 import {
     defineExtension,
-    defineTool,
-    type Extension,
-    type HookApi,
-    type JsonObject,
+    GenerationTask,
+    hook,
+    LiveDoc,
     section,
-    type ToolDiagnostic,
+    wrapSection,
+    wrapTool,
+    type HookApi,
+    type ContextView,
     type ToolExecutionApi,
     type ToolExecutionResult,
-    type ToolHooks,
     type ToolRegistration,
     ToolTask,
 } from "@earendil-works/pi-durable";
-import { createCodemodeExtension } from "@earendil-works/pi-durable/codemode";
-import { CodemodeStoreDoc } from "../docs.ts";
-import { describe } from "../errors.ts";
+import {
+    createCodemodeExtension,
+    createCodemodeTool,
+    CodemodeStoreDoc as NativeStoreDoc,
+} from "@earendil-works/pi-durable/codemode";
+import { CodemodeStoreDoc, CodemodeTransitionDoc, CodemodeReferencesDoc } from "../docs.ts";
+import { compactedReferences } from "../compacted-references.ts";
 import type { ExtensionWeb, PocketHost } from "../host.ts";
 
 export const CODEMODE_TOOL = "codemode";
-/** Output budget of a script, in estimated tokens (4 characters each), unless its options line sets another. */
-const MAX_OUTPUT_TOKENS = 10_000;
-const CHARS_PER_TOKEN = 4;
-/** What a script gets of one nested call's text: enough to filter, not enough to exhaust the VM. */
-const MAX_NESTED_CHARS = 1_000_000;
 const MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
+/** Only actual UI requirements stay direct; ordinary script tools never gain model-facing schemas. */
+const DIRECT_UI = new Set([CODEMODE_TOOL, "ink_read", "browser", "tool_load"]);
 
-const DESCRIPTION = `Run JavaScript that calls your other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level \`await\` and \`return\` work. No Node, file system, network, or timers.
-- \`await tools.<name>({ ...args })\` takes the same arguments as calling the tool directly, resolves to its text output, and rejects with an Error when the call fails or is blocked. Calls still running when the script ends are cancelled.
-- Each call is checked like a direct call: Lancet Guard may block it or wait for a person to approve it.
-- Optional first line: \`// @options: {"max_output_tokens": 10000, "timeout_ms": 60000}\`
-Globals:
-- \`text(value)\`, \`image(dataUrlOrImageBlock)\`, \`console.log(...)\`, and top-level \`return\` add output; \`exit()\` ends the script.
-- \`store(key, value)\` and \`load(key)\` keep JSON values across codemode calls in this conversation.
-- \`ALL_TOOLS\` lists the tools a script can call.`;
+/** Record native discovery results, not schemas. The native implementation still ranks and describes tools. */
+class DiscoverySandbox extends CodemodeSandbox {
+    readonly discovered = new Set<string>();
+    record: (names: string[]) => Promise<void> = async () => {};
 
-/** One call a script made. `path`: the file it worked on, when it names one; Changes looks for writes. */
-type CallRecord = {
-    name: string;
-    status: "running" | "ok" | "error" | "cancelled";
-    path?: string;
-    durationMs?: number;
-    error?: string;
-};
-type CodemodeDetails = { calls: CallRecord[]; fullOutputPath?: string };
+    override start(code: string, options: CodemodeRunOptions): CodemodeRun {
+        const lookups = new Map<number, { name: string; asked: unknown }>();
+        const names = (name: unknown) =>
+            options.tools?.filter((tool) => tool.name === name || tool.jsName === name) ?? [];
+        const controller = new AbortController();
+        const abort = () => controller.abort(options.signal?.reason);
 
-type BeforeTool = ToolHooks["beforeTool"];
-type AfterTool = ToolHooks["afterTool"];
+        options.signal?.addEventListener("abort", abort, { once: true });
 
-/** The `beforeTool` and `afterTool` handlers of the selected extensions, in the order the Harness runs them. */
-function toolHooks(extensions: readonly Extension[]): { before: BeforeTool[]; after: AfterTool[] } {
-    const before: BeforeTool[] = [];
-    const after: AfterTool[] = [];
-
-    for (const extension of extensions) {
-        for (const registration of extension.hooks ?? []) {
-            if (registration.task !== ToolTask.definition.name) {
-                continue;
-            }
-
-            const handlers = registration.handlers as Partial<ToolHooks>;
-
-            if (handlers.beforeTool !== undefined) {
-                before.push(handlers.beforeTool.bind(handlers));
-            }
-
-            if (handlers.afterTool !== undefined) {
-                after.push(handlers.afterTool.bind(handlers));
-            }
+        if (options.signal?.aborted) {
+            abort();
         }
-    }
 
-    return { before, after };
-}
+        let delivering = Promise.resolve();
+        let failure: unknown;
+        const run = super.start(code, {
+            ...options,
+            signal: controller.signal,
+            onCall: (call) => {
+                if (
+                    call.target === "global" &&
+                    ["describeTool", "searchTools", "describeNamespace"].includes(call.name)
+                ) {
+                    lookups.set(call.id, {
+                        name: call.name,
+                        asked: Array.isArray(call.args) ? call.args[0] : undefined,
+                    });
+                }
 
-/** A result's text as the model would read it: text parts, then its diagnostics. */
-function resultText(result: ToolExecutionResult, diagnostics: readonly ToolDiagnostic[]): string {
-    const parts = (result.output ?? []).flatMap((part) =>
-        part.type === "text" ? [part.text] : [],
-    );
-
-    for (const diagnostic of [...diagnostics, ...(result.diagnostics ?? [])]) {
-        parts.push(diagnostic.message);
-    }
-
-    return parts.join("\n");
-}
-
-function bound(text: string, retain: "head" | "tail"): string {
-    if (text.length <= MAX_NESTED_CHARS) {
-        return text;
-    }
-
-    const note = `[${text.length - MAX_NESTED_CHARS} characters not shown]`;
-
-    return retain === "tail"
-        ? `${note}\n${text.slice(-MAX_NESTED_CHARS)}`
-        : `${text.slice(0, MAX_NESTED_CHARS)}\n${note}`;
-}
-
-/** Like the script's `text()`: strings as they are, anything else as JSON. */
-function valueText(value: unknown): string {
-    return typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
-}
-
-function formatError(
-    result: Extract<CodemodeResult, { ok: false }>,
-    calls: readonly CallRecord[],
-): string {
-    const { error } = result;
-    const head =
-        error.kind === "script"
-            ? (error.stack ?? `${error.name ?? "Error"}: ${error.message}`)
-            : error.kind === "timeout"
-              ? `Script timed out: ${error.message}`
-              : error.kind === "aborted"
-                ? `Script aborted: ${error.message}`
-                : `Script sandbox failed: ${error.message}`;
-    const summary =
-        calls.length === 0
-            ? "No tool calls were made."
-            : `Tool calls made before the failure (they are not undone): ${calls.map((call) => `${call.name} (${call.status})`).join(", ")}`;
-
-    return `${head}\n\n${summary}`;
-}
-
-type OutputItem =
-    { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
-
-/** Keep the start and end of text over the budget; the whole text goes to a temporary file the agent can read. */
-async function budget(
-    items: OutputItem[],
-    maxTokens: number,
-): Promise<{ items: OutputItem[]; fullOutputPath?: string }> {
-    const texts = items.flatMap((item) => (item.type === "text" ? [item.text] : []));
-    const combined = texts.join("\n");
-    const limit = maxTokens * CHARS_PER_TOKEN;
-
-    if (combined.length <= limit) {
-        return { items };
-    }
-
-    const head = combined.slice(0, Math.floor(limit / 2));
-    const tail = combined.slice(-(limit - head.length));
-    let text = `Warning: output truncated (about ${Math.ceil(combined.length / CHARS_PER_TOKEN)} tokens, ${combined.split("\n").length} lines)\n\n${head}\n… ${Math.ceil((combined.length - limit) / CHARS_PER_TOKEN)} tokens not shown …\n${tail}`;
-    const path = join(tmpdir(), `pi-pocket-codemode-${randomBytes(8).toString("hex")}.txt`);
-
-    try {
-        await writeFile(path, combined, { mode: 0o600 });
-        text += `\n\n[Full output: ${path} (read it with offset and limit)]`;
-    } catch (error) {
-        text += `\n\n[Could not save the full output: ${describe(error)}]`;
+                options.onCall(call);
+            },
+        });
 
         return {
-            items: [{ type: "text", text }, ...items.filter((item) => item.type === "image")],
+            get finished() {
+                return run.finished;
+            },
+            result: run.result
+                .then(async (result) => {
+                    await delivering;
+
+                    if (failure !== undefined) {
+                        throw failure;
+                    }
+
+                    return result;
+                })
+                .finally(() => options.signal?.removeEventListener("abort", abort)),
+            deliver: (seq, now, id, outcome) => {
+                const lookup = lookups.get(id);
+                const found: string[] = [];
+
+                if (outcome.ok && lookup !== undefined) {
+                    const value = outcome.value;
+                    const asked =
+                        lookup.name === "describeTool" && typeof value === "string"
+                            ? [lookup.asked]
+                            : lookup.name === "searchTools" && Array.isArray(value)
+                              ? value.map((item) => item?.name)
+                              : lookup.name === "describeNamespace" &&
+                                  typeof value === "object" &&
+                                  value !== null &&
+                                  "tools" in value &&
+                                  Array.isArray(value.tools)
+                                ? value.tools
+                                : [];
+
+                    for (const name of asked) {
+                        const matches = names(name);
+
+                        if (matches.length === 1 && !this.discovered.has(matches[0]!.name)) {
+                            this.discovered.add(matches[0]!.name);
+                            found.push(matches[0]!.name);
+                        }
+                    }
+                }
+
+                // Persist the reference before the VM can use it. Native's journal already holds the result.
+                delivering = delivering
+                    .then(async () => {
+                        if (found.length > 0) {
+                            await this.record(found);
+                        }
+
+                        if (!run.finished) {
+                            run.deliver(seq, now, id, outcome);
+                        }
+                    })
+                    .catch((error: unknown) => {
+                        failure = error;
+                        controller.abort(error);
+                    });
+            },
         };
     }
+}
+
+/** Keep compact reference and Changes metadata with success, error, and aborted results. */
+function enrich(
+    result: ToolExecutionResult,
+    refs:
+        | Readonly<{
+              notes: readonly string[];
+              tools: readonly string[];
+              paths: Readonly<Record<string, { name: string; path: string }>>;
+          }>
+        | undefined,
+): ToolExecutionResult {
+    if (refs === undefined) {
+        return result;
+    }
+
+    const details = result.details as { calls?: { id: number }[] } | undefined;
+    const calls =
+        details?.calls ??
+        Object.entries(refs.paths).map(([id, item]) => ({
+            id: Number(id),
+            name: item.name,
+            status: "ok",
+            path: item.path,
+        }));
 
     return {
-        items: [{ type: "text", text }, ...items.filter((item) => item.type === "image")],
-        fullOutputPath: path,
+        ...result,
+        details: {
+            ...details,
+            ...(refs.notes.length === 0 ? {} : { readNoteIds: [...refs.notes] }),
+            ...(refs.tools.length === 0 ? {} : { discoveredTools: [...refs.tools] }),
+            ...(calls.length === 0
+                ? {}
+                : {
+                      calls: calls.map((call) => ({
+                          ...call,
+                          ...(refs.paths[String(call.id)] === undefined
+                              ? {}
+                              : { path: refs.paths[String(call.id)]!.path }),
+                      })),
+                  }),
+        },
     };
 }
 
 export default function createCodemode(host: PocketHost, web?: ExtensionWeb) {
-    // Experimental only: native codemode still needs Pia's note retention and nested approval UI integration.
-    // Keep the old executor and its store untouched until those paths have been tested.
-    if (process.env.PI_POCKET_EXPERIMENTAL_NATIVE_CODEMODE === "on") {
-        const sandbox = new CodemodeSandbox({
+    web?.settings([
+        {
+            name: "mode",
+            label: "Mode",
+            description:
+                "On permits direct tools and scripts. Only hides ordinary tool schemas; use native script discovery. Both modes use the same executor and store.",
+            type: "choice",
+            default: "on",
+            choices: [
+                { value: "on", label: "On" },
+                { value: "only", label: "Only" },
+            ],
+        },
+        {
+            name: "piaOnly",
+            label: "Use Only in Pia chat",
+            description: "Off keeps direct tools in Pia chat, even when Mode is Only.",
+            type: "boolean",
+            default: false,
+        },
+    ]);
+    const only = (id: ToolExecutionApi["conversationId"]) =>
+        web?.setting("mode") === "only" &&
+        (host.pia?.ownerOf?.(id) === undefined || web?.setting("piaOnly") === true);
+    const direct = (tool: ToolRegistration) =>
+        DIRECT_UI.has(tool.name) ||
+        (tool.callers?.includes("model") === true &&
+            !tool.callers.includes("tools") &&
+            tool.name !== "tool_search");
+    const sandbox = new CodemodeSandbox({ memoryLimitBytes: MEMORY_LIMIT_BYTES });
+
+    web?.onDispose(() => sandbox.close());
+    const native = createCodemodeExtension({ sandbox, models: false });
+    const nativeTool = native.tools![0]!;
+
+    const runNative = async (args: { code: string }, api: ToolExecutionApi, context: Context) => {
+        // The native call details carry an argument preview, which can be truncated. The Changes sheet needs
+        // the actual validated path, including a path changed by a beforeTool hook, not the script's raw input.
+        // The old definition remains readable. Existing native values win over old values on an explicit transition.
+        if (
+            (await api.snapshot(CodemodeTransitionDoc, api.conversationId, context))?.done !== true
+        ) {
+            await api.commit(async (tx) => {
+                const transition = await tx.doc(CodemodeTransitionDoc, api.conversationId);
+
+                if (transition.done) {
+                    return;
+                }
+
+                const old = await tx.doc(CodemodeStoreDoc, api.conversationId);
+                const current = await tx.doc(NativeStoreDoc, api.conversationId);
+
+                current.values = { ...old.values, ...current.values };
+                transition.done = true;
+            }, context);
+        }
+
+        const record = async (update: {
+            notes?: string[];
+            tools?: string[];
+            path?: { id: number; name: string; value: string };
+        }) => {
+            await api.commit(async (tx) => {
+                const refs = await tx.doc(CodemodeReferencesDoc, api.taskId);
+
+                for (const id of update.notes ?? []) {
+                    if (!refs.notes.includes(id)) {
+                        refs.notes.push(id);
+                    }
+                }
+
+                for (const name of update.tools ?? []) {
+                    if (!refs.tools.includes(name)) {
+                        refs.tools.push(name);
+                    }
+                }
+
+                if (update.path !== undefined) {
+                    refs.paths[String(update.path.id)] = {
+                        name: update.path.name,
+                        path: update.path.value,
+                    };
+                }
+            }, context);
+        };
+
+        const agent = await api.agent(context);
+        const deferred = new Set(
+            agent.callable.filter((tool) => tool.deferred).map((tool) => tool.name),
+        );
+        const nestedApi: ToolExecutionApi = {
+            ...api,
+            executeTool: async (name, input, scope, options) => {
+                const result = await api.executeTool(name, input, scope, options);
+
+                if (deferred.has(name)) {
+                    await record({ tools: [name] });
+                }
+
+                const noteDetails = result.details as { readNoteIds?: unknown } | undefined;
+
+                if (
+                    name === "note_load" &&
+                    !result.isError &&
+                    Array.isArray(noteDetails?.readNoteIds)
+                ) {
+                    await record({
+                        notes: noteDetails.readNoteIds.filter(
+                            (id): id is string => typeof id === "string",
+                        ),
+                    });
+                }
+
+                const match = /^c([1-9][0-9]*)$/.exec(options?.key ?? "");
+
+                if (!result.isError && match !== null && (name === "write" || name === "edit")) {
+                    try {
+                        const live = await api.snapshot(LiveDoc, api.conversationId, scope);
+                        const slot = live?.nestedTools?.find(
+                            (item) => item.taskId === result.taskId,
+                        );
+                        const path = slot?.arguments.path;
+
+                        if (typeof path === "string") {
+                            await record({ path: { id: Number(match[1]), name, value: path } });
+                        }
+                    } catch {
+                        // Do not turn a completed write into a failed call if its presentation could not be read.
+                    }
+                }
+
+                return result;
+            },
+        };
+        const tracking = new DiscoverySandbox({
             timeoutMs: Number.POSITIVE_INFINITY,
             memoryLimitBytes: MEMORY_LIMIT_BYTES,
         });
 
-        web?.onDispose(() => sandbox.close());
-        const native = createCodemodeExtension({ sandbox, models: false });
+        tracking.record = (tools) => record({ tools });
+        let result: Awaited<ReturnType<typeof nativeTool.execute>>;
 
-        return { ...native, name: "pocket-codemode" };
-    }
-
-    const codemode = defineTool({
-        name: CODEMODE_TOOL,
-        description: DESCRIPTION,
-        parameters: Type.Object({ code: Type.String({ description: "Raw JavaScript source." }) }),
-        // A script's nested calls (bash, writes) are not safe to run twice.
-        replay: "unsafe",
-        execute: async (args, api: ToolExecutionApi<CodemodeDetails>, context) => {
-            const started = performance.now();
-            const { code, options } = parseCodemodeSource(args.code);
-            const agent = await api.agent(context);
-            const callable = agent.tools.filter(
-                (tool) => tool.name !== CODEMODE_TOOL,
-            ) as ToolRegistration[];
-            const hooks = toolHooks(agent.extensions);
-            const history = host.history(api.conversationId);
-            const calls: CallRecord[] = [];
-            const publish = () =>
-                void api
-                    .details({ calls: calls.map((call) => ({ ...call })) }, context)
-                    .catch(() => {});
-            let next = 0;
-
-            /** One call from the script: the steps of a direct call, with its own memos and its own output. */
-            const nested = async (
-                tool: ToolRegistration,
-                input: unknown,
-                signal: AbortSignal,
-            ): Promise<string> => {
-                const n = ++next;
-                const call: ToolCall = {
-                    type: "toolCall",
-                    id: `${api.callId}/${n}`,
-                    name: tool.name,
-                    arguments: (input ?? {}) as JsonObject,
-                };
-                const record: CallRecord = { name: tool.name, status: "running" };
-
-                calls.push(record);
-                publish();
-                const callStarted = performance.now();
-                const scope = withAbortSignal(signal, context);
-                // Memos are per task; a script makes many calls in one task, so each call gets its own names.
-                const memo = ((name: string, ...rest: unknown[]) =>
-                    (api.memo as (...all: unknown[]) => unknown)(
-                        `codemode/${n}/${name}`,
-                        ...rest,
-                    )) as ToolExecutionApi["memo"];
-
-                // A tool's API has no history reads, which Pi Durable 1.5 gives hooks: the host reads them as the
-                // task runtime does.
-                const hookApi: HookApi = { ...api, memo, ...history };
-                const check = (value: unknown): JsonObject =>
-                    validateToolArguments(tool, {
-                        ...call,
-                        arguments: value as JsonObject,
-                    }) as JsonObject;
-
-                try {
-                    let callArgs = check(
-                        tool.prepareArguments === undefined
-                            ? call.arguments
-                            : tool.prepareArguments(call.arguments),
-                    );
-
-                    for (const before of hooks.before) {
-                        let decision: Awaited<ReturnType<BeforeTool>>;
-
-                        try {
-                            decision = await before(
-                                { ...call, arguments: callArgs },
-                                hookApi,
-                                scope,
-                            );
-                        } catch (error) {
-                            if (scope.abortSignal?.aborted) {
-                                throw error;
-                            }
-
-                            throw new Error(`Tool call blocked: ${describe(error)}`);
-                        }
-
-                        if (decision?.block !== undefined) {
-                            throw new Error(`Tool call blocked: ${decision.block}`);
-                        }
-
-                        if (decision?.arguments !== undefined) {
-                            callArgs = decision.arguments;
-                        }
-                    }
-
-                    callArgs = check(callArgs);
-
-                    if (typeof callArgs.path === "string") {
-                        record.path = callArgs.path;
-                    }
-
-                    const decoder = new TextDecoder();
-                    const output: string[] = [];
-                    const diagnostics: ToolDiagnostic[] = [];
-                    const toolApi: ToolExecutionApi = {
-                        ...api,
-                        callId: call.id,
-                        memo,
-                        output: (chunk) =>
-                            void output.push(
-                                typeof chunk === "string"
-                                    ? chunk
-                                    : decoder.decode(chunk, { stream: true }),
-                            ),
-                        diagnostic: (diagnostic) => void diagnostics.push(diagnostic),
-                        // The script gets text; a nested call's details stay with it.
-                        details: async () => {},
-                    };
-                    let result = await tool.execute(callArgs, toolApi, scope);
-
-                    if (result.output === undefined) {
-                        result = {
-                            ...result,
-                            output: [{ type: "text", text: output.join("") + decoder.decode() }],
-                        };
-                    }
-
-                    for (const after of hooks.after) {
-                        result =
-                            (await after(
-                                { ...call, arguments: callArgs },
-                                result,
-                                hookApi,
-                                scope,
-                            )) ?? result;
-                    }
-
-                    const text = bound(
-                        resultText(result, diagnostics),
-                        tool.outputLimits?.retain ?? "head",
-                    );
-
-                    if (result.isError === true) {
-                        throw new Error(text || `Tool ${tool.name} failed`);
-                    }
-
-                    record.status = "ok";
-
-                    return text;
-                } catch (error) {
-                    record.status = signal.aborted ? "cancelled" : "error";
-                    record.error = describe(error).slice(0, 500);
-
-                    throw error;
-                } finally {
-                    record.durationMs = Math.round(performance.now() - callStarted);
-                    publish();
-                }
-            };
-
-            const sandbox = new CodemodeSandbox({
-                tools: callable.map((tool) => ({
-                    name: tool.name,
-                    description: tool.description,
-                    inputSchema: tool.parameters as Record<string, unknown>,
-                    outputSchema: { type: "string" },
-                    execute: (input, { signal }) => nested(tool, input, signal),
-                })),
-                timeoutMs: options.timeoutMs ?? Number.POSITIVE_INFINITY,
-                memoryLimitBytes: MEMORY_LIMIT_BYTES,
-            });
-            const stored =
-                (await api.snapshot(CodemodeStoreDoc, api.conversationId, context))?.values ?? {};
-            let result: CodemodeResult;
-
-            try {
-                result = await sandbox.execute(code, {
-                    ...(context.abortSignal === undefined ? {} : { signal: context.abortSignal }),
-                    store: stored,
-                });
-            } finally {
-                await sandbox.close();
-            }
-
-            for (const call of calls) {
-                if (call.status === "running") {
-                    call.status = "cancelled";
-                }
-            }
-
-            const items: OutputItem[] = result.output.map((item) =>
-                item.type === "text" ? { type: "text", text: item.text } : item,
+        try {
+            result = await createCodemodeTool({ sandbox: tracking, models: false }).execute(
+                args,
+                nestedApi,
+                context,
             );
+        } finally {
+            await tracking.close();
+        }
 
-            if (result.ok) {
-                const { set, delete: removed } = result.storeWrites;
+        return enrich(result, await api.snapshot(CodemodeReferencesDoc, api.taskId, context));
+    };
 
-                if (Object.keys(set).length > 0 || removed.length > 0) {
-                    await api.commit(async (tx) => {
-                        const doc = await tx.doc(CodemodeStoreDoc, api.conversationId);
+    const active = async (api: HookApi, context: Context) => {
+        if (!only(api.conversationId)) {
+            return undefined;
+        }
 
-                        for (const key of removed) {
-                            delete doc.values[key];
-                        }
+        const runtime = api as HookApi & Pick<ToolExecutionApi, "agent">;
+        const agent = await runtime.agent(context);
 
-                        for (const [key, value] of Object.entries(set)) {
-                            doc.values[key] = value as JsonValue;
-                        }
-                    }, context);
-                }
-
-                if (result.value !== undefined) {
-                    items.push({ type: "text", text: valueText(result.value) });
-                }
-            } else {
-                items.push({ type: "text", text: `Script error:\n${formatError(result, calls)}` });
-            }
-
-            const shown = await budget(items, options.maxOutputTokens ?? MAX_OUTPUT_TOKENS);
-            const header = `${result.ok ? "Script completed" : "Script failed"}\nWall time ${((performance.now() - started) / 1000).toFixed(1)} seconds\nOutput:\n`;
-
-            return {
-                output: [{ type: "text", text: header }, ...shown.items],
-                details: {
-                    calls,
-                    ...(shown.fullOutputPath === undefined
-                        ? {}
-                        : { fullOutputPath: shown.fullOutputPath }),
-                },
-                ...(result.ok ? {} : { isError: true }),
-            };
-        },
-    });
+        return agent.tools.some((tool) => tool.name === CODEMODE_TOOL) ? agent : undefined;
+    };
 
     return defineExtension({
         name: "pocket-codemode",
-        tools: [codemode],
+        tools: [{ ...nativeTool, execute: runNative }],
+        hooks: [
+            hook(GenerationTask, {
+                beforeRequest: async (request, api, context) => {
+                    const runtime = api as HookApi &
+                        Pick<ToolExecutionApi, "agent"> & {
+                            context(
+                                id: ToolExecutionApi["conversationId"],
+                                context: Context,
+                            ): Promise<ContextView>;
+                        };
+                    const resolved = await runtime.agent(context);
+
+                    if (!resolved.tools.some((tool) => tool.name === CODEMODE_TOOL)) {
+                        return undefined;
+                    }
+
+                    const refs = await compactedReferences(
+                        (await runtime.context(api.conversationId, context)).head,
+                        api,
+                        context,
+                    );
+                    const allowed = new Set(resolved.callable.map((tool) => tool.name));
+                    const remembered = refs.tools.filter((name) => allowed.has(name));
+                    const messages = [...request.messages];
+                    const at = messages.findIndex(
+                        (message) =>
+                            message.role === "user" &&
+                            (typeof message.content === "string"
+                                ? message.content
+                                : message.content
+                                      .flatMap((p) => (p.type === "text" ? [p.text] : []))
+                                      .join("")) === refs.summary,
+                    );
+
+                    if (at >= 0 && remembered.length > 0) {
+                        messages.splice(at + 1, 0, {
+                            role: "user",
+                            timestamp: messages[at]!.timestamp,
+                            content: `Tools you discovered before this compaction, still enabled for scripts: ${remembered.join(", ")}. Use describeTool() for current schemas; these names grant no permission.`,
+                        });
+                    }
+
+                    if (!only(api.conversationId)) {
+                        return { messages };
+                    }
+
+                    const ui = [...resolved.tools, ...resolved.deferred].filter(
+                        (tool) => ![CODEMODE_TOOL, "tool_load"].includes(tool.name) && direct(tool),
+                    );
+                    const keep = new Set(
+                        resolved.tools
+                            .filter(
+                                (tool) =>
+                                    direct(tool) && (tool.name !== "tool_load" || ui.length > 0),
+                            )
+                            .map((tool) => tool.name),
+                    );
+
+                    return {
+                        messages: messages.map((message) =>
+                            message.role !== "system"
+                                ? message
+                                : {
+                                      ...message,
+                                      ...(message.toolsAdded === undefined
+                                          ? {}
+                                          : {
+                                                toolsAdded: message.toolsAdded
+                                                    .filter((tool) => keep.has(tool.name))
+                                                    .map((tool) =>
+                                                        tool.name === "tool_load"
+                                                            ? {
+                                                                  ...tool,
+                                                                  description: `Load direct UI tools only: ${ui.map((tool) => tool.name).join(", ")}. Do not load script tools; use searchTools() and describeTool() in codemode.`,
+                                                              }
+                                                            : tool,
+                                                    ),
+                                            }),
+                                      ...(message.toolsRemoved === undefined
+                                          ? {}
+                                          : {
+                                                toolsRemoved: message.toolsRemoved.filter((tool) =>
+                                                    keep.has(tool.name),
+                                                ),
+                                            }),
+                                  },
+                        ),
+                    };
+                },
+            }),
+            hook(ToolTask, {
+                afterTool: async (call, result, api, context) =>
+                    call.name === CODEMODE_TOOL
+                        ? enrich(
+                              result,
+                              await api.snapshot(CodemodeReferencesDoc, api.taskId, context),
+                          )
+                        : undefined,
+                beforeTool: async (call, api, context) => {
+                    const agent = await active(api, context);
+
+                    if (agent === undefined) {
+                        return undefined;
+                    }
+
+                    if (call.parent !== undefined) {
+                        return undefined;
+                    }
+
+                    const offered = agent.tools.find((tool) => tool.name === call.name);
+
+                    if (call.name === "tool_load") {
+                        const names = (call.arguments as { names?: unknown }).names;
+                        const candidates = [...agent.tools, ...agent.deferred];
+
+                        if (
+                            !Array.isArray(names) ||
+                            names.some((name) => {
+                                const candidate = candidates.find((tool) => tool.name === name);
+
+                                return (
+                                    candidate === undefined ||
+                                    !direct(candidate) ||
+                                    name === "tool_load"
+                                );
+                            })
+                        ) {
+                            return {
+                                block: "Only mode loads direct UI tools only. Discover other tools inside a codemode script.",
+                            };
+                        }
+                    }
+
+                    return offered !== undefined && direct(offered)
+                        ? undefined
+                        : {
+                              block: "Only mode requires this tool to be called from a codemode script.",
+                          };
+                },
+            }),
+        ],
+        wraps: [
+            // These tools expose images or interactive forms on their own cards. Do not silently drop their
+            // images inside a schema-less nested result. They stay deferred and load only on explicit request.
+            ...["browser", "ink_read"].map((name) =>
+                wrapTool({ name } as ToolRegistration, (tool) =>
+                    tool.callers === undefined ? { ...tool, callers: ["model"] } : tool,
+                ),
+            ),
+            wrapSection("available_tools", (original) => ({
+                ...original,
+                render: (input, context) => {
+                    if (!only(input.conversationId)) {
+                        return original.render(input, context);
+                    }
+
+                    const waiting = input.agent.deferred.filter(direct).map((tool) => tool.name);
+
+                    return (
+                        "Use native searchTools() and describeTool() for scripts; no loading is needed. Discovery grants no permission." +
+                        (waiting.length === 0
+                            ? ""
+                            : ` Direct UI tools (load with tool_load): ${waiting.join(", ")}.`) +
+                        " tool_load cannot expand ordinary script schemas in Only mode."
+                    );
+                },
+            })),
+            wrapSection("tool_discovery", (original) => ({
+                ...original,
+                render: (input, context) =>
+                    only(input.conversationId) ? undefined : original.render(input, context),
+            })),
+        ],
         sections: [
-            section("codemode", ({ agent }) => {
-                const names = agent.tools
-                    .map((tool) => tool.name)
-                    .filter((name) => name !== CODEMODE_TOOL);
+            section("codemode", async (input, context) => {
+                const tools = new Set(input.agent.tools.map((tool) => tool.name));
+                const callable = input.agent.callable.filter((tool) =>
+                    only(input.conversationId) ? !direct(tool) : !tools.has(tool.name),
+                );
 
-                if (
-                    !agent.tools.some((tool) => tool.name === CODEMODE_TOOL) ||
-                    names.length === 0
-                ) {
-                    return undefined;
-                }
+                const guide = only(input.conversationId)
+                    ? "Call ordinary tools only inside codemode as await tools.<name>(args). Do not emit direct calls or tool_call text for them. "
+                    : "";
 
-                return `Use codemode to batch independent tool calls (Promise.allSettled), chain them, or filter large output, instead of making many separate calls${names.includes("subagent") ? ", for example to start several subagents at once" : ""}. Scripts can call: ${names.join(", ")}.`;
+                return (
+                    guide +
+                    ((await native.sections![0]!.render(
+                        { ...input, agent: { ...input.agent, callable } },
+                        context,
+                    )) ??
+                        "Use codemode to batch independent calls (Promise.allSettled), chain them, or filter large output. Find enabled tools with searchTools() and describeTool(); no loading is needed for scripts.")
+                );
             }),
         ],
     });

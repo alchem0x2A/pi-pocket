@@ -1,6 +1,6 @@
 # Proposal and roadmap: the cost of the start prompt
 
-Status: **in progress.** **Update (2026-11-08, Tina): the lean prompt is now the default; `PI_POCKET_LEAN_PROMPT=off` restores the full prompt.** Older text below that says opt-in is history. Branch `feat/lean-start-prompt` (worktree `~/Dev/pi-pocket-lean-prompt`) implements phase 0, its repair (step 1), decisions A and B, and the fixes of the second review (`docs/proposals/prompt-cost-review-2.md`). It is not merged. The lean prompt is **opt-in** (`PI_POCKET_LEAN_PROMPT=on`); the full prompt is the default. This document is the only handover: a new session must be able to execute the roadmap from it alone.
+Status: **partly implemented.** Lean prompts are merged and are the default. `PI_POCKET_LEAN_PROMPT=off` restores the full prompt. Codemode is a base tool. The older phase and measurement text below is a historical record, not the current rollout status. The native codemode migration adds an opt-in Only setting; On remains the default. Direct discovery and loading remain supported. Only retains narrow direct UI exceptions and a UI-only load path. See [codemode-migration.md](codemode-migration.md) for compatibility and current test evidence. No old token count below is a measurement of the migrated prompt. The native description is larger because it documents structured results and schema discovery; the automated lean check remains a character bound, not a tokenizer measurement.
 
 ## 1. Goal and history
 
@@ -34,11 +34,11 @@ This is the final shape after all phases. Each phase moves toward it.
 5. `task_focus`.
 6. No skills list (decision B), no guides, no catalog with descriptions.
 
-**The start tool set:** `read`, `write`, `edit`, `bash`, `codemode`, `note_search`, `note_load`, each with a short schema. After phase 4, `tool_search` and `tool_load` are gone: `searchTools()` and `describeTool()` inside a script do their work.
+**The start tool set:** `read`, `write`, `edit`, `bash`, `codemode`, `note_search`, `note_load`, each with a short schema. In Only mode, native `searchTools()` and `describeTool()` replace the ordinary loading route. Direct mode keeps `tool_search` and `tool_load`; Only keeps a UI-only loading route when needed.
 
-**Tool discovery:** the agent writes a `codemode` script. `searchTools(query)` finds tools and skills; `describeTool(name)` returns the TypeScript signature and the guide; the script then calls `tools.<name>(…)`. A one-off use stays one-off: the call and its result are only in the `codemode` result.
+**Tool discovery:** the agent writes a `codemode` script. `searchTools(query)` finds enabled callable tools, not skills; `describeTool(name)` returns the tool description and TypeScript declaration; the script then calls `tools.<name>(…)`. A one-off use stays one-off: the call and its result are only in the `codemode` result.
 
-**Note and skill discovery:** `note_search` at the start of a task and before an action that a note can cover. Skills are not listed (decision B): `on_demand` names the directories where they load from, and later skill search (section 13, item 6; `searchTools()` in a script) finds one. Project instructions are inlined in `project_context` (decision A). Pia's docs come from the `docs/index.md` pointer.
+**Note and skill discovery:** `note_search` at the start of a task and before an action that a note can cover. Skills are not listed (decision B): `on_demand` names the directories where they load from, and a validated skill-metadata path is a separate follow-up. Native `searchTools()` does not search skills. Project instructions are inlined in `project_context` (decision A). Pia's docs come from the `docs/index.md` pointer.
 
 **Guides that come with tools:** the first result of an optional tool in a session carries its guide once, as an appended tool result. No guide is a system prompt section.
 
@@ -84,7 +84,7 @@ How the parts reach the model: Pi Durable renders each selected extension's sect
 | `schedules`         | `src/server/extensions/schedules.ts`   | constant `GUIDE`                                                               | Lazy: `schedule` loaded                   |
 | `background_tasks`  | `src/server/extensions/background.ts`  | constant `GUIDE`                                                               | Lazy: `background` loaded                 |
 | `goal`, `plan_mode` | `goals.ts`, `plan.ts`                  | inline sections                                                                | A goal or plan mode is set                |
-| `codemode`          | `src/server/extensions/codemode.ts`    | inline section                                                                 | Lazy: `codemode` loaded                   |
+| `codemode`          | `src/server/extensions/codemode.ts`    | inline section                                                                 | From the start when enabled               |
 | `memory`            | `src/server/extensions/memory.ts`      | `render(project, count)`, constant `RULES`                                     | Always; lean: `memory` loaded, or Pia     |
 | `inbox-notes`       | `src/server/extensions/inbox-notes.ts` | constant `GUIDE`                                                               | Always; lean: `inbox_note` loaded, or Pia |
 | `design_mode`       | `src/server/design/guide.ts`           | `designGuide`                                                                  | Lazy: a design tool loaded                |

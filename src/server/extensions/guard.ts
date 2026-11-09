@@ -54,7 +54,9 @@ export default function createGuard(host: PocketHost) {
                                 // The call, not just its task: a codemode script makes several calls in one task, maybe at once.
                                 id: `${api.taskId}:${call.id}`,
                                 conversationId: api.conversationId,
-                                taskId: api.taskId,
+                                // Native nested calls have their own task. Attach the approval to the parent
+                                // card, while retaining the nested task and call in the unique approval id.
+                                taskId: call.parent?.taskId ?? api.taskId,
                                 callId: call.id,
                                 tool: call.name,
                                 subject,
