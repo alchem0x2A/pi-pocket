@@ -1,4 +1,4 @@
-// The lean start prompt of a normal session, opt-in with `PI_POCKET_LEAN_PROMPT=on`: a short preamble, the project's
+// The lean start prompt of a normal session, the default (`PI_POCKET_LEAN_PROMPT=off` restores the full prompt): a short preamble, the project's
 // AGENTS.md files inlined (the same section as the full prompt), a pointer to the skill directories and to the note
 // trust rule, and short schemas for the base tools. Skills are not listed. Pia keeps its full prompt. The size check
 // here counts characters (about 4 per token); the real token count is measured against the local model and recorded
@@ -272,8 +272,9 @@ test("every switch combination keeps the skills and the search route together", 
     assert.equal(base.tools.has("tool_search"), false);
     assert.equal(base.sections.has("on_demand"), false);
 
-    // The switch unset is the real default: the full prompt, the same as "off".
+    // The switch unset is the real default: the lean prompt, the same as "on".
     const unset = await requestUnder("unset", "on", join(root, "lean-data-unset"));
+    const lean = await requestUnder("on", "on", join(root, "lean-data-on"));
 
     // The same text, but for the data folder each app has.
     const text = (sections: Map<string, string>, dataDir: string) =>
@@ -283,12 +284,11 @@ test("every switch combination keeps the skills and the search route together", 
 
     assert.equal(
         text(unset.sections, join(root, "lean-data-unset")),
-        text(full.sections, join(root, "lean-data-full")),
+        text(lean.sections, join(root, "lean-data-on")),
     );
-    assert.deepEqual(unset.tools, full.tools);
-    assert.ok(unset.sections.has("guidelines"));
-    assert.ok(unset.tools.has("ls"));
-    assert.equal(unset.tools.has("edit"), false);
+    assert.deepEqual(unset.tools, lean.tools);
+    assert.equal(unset.sections.has("skills"), false);
+    assert.ok(unset.tools.has("edit"));
 });
 
 test("the lean and the Pia prompts follow the stored identity, not the tools a conversation has", () => {

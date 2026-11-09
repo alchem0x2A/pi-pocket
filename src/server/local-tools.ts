@@ -69,11 +69,11 @@ const SHORT_DESCRIPTIONS: Readonly<Record<string, string>> = {
 const UNKNOWN_DESCRIPTION = "Search for tool details";
 
 /**
- * The lean start prompt (`extensions/prompt.ts`): short schemas for the base tools, every guide on demand. Opt-in:
- * `PI_POCKET_LEAN_PROMPT=on`; the full prompt is the default. With `PI_POCKET_TOOL_DISCOVERY=off` this whole view is
+ * The lean start prompt (`extensions/prompt.ts`): short schemas for the base tools, every guide on demand. On by
+ * default; `PI_POCKET_LEAN_PROMPT=off` restores the full prompt. With `PI_POCKET_TOOL_DISCOVERY=off` this whole view is
  * bypassed, so no combination of the two switches leaves a session without its sections or its search route.
  */
-export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT === "on";
+export const isLean = () => process.env.PI_POCKET_LEAN_PROMPT !== "off";
 /** The lean prompt names no file rules, so edit comes from the start too. */
 const inBase = (name: string) => BASE.has(name) || (isLean() && name === "edit");
 
