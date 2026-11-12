@@ -19,7 +19,7 @@ import {
 } from "./helpers.ts";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -27,9 +27,10 @@ import type { FauxResponseStep } from "@earendil-works/pi-ai";
 import { fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { AgentDoc, type ConversationId, type TaskId } from "@earendil-works/pi-durable";
 import type { User } from "../src/server/config.ts";
-import { AuthorsDoc, type PrWatch, ScheduleDoc, SessionsDoc } from "../src/server/docs.ts";
+import { AuthorsDoc, ChatDoc, type PrWatch, ScheduleDoc, SessionsDoc } from "../src/server/docs.ts";
 import { prWatchLine, repoWatchLine } from "../src/server/extensions/pip.ts";
 import { quoted } from "../src/server/fence.ts";
+import { homePath } from "../src/server/paths.ts";
 import { PIA_EXTENSION, SESSION_CLOSE, SESSION_OPEN } from "../src/server/pip.ts";
 
 const tool = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
@@ -465,7 +466,7 @@ test("what sessions wrote reaches Pia quoted, on one line, or inside the fence",
     await say(
         app,
         id,
-        `call session_schedule ${JSON.stringify({ action: "list", session: Number(session) })}`,
+        `call session_tool ${JSON.stringify({ action: "schedule", schedule: "list", session: Number(session) })}`,
     );
     const answers = (await said(id)).join("\n");
 
@@ -710,6 +711,315 @@ test("a follow's report waits while Pia is off, and comes once it is back", asyn
     await until(() => !app.isBusy(id), "Pia at rest");
     assert.equal(await reports(), 1, "one report");
     app.pia.holdMs = 60_000;
+});
+
+test("Pia has one session_tool for cwd, archive, model, and schedule, and not the old tools", async () => {
+    const id = await pia();
+    const tools = (await (await app.conversation(id)).agent(context)).tools;
+    const names = tools.map((each) => each.name);
+
+    assert.ok(names.includes("session_tool"));
+
+    for (const name of [
+        "session_read",
+        "session_start",
+        "session_send",
+        "session_follow",
+        "session_stop",
+    ]) {
+        assert.ok(names.includes(name), `Pia keeps ${name}`);
+    }
+
+    for (const name of ["session_archive", "session_model", "session_schedule"]) {
+        assert.ok(!names.includes(name), `no ${name}`);
+    }
+
+    const session = await newSession(app);
+
+    await say(app, id, `read ${String(session)}`);
+    await say(
+        app,
+        id,
+        `call session_tool ${JSON.stringify({ action: "model", session: Number(session), model: "faux-1" })}`,
+    );
+    assert.match((await said(id)).at(-1) ?? "", /^done: \/s\/\d+ now uses faux\/faux-1/);
+    await say(
+        app,
+        id,
+        `call session_tool ${JSON.stringify({ action: "schedule", schedule: "add", session: Number(session), when: "tomorrow 9:00", message: "check back" })}`,
+    );
+    assert.match((await said(id)).at(-1) ?? "", /^done: Scheduled in \/s\/\d+: /);
+    await say(
+        app,
+        id,
+        `call session_tool ${JSON.stringify({ action: "archive", session: Number(session) })}`,
+    );
+    assert.match((await said(id)).at(-1) ?? "", /^done: Archived \/s\/\d+/);
+    assert.equal(app.sessionMeta(session)?.archived, true);
+    await say(
+        app,
+        id,
+        `call session_tool ${JSON.stringify({ action: "archive", session: Number(session), archived: false })}`,
+    );
+    assert.equal(app.sessionMeta(session)?.archived, false);
+});
+
+test("Pia moves a session to another folder, an archived one too, and says both folders", async () => {
+    const id = await pia();
+    const me = owner(app);
+    const first = join(root, "moved", "first");
+    const second = join(root, "moved", "second");
+
+    mkdirSync(first, { recursive: true });
+    mkdirSync(second, { recursive: true });
+
+    // An active session: Pia reads it first, then moves it; nothing is sent there.
+    const session = await newSession(app);
+    const sent = async () => (await said(session)).filter((line) => line.startsWith("> ")).length;
+
+    await assert.rejects(app.pia.move(id, Number(session), first), /Check \/s\/\d+ first/);
+    assert.equal(app.cwdOf(session), work, "not moved before Pia read it");
+    await app.pia.read(id, Number(session));
+    assert.deepEqual(await app.pia.move(id, Number(session), first), {
+        from: homePath(work),
+        to: homePath(first),
+    });
+    assert.equal(app.cwdOf(session), first);
+    assert.equal(app.sessionMeta(session)?.cwd, first);
+    assert.notEqual(app.sessionMeta(session)?.archived, true);
+    assert.equal(await sent(), 0, "no message to the session");
+
+    // An archived session moves and stays archived, through the tool.
+    await app.commands.updateSession(session, me, { archived: true });
+    await say(
+        app,
+        id,
+        `call session_tool ${JSON.stringify({ action: "cwd", session: Number(session), folder: second })}`,
+    );
+    assert.match(
+        (await said(id)).at(-1) ?? "",
+        new RegExp(
+            `^done: Moved /s/${String(session)} from ${homePath(first)} to ${homePath(second)}\\.`,
+        ),
+    );
+    assert.equal(app.cwdOf(session), second);
+    assert.equal(app.sessionMeta(session)?.archived, true, "still archived");
+    assert.ok(
+        app.sessions(me).some((each) => each.id === Number(session) && each.archived === true),
+    );
+    assert.equal(await sent(), 0, "no message to the session");
+
+    // The folder checks are the person's own: no folder, a file, or nothing there.
+    const file = join(root, "moved", "a-file");
+
+    writeFileSync(file, "x\n");
+    await assert.rejects(app.pia.move(id, Number(session), join(root, "nowhere")), /isn't there/);
+    await assert.rejects(app.pia.move(id, Number(session), file), /is a file, not a folder/);
+    assert.equal(app.cwdOf(session), second, "a refused move changes nothing");
+});
+
+test("Pia's move keeps the safeguards: worktrees, its own chat, take turns, and invitations", async () => {
+    const id = await pia();
+    const me = owner(app);
+    const target = join(root, "moved", "target");
+
+    mkdirSync(target, { recursive: true });
+
+    // A worktree session's folder is its worktree's.
+    const repo = join(root, "move-repo");
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: repo });
+
+    mkdirSync(repo, { recursive: true });
+    git("init", "-q");
+    git("config", "user.email", "t@example.com");
+    git("config", "user.name", "T");
+    writeFileSync(join(repo, "a.txt"), "a\n");
+    git("add", "-A");
+    git("commit", "-qm", "init");
+    const { id: tree } = await app.commands.createSession(me, { cwd: repo, worktree: true });
+    const treeCwd = app.cwdOf(tree);
+
+    await app.pia.read(id, Number(tree));
+    await assert.rejects(app.pia.move(id, Number(tree), target), /works in a git worktree/);
+    assert.equal(app.cwdOf(tree), treeCwd);
+
+    // Not Pia's own chat, and no session that is not there.
+    await assert.rejects(app.pia.move(id, Number(id), target), /your own conversation/);
+    await assert.rejects(app.pia.move(id, 987_654, target), /There is no session/);
+
+    // Take turns: someone else drives, so Pia's person may not change it.
+    const session = await newSession(app);
+    const alex = app.config.addUser("Alexa", "guest").user;
+
+    await app.pia.read(id, Number(session));
+    await app.collab.turns(session, me, { action: "on" });
+    await app.collab.turns(session, me, { action: "handover", to: alex.id });
+    await assert.rejects(app.pia.move(id, Number(session), target), /Alexa is driving/);
+    assert.equal(app.cwdOf(session), work);
+    await app.collab.turns(session, alex, { action: "handover", to: me.id });
+    await app.collab.turns(session, me, { action: "off" });
+
+    // Someone invited to this one session still cannot move it; Pia acts only for its person.
+    const invited = app.config.addUser("Ivo", "guest", [String(session)]).user;
+
+    await assert.rejects(
+        app.commands.configure(session, invited, { cwd: target }),
+        /cannot move it to another folder/,
+    );
+    await app.pia.move(id, Number(session), target);
+    assert.equal(app.cwdOf(session), target);
+});
+
+/** The activity lines of a session: who changed what, as people see it. */
+async function activity(id: ConversationId): Promise<string[]> {
+    const chat = await app.harness.snapshot(ChatDoc, id, context);
+
+    return (chat?.messages ?? [])
+        .filter((message) => message.kind === "event")
+        .map((message) => `${message.name} ${message.text}`);
+}
+
+/** Pia's tool call, its answer, and whether the session got any message from it. */
+async function manage(id: ConversationId, args: Record<string, unknown>): Promise<string> {
+    await say(app, id, `call session_tool ${JSON.stringify(args)}`);
+
+    return (await said(id)).at(-1) ?? "";
+}
+
+test("Pia renames a session, an archived one too, through the rename path, after it read it", async () => {
+    const id = await pia();
+    const me = owner(app);
+    const session = await newSession(app);
+    const sent = async () => (await said(session)).filter((line) => line.startsWith("> ")).length;
+
+    await assert.rejects(app.pia.rename(id, Number(session), "Release"), /Check \/s\/\d+ first/);
+    await app.pia.read(id, Number(session));
+    await assert.rejects(app.pia.rename(id, Number(session), "  \n "), /rename needs a title/);
+    await app.commands.updateSession(session, me, { archived: true });
+    assert.match(
+        await manage(id, { action: "rename", session: Number(session), title: "Release\nnotes" }),
+        /^done: Renamed \/s\/\d+ to “Release notes”\./,
+    );
+    assert.equal(app.sessionMeta(session)?.title, "Release notes");
+    assert.equal(app.sessionMeta(session)?.archived, true, "still archived");
+    assert.ok(
+        (await activity(session)).includes(
+            `${me.name} via Pia renamed the session to “Release notes”`,
+        ),
+    );
+    assert.equal(await sent(), 0, "no message to the session");
+    assert.match(
+        await manage(id, { action: "rename", session: Number(session) }),
+        /rename needs title/,
+    );
+});
+
+test("Pia starts a new context in a session, with the handoff note, and sends its agent nothing", async () => {
+    const id = await pia();
+    const me = owner(app);
+    const session = await newSession(app);
+    const note = "Keep the plan: fix the parser first, then the tests.";
+
+    await say(app, session, "hello");
+    const before = await said(session);
+
+    await assert.rejects(app.pia.newContext(id, Number(session), note), /Check \/s\/\d+ first/);
+    await app.pia.read(id, Number(session));
+    assert.match(
+        await manage(id, { action: "context", session: Number(session), note: `  ${note}  ` }),
+        /^done: Started a new context in \/s\/\d+, with the handoff note\. Nothing was sent to its agent\./,
+    );
+    const entries = await app.transcripts.allEntries(session, true);
+    const reset = entries.findLast((entry) => entry.kind === "reset");
+
+    assert.ok(reset, "a new context");
+    assert.equal(
+        (reset as { text?: string }).text,
+        note,
+        "the handoff note, trimmed, as /new keeps it",
+    );
+    assert.deepEqual(await said(session), before, "no message to the agent, and no answer");
+    assert.ok(!app.isBusy(session));
+    assert.ok(
+        (await activity(session)).includes(
+            `${me.name} via Pia started a new context with a handoff note`,
+        ),
+    );
+
+    // Without a note: a plain new context. A note past the limit is refused, as for a person.
+    await app.pia.newContext(id, Number(session));
+    const last = (await app.transcripts.allEntries(session, true)).findLast(
+        (entry) => entry.kind === "reset",
+    );
+
+    assert.notEqual(last?.id, reset.id);
+    assert.equal((last as { text?: string }).text, undefined);
+    await assert.rejects(
+        app.pia.newContext(id, Number(session), "x".repeat(20_001)),
+        /Handoff notes are limited/,
+    );
+});
+
+test("Pia compacts a session through the compaction path, with its checks, and sends its agent nothing", async () => {
+    const id = await pia();
+    const me = owner(app);
+    const session = await newSession(app);
+
+    app.settings.applyOverrides({ compaction: { keepRecentTokens: 1 } });
+
+    try {
+        await say(app, session, "first");
+        await say(app, session, "second");
+        const before = await said(session);
+
+        await assert.rejects(app.pia.compact(id, Number(session)), /Check \/s\/\d+ first/);
+        await app.pia.read(id, Number(session));
+
+        // Take turns: another driver stops it, as it stops the person's own /compact.
+        const alex = app.config.addUser("Alexis", "guest").user;
+
+        await app.collab.turns(session, me, { action: "on" });
+        await app.collab.turns(session, me, { action: "handover", to: alex.id });
+        await assert.rejects(app.pia.compact(id, Number(session)), /Alexis is driving/);
+        await app.collab.turns(session, alex, { action: "handover", to: me.id });
+        await app.collab.turns(session, me, { action: "off" });
+
+        assert.match(
+            await manage(id, {
+                action: "compact",
+                session: Number(session),
+                instructions: "keep the parser plan",
+            }),
+            /^done: Started compacting the context of \/s\/\d+; the session shows when it ends\./,
+        );
+        await until(
+            async () =>
+                (await app.transcripts.allEntries(session, true)).some(
+                    (entry) => entry.kind === "compaction",
+                ),
+            "the compaction",
+        );
+        assert.ok(
+            (await activity(session)).includes(`${me.name} via Pia started compacting the context`),
+            "the activity line of Commands.compact",
+        );
+        assert.deepEqual(await said(session), before, "no message to the agent");
+    } finally {
+        app.settings.applyOverrides({ compaction: {} });
+    }
+});
+
+test("session_tool's rename, compact, and context calls read as what they did", async () => {
+    const turns = (await import(new URL("../web/turns.js", import.meta.url).href)) as {
+        summarize: (steps: unknown[], thinking: boolean) => string;
+    };
+    const step = (action: string) => ({
+        block: { type: "toolCall", id: action, name: "session_tool", args: { action, session: 4 } },
+    });
+
+    assert.equal(turns.summarize([step("rename")], false), "Renamed a session");
+    assert.equal(turns.summarize([step("compact")], false), "Compacted the context of a session");
+    assert.equal(turns.summarize([step("context")], false), "Started a new context in a session");
 });
 
 // Last: it restarts the app, for a fresh hour, and uses that hour's actions up.

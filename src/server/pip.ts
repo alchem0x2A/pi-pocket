@@ -1,8 +1,8 @@
 /**
  * Pia, the owner's assistant, which looks after their other sessions. It is a conversation of its own,
  * kept out of the session list and shown in a small panel over whatever is open (`web/pip.js`). Its extension
- * (`extensions/pip.ts`) is selected there only, and gives it tools to list, read, start, message, stop, archive, and
- * schedule sessions, to see the calls waiting for approval and deny them (never allow: that stays a person's), and to
+ * (`extensions/pip.ts`) is selected there only, and gives it tools to list, read, start, message, stop, archive, move, rename,
+ * compact, reset the context of, and schedule sessions, to see the calls waiting for approval and deny them (never allow: that stays a person's), and to
  * follow a session until its run ends. Every tool acts as Pia's person, with exactly their rights: the checks are the
  * ones their own requests meet.
  *
@@ -1060,7 +1060,7 @@ Without a model, a new session gets ${fallback.model === undefined ? "no model" 
                     if (ruled && LEVELS.indexOf(level) < LEVELS.indexOf(rule.minThinking)) {
                         this.#unfit.set(
                             Number(id),
-                            `Started /s/${String(id)}, but its folder's default is ${found.provider}/${found.id} at thinking ${level}, below the owner's rule (${rule.minThinking} or higher for ${rule.models.join(", ")}). No message was sent: switch it with session_model first, then send the task with session_send.`,
+                            `Started /s/${String(id)}, but its folder's default is ${found.provider}/${found.id} at thinking ${level}, below the owner's rule (${rule.minThinking} or higher for ${rule.models.join(", ")}). No message was sent: switch it with session_tool action model first, then send the task with session_send.`,
                         );
                     }
                 }
@@ -1323,6 +1323,81 @@ Without a model, a new session gets ${fallback.model === undefined ? "no model" 
         }
 
         await this.#app.commands.updateSession(id, this.#through(user), { archived });
+    }
+
+    /**
+     * Move a session to another folder, as its person's own `/cwd` does: the same checks (folder, invitation, driver) and
+     * the same change, so the session keeps its history, its archive state, and everything else. A worktree session is
+     * refused: its folder is its worktree, which the app never moves (it hides the folder control there).
+     */
+    async move(
+        piaId: ConversationId,
+        sessionId: number,
+        folder: string,
+    ): Promise<{ from: string; to: string }> {
+        const app = this.#app;
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
+        const worktree = app.sessionMeta(id)?.worktree;
+
+        if (worktree !== undefined) {
+            throw new Error(
+                `/s/${String(sessionId)} works in a git worktree (branch ${snippet(worktree.branch, 120)}), whose folder does not move. Start a session in the other folder instead.`,
+            );
+        }
+
+        this.#requireLooked(piaId, sessionId, "move");
+        const from = homePath(app.cwdOf(id));
+
+        await app.commands.configure(id, this.#through(user), { cwd: folder });
+
+        return { from, to: homePath(app.cwdOf(id)) };
+    }
+
+    /** Rename a session, as its person's own rename does: its title only; the archive state and the folder stay. */
+    async rename(piaId: ConversationId, sessionId: number, title: string): Promise<string> {
+        const app = this.#app;
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
+        const named = title.replace(/\s+/g, " ").trim();
+
+        if (named === "") {
+            throw new Error("rename needs a title.");
+        }
+
+        this.#requireLooked(piaId, sessionId, "rename");
+        await app.commands.updateSession(id, this.#through(user), { title: named });
+
+        return app.sessionMeta(id)?.title ?? named;
+    }
+
+    /**
+     * Compact a session's context, as its person's own `/compact` does: the same checks (driver, spend) and the same
+     * summary model (the owner's compaction choice), with optional instructions for the summary. It starts the
+     * compaction and returns; the session shows when it ends.
+     */
+    async compact(piaId: ConversationId, sessionId: number, instructions?: string): Promise<void> {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
+
+        this.#requireLooked(piaId, sessionId, "compact");
+        await this.#app.commands.compact(
+            id,
+            this.#through(user),
+            instructions?.trim() || undefined,
+        );
+    }
+
+    /**
+     * Start a new context in a session, as its person's own new context does: the agent no longer sees what came before,
+     * people still do, and an optional handoff note carries over. No message goes to the agent.
+     */
+    async newContext(piaId: ConversationId, sessionId: number, note?: string): Promise<void> {
+        const user = this.#person(piaId);
+        const id = this.#session(piaId, user, sessionId);
+
+        this.#requireLooked(piaId, sessionId, "start a new context in");
+        await this.#app.commands.reset(id, this.#through(user), note);
     }
 
     /** The calls waiting for approval in the sessions Pia's person can see. */
