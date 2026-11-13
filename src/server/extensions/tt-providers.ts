@@ -21,6 +21,7 @@ import {
 import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
 import type { ProviderConfig } from "@earendil-works/pi-coding-agent";
 import type { ExtensionWeb as Web, PocketHost as Host } from "../host.ts";
+import { modelFromDiscovery } from "./pi-claude-code/src/model-catalog.ts";
 
 const CLAUDE_COMMAND = join(homedir(), ".local", "bin", "claude");
 const CLAUDE_SOURCE = join(dirname(fileURLToPath(import.meta.url)), "pi-claude-code", "src");
@@ -320,11 +321,28 @@ interface ExtraModel {
     id: string;
     name: string;
     contextWindow: number;
+    metadata?: Model<Api>;
 }
+
+// Both accounts accept this explicit route, even when personal discovery still lists Fable 5.1.
+export const VERIFIED_FABLE_52: ExtraModel = {
+    id: "claude-fable-5-2",
+    name: "Claude Fable 5.2",
+    contextWindow: 1_000_000,
+    metadata: modelFromDiscovery({
+        value: "claude-fable-5-2",
+        resolvedModel: "claude-fable-5-2",
+        displayName: "Fable 5.2",
+        description: "Fable 5.2 with 1M context",
+        supportsAdaptiveThinking: true,
+    }),
+};
 
 function extraModel(provider: Provider, extra: ExtraModel): Model<Api> | undefined {
     const template = provider.getModels()[0];
-    const builtin = getBuiltinModel("anthropic", "claude-opus-4-6") as Model<Api> | undefined;
+    const builtin =
+        extra.metadata ??
+        (getBuiltinModel("anthropic", "claude-opus-4-6") as Model<Api> | undefined);
 
     if (!template || !builtin) {
         return undefined;
@@ -338,8 +356,37 @@ function extraModel(provider: Provider, extra: ExtraModel): Model<Api> | undefin
         provider: provider.id,
         baseUrl: template.baseUrl,
         contextWindow: extra.contextWindow,
-        maxTokens: 64_000,
+        maxTokens: extra.metadata?.maxTokens ?? 64_000,
     } as Model<Api>;
+}
+
+/** Keep discovery metadata when present; add verified routes only for a signed-in account. */
+export function withClaudeExtras(
+    provider: Provider,
+    found: Model<Api>[],
+    extras: readonly ExtraModel[],
+): Model<Api>[] {
+    if (found.length === 0) {
+        return found;
+    }
+
+    const seen = new Set(found.map((model) => model.id));
+    const added: Model<Api>[] = [];
+
+    for (const extra of extras) {
+        if (seen.has(extra.id)) {
+            continue;
+        }
+
+        const model = extraModel(provider, extra);
+
+        if (model) {
+            seen.add(model.id);
+            added.push(model);
+        }
+    }
+
+    return [...found, ...added];
 }
 
 export async function createClaudePocketConfig(
@@ -363,18 +410,7 @@ export async function createClaudePocketConfig(
     const available = async (signal?: AbortSignal) => {
         const found = [...(await models.getAvailable(provider.id, { signal }))];
 
-        // Logged out: no models at all, extras included.
-        if (found.length === 0) {
-            return found;
-        }
-
-        const seen = new Set(found.map((model) => model.id));
-        const added = extras
-            .filter((extra) => !seen.has(extra.id))
-            .map((extra) => extraModel(provider, extra))
-            .filter((model) => model !== undefined);
-
-        return [...found, ...added];
+        return withClaudeExtras(provider, found, extras);
     };
 
     return {
@@ -490,6 +526,7 @@ export default async function (host: Host, web: Web) {
     // Both accounts ask the CLI for their model lists at once, inside Pocket's load limit.
     const [orgConfig, personalConfig] = await Promise.all([
         createClaudePocketConfig(orgProvider, CLAUDE_ORG_CONFIG_DIR, [
+            VERIFIED_FABLE_52,
             {
                 id: "claude-opus-4-6[1m]",
                 name: "Claude Opus 4.6 (1M)",
@@ -497,6 +534,7 @@ export default async function (host: Host, web: Web) {
             },
         ]),
         createClaudePocketConfig(personalProvider, CLAUDE_PERSONAL_CONFIG_DIR, [
+            VERIFIED_FABLE_52,
             {
                 id: "claude-opus-4-6",
                 name: "Claude Opus 4.6",
