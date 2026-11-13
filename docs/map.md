@@ -46,7 +46,7 @@ A module split into parts keeps its name for the part others import, with the re
 
 ### Pia, the built-in assistant
 
-`src/server/pia.ts` owns display-name normalization and the shared workspace and `AGENTS.md` helpers. `config.ts` keeps the configurable `assistantName`; old `assistantProfile` values are ignored and removed on the next save. `pip.ts` owns Pia's private conversation, session-management tools, and follow tasks. `extensions/pip.ts` supplies its prompt and tools. The Extensions sheet sets Pia's display name; `web/pip.js` keeps the panel and Start fresh control. These source paths and the stored extension id stay unchanged for compatibility. `test/pia-reset.test.ts` checks panel persistence and reset retention.
+`src/server/pia.ts` owns display-name normalization and the shared workspace and `AGENTS.md` helpers. `config.ts` keeps the configurable `assistantName`; old `assistantProfile` values are ignored and removed on the next save. `pip.ts` owns Pia's private conversation, session-management tools (including `move`, a session's folder change), and follow tasks. `extensions/pip.ts` supplies its prompt and tools; `session_tool` there holds the `cwd`, `archive`, `rename`, `compact`, `context`, `model`, and `schedule` actions. The Extensions sheet sets Pia's display name; `web/pip.js` keeps the panel and Start fresh control. These source paths and the stored extension id stay unchanged for compatibility. `test/pia-reset.test.ts` checks panel persistence and reset retention.
 
 ### People
 

@@ -153,8 +153,10 @@ const DID = {
     session_send: { verb: "messaged", noun: "session", by: "session" },
     session_follow: { verb: "followed", noun: "session", by: "session" },
     session_stop: { verb: "stopped", noun: "session", by: "session" },
+    // Older transcripts' names; session_tool now does both (`byAction`).
     session_archive: { verb: "archived", noun: "session", by: "session" },
     session_schedule: { verb: "scheduled", noun: "message" },
+    session_model: { verb: "switched the model of", noun: "session", by: "session" },
     schedule: { verb: "scheduled", noun: "reminder" },
     approvals: { verb: "checked approvals" },
     memory: { verb: "saved", noun: "lesson" },
@@ -189,6 +191,27 @@ export function setCallSummary(summary) {
 
 /** Calls whose verb depends on what they were asked to do: listing or cancelling schedules, denying a call. */
 function byAction(name, args) {
+    if (name === "session_tool") {
+        if (args.action === "schedule") {
+            return byAction("session_schedule", { action: args.schedule }) ?? DID.session_schedule;
+        }
+
+        const other = {
+            cwd: "moved",
+            rename: "renamed",
+            compact: "compacted the context of",
+            context: "started a new context in",
+        }[args.action];
+
+        return other !== undefined
+            ? { verb: other, noun: "session", by: "session" }
+            : args.action === "model"
+              ? DID.session_model
+              : args.archived === false
+                ? { verb: "brought back", noun: "session", by: "session" }
+                : DID.session_archive;
+    }
+
     const scheduling = name === "schedule" || name === "session_schedule";
 
     if (scheduling && args.action === "list") {
