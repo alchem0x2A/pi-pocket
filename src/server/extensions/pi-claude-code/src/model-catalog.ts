@@ -23,6 +23,38 @@ const NATIVE_ROUTE_BY_ID = new Map<string, string>();
 const NATIVE_TOOL_CHANGES_BY_ID = new Map<string, boolean>();
 const ADAPTIVE_THINKING_BY_ID = new Map<string, boolean>();
 
+/**
+ * Metadata for routes that a newer Claude Code reports before the SDK knows them. Each row copies an SDK model of the same
+ * family and replaces the facts that Anthropic published. Only discovery uses it: the fallback list below keeps the
+ * routes that the installed CLI can select. The SDK's own row wins once it has one.
+ */
+const LOCAL_METADATA: Record<
+  string,
+  { template: string; name: string; contextWindow: number; cost: Model<"anthropic-messages">["cost"] }
+> = {
+  // Claude Code 2.1.321 release note: route claude-fable-5-2 and 1M context. Anthropic's pricing page
+  // (https://platform.claude.com/docs/en/about-claude/pricing), per million tokens: $8 input, $40 output, $0.20 cache
+  // reads, $10 for 5-minute cache writes, and $16 for 1-hour cache writes. The one cacheWrite field holds the standard
+  // 5-minute rate, as the SDK's other rows do. Max output, thinking levels, and compat come from Fable 5.1.
+  "claude-fable-5-2": {
+    template: "claude-fable-5-1",
+    name: "Claude Fable 5.2",
+    contextWindow: 1_000_000,
+    cost: { input: 8, output: 40, cacheRead: 0.2, cacheWrite: 10 },
+  },
+};
+
+/** The SDK's metadata for a model id, else the local metadata above. */
+function anthropicModel(id: string): Model<"anthropic-messages"> | undefined {
+  const builtin = BUILTIN_ANTHROPIC_MODELS[id];
+  if (builtin) return builtin;
+  const local = LOCAL_METADATA[id];
+  const template = local ? BUILTIN_ANTHROPIC_MODELS[local.template] : undefined;
+  return local && template
+    ? { ...template, id, name: local.name, contextWindow: local.contextWindow, cost: { ...local.cost } }
+    : undefined;
+}
+
 const FALLBACK_DISCOVERY: DiscoveredClaudeModel[] = [
   {
     value: "default",
@@ -133,7 +165,7 @@ function fromBuiltin(info: DiscoveredClaudeModel, id: string, builtin: Model<"an
 export function modelFromDiscovery(info: DiscoveredClaudeModel): ClaudeCodeModel {
   const id = canonicalModelId(info);
   const builtinId = id === "default" ? withoutContextSuffix(info.resolvedModel || "") : id;
-  const builtin = BUILTIN_ANTHROPIC_MODELS[builtinId];
+  const builtin = anthropicModel(builtinId);
   NATIVE_ROUTE_BY_ID.set(id, info.value);
   NATIVE_TOOL_CHANGES_BY_ID.set(id, builtin?.compat?.supportsMidConvoToolChanges === true);
   ADAPTIVE_THINKING_BY_ID.set(id, info.supportsAdaptiveThinking === true);
@@ -167,7 +199,7 @@ export function supportsNativeToolChanges(model: string): boolean {
   return (
     NATIVE_TOOL_CHANGES_BY_ID.get(model) ??
     NATIVE_TOOL_CHANGES_BY_ID.get(canonical) ??
-    BUILTIN_ANTHROPIC_MODELS[canonical]?.compat?.supportsMidConvoToolChanges === true
+    anthropicModel(canonical)?.compat?.supportsMidConvoToolChanges === true
   );
 }
 
